@@ -1,6 +1,9 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jellyfin.Plugin.Watchlist.Store;
 
@@ -26,16 +29,34 @@ public sealed class WatchlistDocumentStore
     internal const string PendingSuffix = ".writing";
 
     private readonly string _dataFolderPath;
+    private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WatchlistDocumentStore"/> class.
     /// </summary>
     /// <param name="dataFolderPath">The folder every document lives in.</param>
+    /// <param name="logger">Where a refused document is reported.</param>
+    public WatchlistDocumentStore(string dataFolderPath, ILogger<WatchlistDocumentStore> logger)
+        : this(dataFolderPath, (ILogger?)logger)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WatchlistDocumentStore"/> class
+    /// with no logger, for a caller that has none.
+    /// </summary>
+    /// <param name="dataFolderPath">The folder every document lives in.</param>
     public WatchlistDocumentStore(string dataFolderPath)
+        : this(dataFolderPath, (ILogger?)null)
+    {
+    }
+
+    private WatchlistDocumentStore(string dataFolderPath, ILogger? logger)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dataFolderPath);
 
         _dataFolderPath = Path.GetFullPath(dataFolderPath);
+        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>
@@ -62,20 +83,69 @@ public sealed class WatchlistDocumentStore
     /// </summary>
     /// <param name="userId">The user.</param>
     /// <returns>
-    /// The stored document, or an empty one for a user who has never had a list. A new
-    /// user needs no provisioning step, so a missing file is a user with nothing on
-    /// their list rather than an error.
+    /// The stored document, or an empty one for a user who has never had a list, or an
+    /// unavailable result for a document this plugin is too old to read. A new user
+    /// needs no provisioning step, so a missing file is a user with nothing on their
+    /// list rather than an error.
     /// </returns>
-    public WatchlistDocument Read(Guid userId)
+    /// <remarks>
+    /// A read never writes. A document declaring an older version is brought up to the
+    /// current one in memory and the file is left exactly as it was, so opening a list
+    /// does not rewrite the tree and a downgrade does not lose what it could not read.
+    /// </remarks>
+    public WatchlistReadResult Read(Guid userId)
     {
         var path = PathFor(userId);
 
         if (!File.Exists(path))
         {
-            return Empty(userId);
+            return WatchlistReadResult.Available(Empty(userId));
         }
 
-        return WatchlistDocumentFormat.Read(File.ReadAllText(path));
+        var text = File.ReadAllText(path);
+        var storedVersion = ReadSchemaVersion(text);
+
+        if (storedVersion > WatchlistDocument.CurrentSchemaVersion)
+        {
+            // Not parsed and not touched. Guessing at a shape a newer plugin wrote and
+            // then rewriting the file is how a downgrade drops entries, and a
+            // downgrade is one click.
+            _logger.LogError(
+                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+                path,
+                storedVersion,
+                WatchlistDocument.CurrentSchemaVersion);
+
+            return WatchlistReadResult.UnavailableFromTheFuture(storedVersion);
+        }
+
+        var document = WatchlistDocumentFormat.Read(text);
+
+        return WatchlistReadResult.Available(
+            document.SchemaVersion == WatchlistDocument.CurrentSchemaVersion
+                ? document
+                : document with { SchemaVersion = WatchlistDocument.CurrentSchemaVersion });
+    }
+
+    /// <summary>
+    /// Reads the schema version out of a document without deserialising the rest of
+    /// it, so a document from the future is judged before anything tries to make sense
+    /// of its entries.
+    /// </summary>
+    /// <param name="text">The document text.</param>
+    /// <returns>The declared version.</returns>
+    /// <exception cref="JsonException">The text declares no integer schema version.</exception>
+    private static int ReadSchemaVersion(string text)
+    {
+        using var parsed = JsonDocument.Parse(text);
+
+        if (!parsed.RootElement.TryGetProperty(nameof(WatchlistDocument.SchemaVersion), out var version)
+            || !version.TryGetInt32(out var value))
+        {
+            throw new JsonException("The document declares no integer " + nameof(WatchlistDocument.SchemaVersion) + ".");
+        }
+
+        return value;
     }
 
     /// <summary>

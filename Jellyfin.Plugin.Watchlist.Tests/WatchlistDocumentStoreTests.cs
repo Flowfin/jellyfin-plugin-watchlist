@@ -42,7 +42,7 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
     {
         var store = new WatchlistDocumentStore(DataFolder);
 
-        var document = store.Read(AUser);
+        var document = Available(store, AUser);
 
         Assert.Empty(document.Entries);
         Assert.Equal(AUser, document.UserId);
@@ -66,8 +66,8 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
         Assert.Equal(
             new[] { "22222222222222222222222222222222.json", "33333333333333333333333333333333.json" },
             Directory.GetFiles(DataFolder).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray());
-        Assert.Single(store.Read(AUser).Entries);
-        Assert.Equal(2, store.Read(AnotherUser).Entries.Count);
+        Assert.Single(Available(store, AUser).Entries);
+        Assert.Equal(2, Available(store, AnotherUser).Entries.Count);
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
         Assert.True(File.Exists(staged.StagedPath), "The staged file should be on disk before the move.");
         Assert.EndsWith(WatchlistDocumentStore.PendingSuffix, staged.StagedPath, StringComparison.Ordinal);
 
-        var afterInterruption = store.Read(AUser);
+        var afterInterruption = Available(store, AUser);
 
         Assert.Single(afterInterruption.Entries);
         Assert.Equal(Item(1), afterInterruption.Entries[0].ItemId);
@@ -106,7 +106,7 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
         WatchlistDocumentStore.Commit(staged);
 
         Assert.False(File.Exists(staged.StagedPath));
-        Assert.Equal(5, store.Read(AUser).Entries.Count);
+        Assert.Equal(5, Available(store, AUser).Entries.Count);
     }
 
     /// <summary>
@@ -122,7 +122,7 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
         store.Stage(DocumentFor(AUser, 3));
 
         Assert.False(File.Exists(store.PathFor(AUser)));
-        Assert.Empty(store.Read(AUser).Entries);
+        Assert.Empty(Available(store, AUser).Entries);
     }
 
     /// <summary>
@@ -168,6 +168,23 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
 
         Assert.Empty(strays);
         Assert.NotEmpty(Directory.GetFiles(store.DataFolderPath));
+    }
+
+    /// <summary>
+    /// Reads a user's list and requires that it could be read at all. A test about
+    /// paths or about the move should fail loudly rather than dereference a null,
+    /// if the read ever starts refusing the document for some other reason.
+    /// </summary>
+    /// <param name="store">The store to read from.</param>
+    /// <param name="userId">The user.</param>
+    /// <returns>The document.</returns>
+    private static WatchlistDocument Available(WatchlistDocumentStore store, Guid userId)
+    {
+        var result = store.Read(userId);
+
+        Assert.True(result.IsAvailable, "The list read as unavailable for " + userId);
+
+        return result.Document!;
     }
 
     /// <summary>
