@@ -27,6 +27,15 @@
   </ItemGroup>
 
   <!--
+    HEADLESS.md is compiled into the test assembly so a test can read it. Issues on
+    this board point at that file instead of repeating the rule in it, and an
+    embedded copy means the file cannot be deleted or renamed without a red suite.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="HEADLESS.md" />
+  </ItemGroup>
+
+  <!--
     build.yaml is embedded into the test assembly rather than located on disk at run
     time, so the identity test reads this tree's manifest and never a copy that
     happens to sit beside the test host. The build refreshes it on every run.
@@ -34,6 +43,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\build.yaml" LogicalName="build.yaml" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Jellyfin.Plugin.Watchlist\Jellyfin.Plugin.Watchlist.csproj" />
   </ItemGroup>
