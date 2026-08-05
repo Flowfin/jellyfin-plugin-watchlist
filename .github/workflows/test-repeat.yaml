@@ -1,0 +1,61 @@
+# A suite that fails once a week for its own reasons stops being read. The unit
+# suite already shuffles its classes and its test cases on every run, so a single
+# green run says the order it happened to draw was fine and nothing more. This job
+# runs the suite three times in a row in one job and fails if any of the three
+# fails, which is what turns a lucky draw into a repeated one.
+#
+# It is deliberately not the check the mainline requires. Where a check runs in the
+# gate is decided in M8; this job reports and does not gate.
+name: Repeated test run
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the workflow level; the job below takes only what it reads.
+permissions: {}
+
+# A new push replaces the run under way. Three passes of a suite that has already
+# been superseded prove nothing about the branch as it now stands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repeat:
+    name: Run the suite three times
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore and build once
+        run: |
+          set -euo pipefail
+          dotnet restore
+          dotnet build --configuration Release --no-restore
+
+      - name: Run the suite three times
+        run: |
+          set -euo pipefail
+          # Three separate runs rather than one repeated inside the runner, so each
+          # pass draws its own order and starts from a clean process.
+          for pass in 1 2 3; do
+            echo "::group::pass $pass"
+            dotnet test --configuration Release --no-build --verbosity normal
+            echo "::endgroup::"
+          done

@@ -11,5 +11,4 @@
 # needed it. A departure written in silence is what the guard refuses in the first
 # place.
 #
-# There are no entries today. The suite reaches nothing this rule refuses, so
-# adding one would be a claim with nothing behind it.
+TemporaryDirectory.cs | machine-wide-path | the one place allowed to ask the operating system where temporary files go, because every other test gets its directory from here and a run root has to start somewhere

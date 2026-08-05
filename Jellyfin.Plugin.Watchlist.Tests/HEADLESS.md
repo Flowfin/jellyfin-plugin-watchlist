@@ -38,6 +38,16 @@ port, and a file copy where a link was wanted.
 fails at a date boundary on someone else's machine. Instead take an injected
 clock.
 
+**A test that reads the machine's locale.** Refused, it passes where it was
+written and fails where the same text sorts or folds differently. Instead state
+the culture, or use an ordinal comparison where no culture is meant.
+
+**A test that writes straight into the shared temporary directory.** Refused,
+two tests meeting on one path fail each other roughly one run in ten and the
+failure never names the test that caused it. Instead take a directory from
+`TemporaryDirectory`, which roots every path under one folder per run and
+removes it afterwards.
+
 **A test that reaches the network.** Refused. Instead use a fake for the one
 interface that would have made the call.
 

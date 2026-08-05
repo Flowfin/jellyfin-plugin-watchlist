@@ -1,7 +1,7 @@
 // A fixture, not a compiled source file. It is the test somebody writes on the day
-// the store learns to stamp an entry: everything about it is careful, it owns its
-// own temporary directory, it touches no network, and it reads the machine clock
-// on one line to build the value it then asserts on.
+// the store learns to stamp an entry: everything about it is careful, it takes its
+// directory from the suite's own helper, it touches no network, and it reads the
+// machine clock on one line to build the value it then asserts on.
 
 using System;
 using System.IO;
@@ -14,17 +14,12 @@ public class WatchlistEntryStampTests
     [Fact]
     public void AnAddedEntryCarriesTheTimeItWasAdded()
     {
-        var directory = Directory.CreateTempSubdirectory("watchlist-test-");
-        try
-        {
-            var added = DateTime.UtcNow;
-            var entry = new { ItemId = Guid.NewGuid(), Added = added };
+        using var directory = new TemporaryDirectory("entry-stamp");
 
-            Assert.Equal(added, entry.Added);
-        }
-        finally
-        {
-            directory.Delete(recursive: true);
-        }
+        var added = DateTime.UtcNow;
+        var entry = new { ItemId = Guid.NewGuid(), Added = added };
+        File.WriteAllText(Path.Combine(directory.FullPath, "entry"), entry.ToString());
+
+        Assert.Equal(added, entry.Added);
     }
 }
