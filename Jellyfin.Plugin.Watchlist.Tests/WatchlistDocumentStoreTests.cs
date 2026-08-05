@@ -19,18 +19,18 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
     private static readonly Guid AUser = Guid.Parse("22222222-2222-2222-2222-222222222222");
     private static readonly Guid AnotherUser = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
-    private readonly DirectoryInfo _sandbox = Directory.CreateTempSubdirectory("jellyfin-watchlist-store-");
+    private readonly TemporaryDirectory _sandbox = new("watchlist-store");
 
     /// <summary>
     /// Gets the folder the store under test is given. It sits inside the sandbox with
     /// room beside it, so a write that escapes has somewhere visible to land.
     /// </summary>
-    private string DataFolder => Path.Combine(_sandbox.FullName, "plugin-data");
+    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
 
     /// <inheritdoc />
     public void Dispose()
     {
-        _sandbox.Delete(recursive: true);
+        _sandbox.Dispose();
     }
 
     /// <summary>
@@ -162,7 +162,7 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
         WatchlistDocumentStore.Commit(store.Stage(DocumentFor(AnotherUser, 4)));
 
         var strays = Directory
-            .GetFiles(_sandbox.FullName, "*", SearchOption.AllDirectories)
+            .GetFiles(_sandbox.FullPath, "*", SearchOption.AllDirectories)
             .Where(path => !path.StartsWith(store.DataFolderPath + Path.DirectorySeparatorChar, StringComparison.Ordinal))
             .ToArray();
 
