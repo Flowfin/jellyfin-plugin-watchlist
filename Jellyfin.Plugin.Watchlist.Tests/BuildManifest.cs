@@ -22,9 +22,61 @@ internal static class BuildManifest
         RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
     /// <summary>
+    /// A top-level quoted version entry, anchored per line for the same reason as the
+    /// guid entry above: a version written inside the description or under another key
+    /// is not the manifest's own.
+    /// </summary>
+    private static readonly Regex VersionEntry = new(
+        @"^version:[ \t]*""(?<version>[^""]*)""[ \t]*\r?$",
+        RegexOptions.Multiline | RegexOptions.CultureInvariant);
+
+    /// <summary>
     /// Gets the manifest text embedded at build time from the build.yaml beside the solution.
     /// </summary>
     public static string Text { get; } = ReadEmbeddedManifest();
+
+    /// <summary>
+    /// Reads the version a manifest declares.
+    /// </summary>
+    /// <param name="manifestText">The manifest to read.</param>
+    /// <returns>The declared version.</returns>
+    /// <remarks>
+    /// Parsed rather than compared as text, because that is what the server does with
+    /// it, and because a version that will not parse is not refused there: it is
+    /// replaced with the server's own minimum, so the plugin installs under a number
+    /// nobody wrote.
+    /// </remarks>
+    public static Version ReadVersion(string manifestText)
+    {
+        var match = VersionEntry.Match(manifestText);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException("The manifest declares no top-level quoted version entry.");
+        }
+
+        var declared = match.Groups["version"].Value;
+
+        if (!Version.TryParse(declared, out var version))
+        {
+            throw new InvalidOperationException(
+                "The manifest declares the version " + declared + ", which is not a version a server can parse.");
+        }
+
+        return version;
+    }
+
+    /// <summary>
+    /// Returns the manifest with a different version in it, leaving every other byte
+    /// alone. Used to build the near miss: one manifest, one changed version.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <param name="replacement">The version to put in it.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithVersion(string manifestText, string replacement) =>
+        VersionEntry.Replace(
+            manifestText,
+            m => m.Value.Replace(m.Groups["version"].Value, replacement, StringComparison.Ordinal),
+            1);
 
     /// <summary>
     /// Reads the identifier a manifest declares.
