@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
@@ -156,6 +157,53 @@ public sealed class WatchlistDocumentStore
     public void Write(WatchlistDocument document)
     {
         Commit(Stage(document));
+    }
+
+    /// <summary>
+    /// Puts one entry on a user's list, unless that would take the list past its cap.
+    /// </summary>
+    /// <param name="userId">The user.</param>
+    /// <param name="entry">The entry to add.</param>
+    /// <param name="maxEntriesPerUser">
+    /// The greatest number of entries the list may hold. The value is passed in rather
+    /// than read from the plugin configuration here, so the store needs no server to be
+    /// exercised and the caller stays the one place that decides which cap applies.
+    /// </param>
+    /// <returns>What happened, and the numbers behind it.</returns>
+    /// <remarks>
+    /// A refusal writes nothing at all. It also removes nothing: a list that silently
+    /// drops its oldest entry to make room is a list a user cannot trust, and lowering
+    /// the cap under an existing list must not delete what is already on it.
+    /// </remarks>
+    public WatchlistAddResult Add(Guid userId, WatchlistEntry entry, int maxEntriesPerUser)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        var read = Read(userId);
+
+        if (!read.IsAvailable)
+        {
+            return WatchlistAddResult.RefusedListUnavailable();
+        }
+
+        var document = read.Document!;
+
+        if (document.Entries.Count >= maxEntriesPerUser)
+        {
+            _logger.LogWarning(
+                "Refusing to add to the watchlist of user {UserId}: it holds {EntryCount} entries and the maximum is {Cap}. Nothing was added and nothing was removed.",
+                userId,
+                document.Entries.Count,
+                maxEntriesPerUser);
+
+            return WatchlistAddResult.RefusedListIsFull(document.Entries.Count, maxEntriesPerUser);
+        }
+
+        var entries = new List<WatchlistEntry>(document.Entries) { entry };
+
+        Write(document with { Entries = entries });
+
+        return WatchlistAddResult.Added(entries.Count, maxEntriesPerUser);
     }
 
     /// <summary>
