@@ -4,12 +4,15 @@ guid: "eb5d7894-8eef-4b36-aa6f-5d124e828ce1"
 version: "1.0.0.0"
 targetAbi: "10.9.0.0"
 framework: "net8.0"
-overview: "Short description about your plugin"
+overview: "A private per-user watchlist kept on the server and shown by clients that were never changed."
 description: >
-  This is a longer description that can span more than one
-  line and include details about your plugin.
+  Adds a watchlist to Jellyfin. Each user gets a private list, held on the
+  server, so it is the same list on every device that user signs in from.
+  The list is projected into a playlist owned by that user, which is a
+  surface every stock client already renders, so nothing has to be patched,
+  forked or installed alongside it.
 category: "General"
-owner: "jellyfin"
+owner: "iderex"
 artifacts:
 - "Jellyfin.Plugin.Watchlist.dll"
 changelog: >
