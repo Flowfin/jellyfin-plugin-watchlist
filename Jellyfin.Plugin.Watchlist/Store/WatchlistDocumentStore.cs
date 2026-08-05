@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -28,6 +30,13 @@ public sealed class WatchlistDocumentStore
     /// these beside the document rather than a truncated document.
     /// </summary>
     internal const string PendingSuffix = ".writing";
+
+    /// <summary>
+    /// One gate per document path, shared by every store in the process. Two stores
+    /// over one folder are two objects guarding one file, and the file is what the
+    /// serialisation is about.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, object> Gates = new(StringComparer.Ordinal);
 
     private readonly string _dataFolderPath;
     private readonly ILogger _logger;
@@ -96,6 +105,14 @@ public sealed class WatchlistDocumentStore
     /// </remarks>
     public WatchlistReadResult Read(Guid userId)
     {
+        lock (GateFor(userId))
+        {
+            return ReadInsideTheGate(userId);
+        }
+    }
+
+    private WatchlistReadResult ReadInsideTheGate(Guid userId)
+    {
         var path = PathFor(userId);
 
         if (!File.Exists(path))
@@ -156,7 +173,61 @@ public sealed class WatchlistDocumentStore
     /// <param name="document">The document to write.</param>
     public void Write(WatchlistDocument document)
     {
-        Commit(Stage(document));
+        ArgumentNullException.ThrowIfNull(document);
+
+        lock (GateFor(document.UserId))
+        {
+            Commit(Stage(document));
+        }
+    }
+
+    /// <summary>
+    /// The object that serialises changes to one user's document.
+    /// </summary>
+    /// <param name="userId">The user.</param>
+    /// <returns>The gate for that user's document.</returns>
+    /// <remarks>
+    /// Keyed by the document path rather than by the user, so it is the file that is
+    /// guarded and two stores over the same folder share the gate. One user's gate is
+    /// not another's, so two users never wait for each other.
+    ///
+    /// A monitor rather than a semaphore, and a synchronous store rather than an
+    /// asynchronous one, because a monitor is reentrant on the same thread. Add reads
+    /// and then writes through the same gate, and with a semaphore that is a deadlock
+    /// against itself. There is no await anywhere inside a gate here, so no lock is
+    /// held across one.
+    /// </remarks>
+    internal object GateFor(Guid userId) => Gates.GetOrAdd(PathFor(userId), _ => new object());
+
+    /// <summary>
+    /// Takes one entry off a user's list.
+    /// </summary>
+    /// <param name="userId">The user.</param>
+    /// <param name="itemId">The item to take off.</param>
+    /// <returns>What happened.</returns>
+    public WatchlistRemoveResult Remove(Guid userId, Guid itemId)
+    {
+        lock (GateFor(userId))
+        {
+            var read = ReadInsideTheGate(userId);
+
+            if (!read.IsAvailable)
+            {
+                return WatchlistRemoveResult.Unavailable();
+            }
+
+            var document = read.Document!;
+            var remaining = document.Entries.Where(entry => entry.ItemId != itemId).ToArray();
+
+            if (remaining.Length == document.Entries.Count)
+            {
+                return new WatchlistRemoveResult(false, true, remaining.Length);
+            }
+
+            Commit(Stage(document with { Entries = remaining }));
+
+            return new WatchlistRemoveResult(true, true, remaining.Length);
+        }
     }
 
     /// <summary>
@@ -179,31 +250,37 @@ public sealed class WatchlistDocumentStore
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        var read = Read(userId);
-
-        if (!read.IsAvailable)
+        // The read and the write are one change, not two. Outside a gate, two adds that
+        // both read a list of four and both write a list of five lose one of the two
+        // entries and report success for both.
+        lock (GateFor(userId))
         {
-            return WatchlistAddResult.RefusedListUnavailable();
+            var read = ReadInsideTheGate(userId);
+
+            if (!read.IsAvailable)
+            {
+                return WatchlistAddResult.RefusedListUnavailable();
+            }
+
+            var document = read.Document!;
+
+            if (document.Entries.Count >= maxEntriesPerUser)
+            {
+                _logger.LogWarning(
+                    "Refusing to add to the watchlist of user {UserId}: it holds {EntryCount} entries and the maximum is {Cap}. Nothing was added and nothing was removed.",
+                    userId,
+                    document.Entries.Count,
+                    maxEntriesPerUser);
+
+                return WatchlistAddResult.RefusedListIsFull(document.Entries.Count, maxEntriesPerUser);
+            }
+
+            var entries = new List<WatchlistEntry>(document.Entries) { entry };
+
+            Commit(Stage(document with { Entries = entries }));
+
+            return WatchlistAddResult.Added(entries.Count, maxEntriesPerUser);
         }
-
-        var document = read.Document!;
-
-        if (document.Entries.Count >= maxEntriesPerUser)
-        {
-            _logger.LogWarning(
-                "Refusing to add to the watchlist of user {UserId}: it holds {EntryCount} entries and the maximum is {Cap}. Nothing was added and nothing was removed.",
-                userId,
-                document.Entries.Count,
-                maxEntriesPerUser);
-
-            return WatchlistAddResult.RefusedListIsFull(document.Entries.Count, maxEntriesPerUser);
-        }
-
-        var entries = new List<WatchlistEntry>(document.Entries) { entry };
-
-        Write(document with { Entries = entries });
-
-        return WatchlistAddResult.Added(entries.Count, maxEntriesPerUser);
     }
 
     /// <summary>
