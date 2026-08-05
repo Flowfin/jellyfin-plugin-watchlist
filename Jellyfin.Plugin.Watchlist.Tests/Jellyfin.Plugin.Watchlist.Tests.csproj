@@ -52,6 +52,9 @@
     <EmbeddedResource Include="**\*.cs" Exclude="bin\**;obj\**">
       <LogicalName>testsource/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Fixtures\*.json">
+      <LogicalName>fixture/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="Fixtures\*.txt">
       <LogicalName>fixture/%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
