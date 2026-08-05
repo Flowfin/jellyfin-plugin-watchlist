@@ -1,0 +1,29 @@
+// The same fixture with one call changed. The clock is handed in instead of read
+// off the machine, and nothing else about the test moves.
+
+using System;
+using System.IO;
+using Xunit;
+
+namespace Jellyfin.Plugin.Watchlist.Tests;
+
+public class WatchlistEntryStampTests
+{
+    [Fact]
+    public void AnAddedEntryCarriesTheTimeItWasAdded()
+    {
+        var directory = Directory.CreateTempSubdirectory("watchlist-test-");
+        try
+        {
+            var clock = new FakeClock(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            var added = clock.UtcNow;
+            var entry = new { ItemId = Guid.NewGuid(), Added = added };
+
+            Assert.Equal(added, entry.Added);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+}
