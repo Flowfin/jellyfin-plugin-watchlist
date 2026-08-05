@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Jellyfin.Plugin.Template.Tests</RootNamespace>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.1" />
+  </ItemGroup>
+
+  <!--
+    The plugin project excludes the runtime assets of these two packages, because a
+    plugin is loaded next to a server that already carries them. A test process has
+    no server around it, so the same assemblies are referenced here with their
+    runtime assets kept, and the versions have to match the plugin's by hand until
+    one place holds them.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="10.9.11" />
+    <PackageReference Include="Jellyfin.Model" Version="10.9.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Jellyfin.Plugin.Template\Jellyfin.Plugin.Template.csproj" />
+  </ItemGroup>
+
+</Project>
