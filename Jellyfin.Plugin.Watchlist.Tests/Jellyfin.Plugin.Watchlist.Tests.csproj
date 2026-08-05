@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <RootNamespace>Jellyfin.Plugin.Template.Tests</RootNamespace>
+    <RootNamespace>Jellyfin.Plugin.Watchlist.Tests</RootNamespace>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <IsPackable>false</IsPackable>
@@ -36,7 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Jellyfin.Plugin.Template\Jellyfin.Plugin.Template.csproj" />
+    <ProjectReference Include="..\Jellyfin.Plugin.Watchlist\Jellyfin.Plugin.Watchlist.csproj" />
   </ItemGroup>
 
 </Project>

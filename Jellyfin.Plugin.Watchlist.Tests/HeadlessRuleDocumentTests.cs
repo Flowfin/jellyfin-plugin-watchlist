@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using Xunit;
 
-namespace Jellyfin.Plugin.Template.Tests;
+namespace Jellyfin.Plugin.Watchlist.Tests;
 
 /// <summary>
 /// The headless rule lives in HEADLESS.md next to these sources, and the issues on
@@ -13,7 +13,7 @@ namespace Jellyfin.Plugin.Template.Tests;
 /// </summary>
 public class HeadlessRuleDocumentTests
 {
-    private const string ResourceName = "Jellyfin.Plugin.Template.Tests.HEADLESS.md";
+    private const string ResourceName = "Jellyfin.Plugin.Watchlist.Tests.HEADLESS.md";
 
     /// <summary>
     /// Deleting or renaming the document, or dropping its EmbeddedResource entry,
