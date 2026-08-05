@@ -1,0 +1,90 @@
+# The headless rule refuses a test that needs a display, elevation, a machine
+# trust store, the network or the machine clock. A guard in the suite refuses
+# those calls by reading the sources, and reading the sources is not the same as
+# running the suite somewhere the calls would fail. The gate's own test leg runs
+# on Linux only, so a departure that only bites on another platform, a path
+# separator, a case-insensitive file system, a locale, would land green.
+#
+# This job runs the suite once on each of the three platforms the rule names and
+# reports the privilege the run had, so "green as an unprivileged user on Linux,
+# macOS and Windows" is a reading rather than a claim.
+#
+# It reports and does not gate. Which checks the mainline requires is decided in
+# M8, on #63.
+name: Suite on every platform
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the workflow level; the job below takes only what it reads.
+permissions: {}
+
+# A new push replaces the run under way. A matrix that has already been
+# superseded proves nothing about the branch as it now stands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite:
+    name: Suite on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    strategy:
+      # Every platform reports. Stopping the others at the first red would hide
+      # whether a failure is one platform's or all of them.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    defaults:
+      run:
+        # One shell on all three, so the steps below are one script rather than a
+        # bash script and a PowerShell script that have to be kept in agreement.
+        shell: bash
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Report the privilege this run has
+        # Read only, and it never fails the job. The point is that the log says
+        # what the run was rather than leaving the reader to assume it. On a
+        # POSIX runner uid 0 is root; on Windows the answer is whether the token
+        # carries the built-in Administrators role.
+        run: |
+          set -euo pipefail
+          case "${RUNNER_OS}" in
+            Windows)
+              powershell -NoProfile -NonInteractive -Command \
+                '$p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent()); Write-Output ("user=" + [Security.Principal.WindowsIdentity]::GetCurrent().Name + " elevated=" + $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))'
+              ;;
+            *)
+              echo "user=$(id -un) uid=$(id -u) elevated=$([ "$(id -u)" -eq 0 ] && echo true || echo false)"
+              ;;
+          esac
+
+      - name: Restore and build
+        run: |
+          set -euo pipefail
+          dotnet restore
+          dotnet build --configuration Release --no-restore
+
+      - name: Run the suite
+        run: |
+          set -euo pipefail
+          dotnet test --configuration Release --no-build --verbosity normal
