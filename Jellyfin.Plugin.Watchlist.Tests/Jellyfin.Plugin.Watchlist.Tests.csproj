@@ -57,6 +57,15 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <!--
+    build.yaml is embedded into the test assembly rather than located on disk at run
+    time, so the identity test reads this tree's manifest and never a copy that
+    happens to sit beside the test host. The build refreshes it on every run.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\build.yaml" LogicalName="build.yaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Jellyfin.Plugin.Watchlist\Jellyfin.Plugin.Watchlist.csproj" />
   </ItemGroup>

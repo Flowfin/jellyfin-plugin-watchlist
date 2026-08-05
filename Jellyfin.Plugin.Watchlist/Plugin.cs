@@ -28,8 +28,16 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <inheritdoc />
     public override string Name => "Watchlist";
 
+    /// <summary>
+    /// Gets the identifier this plugin is known by. A server keys the configuration
+    /// it stores for a plugin and the update entry it offers on this value, so it is
+    /// minted once and never changed. build.yaml declares the same value and a test
+    /// refuses the pair when they drift apart.
+    /// </summary>
+    public static Guid PluginId { get; } = Guid.Parse("6e1631d7-aa49-494d-a23b-d5785853fc0a");
+
     /// <inheritdoc />
-    public override Guid Id => Guid.Parse("eb5d7894-8eef-4b36-aa6f-5d124e828ce1");
+    public override Guid Id => PluginId;
 
     /// <summary>
     /// Gets the current plugin instance.
