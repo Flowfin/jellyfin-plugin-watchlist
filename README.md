@@ -94,3 +94,5 @@ what the code does today. The tracker carries the rest.
 GPLv3, in [LICENSE](LICENSE). A compiled Jellyfin plugin links against the
 Jellyfin NuGet packages, which are GPLv3, so the built artifact is GPLv3
 whatever this repository says.
+
+See [NOTICE.md](NOTICE.md) for the intended-use notice.
