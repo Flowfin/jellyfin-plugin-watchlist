@@ -5,8 +5,16 @@ on:
     - cron: '0 0 1 * *'
   workflow_dispatch:
 
+# Nothing at workflow level; the job below asks for what it needs and no more.
+permissions: {}
+
 jobs:
   call:
-    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/sync-labels.yaml@master
+    # Labels live behind the issues API, so writing them is issues write. It
+    # needs nothing else: the label set is fetched over plain HTTP from the
+    # shared repository rather than checked out.
+    permissions:
+      issues: write
+    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/sync-labels.yaml@eb99033a7ff644881b014bc0b4169916c854a68b # master, 2026-07-29
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
