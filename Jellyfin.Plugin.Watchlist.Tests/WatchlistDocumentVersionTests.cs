@@ -23,14 +23,14 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
 {
     private static readonly Guid AUser = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-    private readonly DirectoryInfo _sandbox = Directory.CreateTempSubdirectory("jellyfin-watchlist-version-");
+    private readonly TemporaryDirectory _sandbox = new("watchlist-version");
 
-    private string DataFolder => Path.Combine(_sandbox.FullName, "plugin-data");
+    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
 
     /// <inheritdoc />
     public void Dispose()
     {
-        _sandbox.Delete(recursive: true);
+        _sandbox.Dispose();
     }
 
     /// <summary>
