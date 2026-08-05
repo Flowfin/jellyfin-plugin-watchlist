@@ -55,4 +55,20 @@ public sealed record WatchlistReadResult
     /// <returns>The result.</returns>
     public static WatchlistReadResult UnavailableFromTheFuture(int storedSchemaVersion) =>
         new(null, storedSchemaVersion);
+
+    /// <summary>
+    /// A list this plugin will not read, because it carries no chain of upgrade steps
+    /// from the version the document declares to the version it writes.
+    /// </summary>
+    /// <param name="storedSchemaVersion">The version the document declared.</param>
+    /// <returns>The result.</returns>
+    /// <remarks>
+    /// Told apart from <see cref="UnavailableFromTheFuture"/> by comparing
+    /// <see cref="StoredSchemaVersion"/> with
+    /// <see cref="WatchlistDocument.CurrentSchemaVersion"/>: a refusal above it is a
+    /// document from a newer plugin, and one below it is a version this plugin no
+    /// longer knows how to bring forward.
+    /// </remarks>
+    public static WatchlistReadResult UnavailableFromAnUnreachableVersion(int storedSchemaVersion) =>
+        new(null, storedSchemaVersion);
 }

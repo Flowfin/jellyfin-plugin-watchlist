@@ -1,11 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using Jellyfin.Plugin.Watchlist.Store;
-using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Jellyfin.Plugin.Watchlist.Tests;
@@ -173,37 +170,5 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
 
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
-    }
-
-    /// <summary>
-    /// A logger that keeps what it was told, so a test can read the one line the
-    /// refusal owes without a logging framework in the suite.
-    /// </summary>
-    private sealed class RecordingLogger : ILogger<WatchlistDocumentStore>
-    {
-        private readonly List<string> _lines = [];
-
-        public IReadOnlyList<string> Lines => _lines;
-
-        public IDisposable? BeginScope<TState>(TState state)
-            where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-            ArgumentNullException.ThrowIfNull(formatter);
-
-            _lines.Add(new StringBuilder()
-                .Append(logLevel)
-                .Append(' ')
-                .Append(formatter(state, exception))
-                .ToString());
-        }
     }
 }
