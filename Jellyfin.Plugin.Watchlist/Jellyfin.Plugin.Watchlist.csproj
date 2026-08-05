@@ -19,6 +19,15 @@
     </PackageReference>
   </ItemGroup>
 
+  <!--
+    The store splits its write into a staged half and a commit half so a test can
+    stop between them. Both are internal, because a caller that can stage without
+    committing can leave a pending file behind, and the suite is the only thing that
+    should be able to do that.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jellyfin.Plugin.Watchlist.Tests" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SerilogAnalyzer" Version="0.15.0" PrivateAssets="All" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="All" />
