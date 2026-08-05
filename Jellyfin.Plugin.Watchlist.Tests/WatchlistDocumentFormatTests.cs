@@ -90,11 +90,13 @@ public class WatchlistDocumentFormatTests
     /// that could be derived from the library when the list is read. This is the
     /// assertion that refuses a title, an image or a path being added later: the set of
     /// member names is fixed rather than checked against the three known bad ones.
+    /// It reads what the format writes rather than the committed sample, so a field
+    /// added to the type is caught here and not only by the sample no longer matching.
     /// </summary>
     [Fact]
     public void ADocumentCarriesTheseMembersAndNoOthers()
     {
-        using var parsed = JsonDocument.Parse(CommittedSample());
+        using var parsed = JsonDocument.Parse(WatchlistDocumentFormat.Write(Sample));
 
         Assert.Equal(
             new[] { "AddedAt", "Entries", "ItemId", "Kind", "SchemaVersion", "Source", "UserId" },
