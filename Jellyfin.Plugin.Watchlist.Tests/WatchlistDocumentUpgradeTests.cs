@@ -130,6 +130,25 @@ public sealed class WatchlistDocumentUpgradeTests : IDisposable
     }
 
     /// <summary>
+    /// A step that returns nothing is refused rather than carried on from. Continuing
+    /// with the document the step was handed would silently make it a step that did
+    /// nothing, and the version would be stamped over the old shape anyway.
+    /// </summary>
+    [Fact]
+    public void AStepThatReturnsNothingIsRefused()
+    {
+        var steps = new Dictionary<int, Func<JsonObject, JsonObject>>
+        {
+            [0] = _ => null!,
+        };
+
+        var refusal = Assert.Throws<InvalidOperationException>(
+            () => WatchlistDocumentUpgrades.Apply(AtVersion(0), 0, 1, steps));
+
+        Assert.Contains("returned nothing", refusal.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A chain reaches only when every version in between has a step.
     /// </summary>
     /// <param name="from">The version a document declares.</param>
