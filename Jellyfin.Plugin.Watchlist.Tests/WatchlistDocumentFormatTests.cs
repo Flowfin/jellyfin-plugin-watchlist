@@ -132,6 +132,18 @@ public class WatchlistDocumentFormatTests
     }
 
     /// <summary>
+    /// The JSON literal null is valid JSON and is not a document. Deserialisation
+    /// answers it with a null reference rather than by throwing, so the format has to
+    /// refuse it itself; handing that reference back would make the first use of the
+    /// document the place the failure appears.
+    /// </summary>
+    [Fact]
+    public void TheJsonLiteralNullIsRefusedRatherThanReturned()
+    {
+        Assert.Throws<JsonException>(() => WatchlistDocumentFormat.Read("null"));
+    }
+
+    /// <summary>
     /// Reads the sample out of the test assembly, so the test reads the file this tree
     /// committed and never one that happens to sit beside the test host.
     /// </summary>
