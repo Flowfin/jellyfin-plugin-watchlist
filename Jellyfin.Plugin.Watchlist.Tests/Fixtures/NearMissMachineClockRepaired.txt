@@ -12,18 +12,13 @@ public class WatchlistEntryStampTests
     [Fact]
     public void AnAddedEntryCarriesTheTimeItWasAdded()
     {
-        var directory = Directory.CreateTempSubdirectory("watchlist-test-");
-        try
-        {
-            var clock = new FakeClock(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-            var added = clock.UtcNow;
-            var entry = new { ItemId = Guid.NewGuid(), Added = added };
+        using var directory = new TemporaryDirectory("entry-stamp");
 
-            Assert.Equal(added, entry.Added);
-        }
-        finally
-        {
-            directory.Delete(recursive: true);
-        }
+        var clock = new FakeClock(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var added = clock.UtcNow;
+        var entry = new { ItemId = Guid.NewGuid(), Added = added };
+        File.WriteAllText(Path.Combine(directory.FullPath, "entry"), entry.ToString());
+
+        Assert.Equal(added, entry.Added);
     }
 }

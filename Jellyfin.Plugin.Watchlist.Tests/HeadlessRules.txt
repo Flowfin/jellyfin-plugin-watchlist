@@ -41,6 +41,14 @@ network | new\s+UdpClient\s*\( | opens a socket
 network | WebRequest\s*\.\s*Create\s*\( | makes a web request
 network | \bDns\s*\.\s*GetHost | resolves a name against the network
 
+machine-wide-path | Directory\s*\.\s*CreateTempSubdirectory\s*\( | writes straight under the shared temporary directory instead of a root the run owns
+machine-wide-path | Path\s*\.\s*GetTempFileName\s*\( | writes straight under the shared temporary directory instead of a root the run owns
+
+locale | CultureInfo\s*\.\s*CurrentCulture | reads the machine's locale, so the same test means something different elsewhere
+locale | CultureInfo\s*\.\s*CurrentUICulture | reads the machine's locale, so the same test means something different elsewhere
+locale | \.\s*ToLower\s*\(\s*\) | folds case with the machine's locale rather than a stated one
+locale | \.\s*ToUpper\s*\(\s*\) | folds case with the machine's locale rather than a stated one
+
 machine-clock | DateTime\s*\.\s*Now\b | reads the machine clock instead of an injected one
 machine-clock | DateTime\s*\.\s*UtcNow\b | reads the machine clock instead of an injected one
 machine-clock | DateTime\s*\.\s*Today\b | reads the machine clock instead of an injected one

@@ -171,6 +171,7 @@ public class HeadlessRuleGuardTests
             "browser-automation",
             "network",
             "machine-clock",
+            "locale",
         })
         {
             Assert.Contains(expected, ids, StringComparer.Ordinal);
