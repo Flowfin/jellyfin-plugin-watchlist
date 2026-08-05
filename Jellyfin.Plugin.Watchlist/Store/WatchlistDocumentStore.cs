@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -120,8 +121,8 @@ public sealed class WatchlistDocumentStore
             return WatchlistReadResult.Available(Empty(userId));
         }
 
-        var text = File.ReadAllText(path);
-        var storedVersion = ReadSchemaVersion(text);
+        var stored = ParseDocument(File.ReadAllText(path));
+        var storedVersion = ReadSchemaVersion(stored);
 
         if (storedVersion > WatchlistDocument.CurrentSchemaVersion)
         {
@@ -137,33 +138,55 @@ public sealed class WatchlistDocumentStore
             return WatchlistReadResult.UnavailableFromTheFuture(storedVersion);
         }
 
-        var document = WatchlistDocumentFormat.Read(text);
+        if (!WatchlistDocumentUpgrades.CanBringForward(storedVersion))
+        {
+            // The other direction, and the same refusal to guess. Calling the document
+            // current because the number is smaller leaves an old shape carrying a new
+            // label, and from then on nothing can tell it from a document that really
+            // was brought forward.
+            _logger.LogError(
+                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+                path,
+                storedVersion,
+                WatchlistDocument.CurrentSchemaVersion);
 
-        return WatchlistReadResult.Available(
-            document.SchemaVersion == WatchlistDocument.CurrentSchemaVersion
-                ? document
-                : document with { SchemaVersion = WatchlistDocument.CurrentSchemaVersion });
+            return WatchlistReadResult.UnavailableFromAnUnreachableVersion(storedVersion);
+        }
+
+        var upgraded = WatchlistDocumentUpgrades.BringForward(stored, storedVersion);
+
+        return WatchlistReadResult.Available(WatchlistDocumentFormat.Read(upgraded.ToJsonString()));
     }
 
     /// <summary>
-    /// Reads the schema version out of a document without deserialising the rest of
-    /// it, so a document from the future is judged before anything tries to make sense
-    /// of its entries.
+    /// Reads the document text as JSON, before anything tries to make sense of its
+    /// members.
     /// </summary>
     /// <param name="text">The document text.</param>
-    /// <returns>The declared version.</returns>
-    /// <exception cref="JsonException">The text declares no integer schema version.</exception>
-    private static int ReadSchemaVersion(string text)
-    {
-        using var parsed = JsonDocument.Parse(text);
+    /// <returns>The stored members.</returns>
+    /// <exception cref="JsonException">The text is not a JSON object.</exception>
+    private static JsonObject ParseDocument(string text) =>
+        JsonNode.Parse(text) as JsonObject
+        ?? throw new JsonException("The document text is not a JSON object.");
 
-        if (!parsed.RootElement.TryGetProperty(nameof(WatchlistDocument.SchemaVersion), out var version)
-            || !version.TryGetInt32(out var value))
+    /// <summary>
+    /// Reads the schema version out of a document without deserialising the rest of
+    /// it, so a document from a version this plugin cannot read is judged before
+    /// anything tries to make sense of its entries.
+    /// </summary>
+    /// <param name="document">The stored members.</param>
+    /// <returns>The declared version.</returns>
+    /// <exception cref="JsonException">The document declares no integer schema version.</exception>
+    private static int ReadSchemaVersion(JsonObject document)
+    {
+        if (!document.TryGetPropertyValue(nameof(WatchlistDocument.SchemaVersion), out var version)
+            || version is not JsonValue value
+            || !value.TryGetValue<int>(out var number))
         {
             throw new JsonException("The document declares no integer " + nameof(WatchlistDocument.SchemaVersion) + ".");
         }
 
-        return value;
+        return number;
     }
 
     /// <summary>
