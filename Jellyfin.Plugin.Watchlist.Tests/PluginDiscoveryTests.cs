@@ -4,7 +4,7 @@ using System.Linq;
 using MediaBrowser.Model.Plugins;
 using Xunit;
 
-namespace Jellyfin.Plugin.Template.Tests;
+namespace Jellyfin.Plugin.Watchlist.Tests;
 
 /// <summary>
 /// What the server needs to be true of the assembly before any of the plugin's own

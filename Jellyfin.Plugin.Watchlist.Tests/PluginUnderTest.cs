@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using MediaBrowser.Common.Plugins;
 
-namespace Jellyfin.Plugin.Template.Tests;
+namespace Jellyfin.Plugin.Watchlist.Tests;
 
 /// <summary>
 /// Locates the plugin assembly and the type the server would discover in it.
