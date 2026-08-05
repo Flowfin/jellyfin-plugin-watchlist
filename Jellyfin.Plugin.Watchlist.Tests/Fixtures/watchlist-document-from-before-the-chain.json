@@ -1,0 +1,24 @@
+{
+  "SchemaVersion": -1,
+  "UserId": "11111111-1111-1111-1111-111111111111",
+  "Entries": [
+    {
+      "ItemId": "aaaaaaaa-0000-0000-0000-000000000001",
+      "Kind": "Movie",
+      "AddedAt": "2026-01-02T03:04:05+00:00",
+      "Source": "Api"
+    },
+    {
+      "ItemId": "aaaaaaaa-0000-0000-0000-000000000002",
+      "Kind": "Series",
+      "AddedAt": "2026-01-02T03:04:06+00:00",
+      "Source": "PlaylistEdit"
+    },
+    {
+      "ItemId": "aaaaaaaa-0000-0000-0000-000000000003",
+      "Kind": "Episode",
+      "AddedAt": "2026-01-02T03:04:07+00:00",
+      "Source": "Import"
+    }
+  ]
+}
