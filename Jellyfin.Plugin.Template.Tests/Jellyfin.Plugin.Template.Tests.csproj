@@ -26,6 +26,15 @@
     <PackageReference Include="Jellyfin.Model" Version="10.9.11" />
   </ItemGroup>
 
+  <!--
+    HEADLESS.md is compiled into the test assembly so a test can read it. Issues on
+    this board point at that file instead of repeating the rule in it, and an
+    embedded copy means the file cannot be deleted or renamed without a red suite.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="HEADLESS.md" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Jellyfin.Plugin.Template\Jellyfin.Plugin.Template.csproj" />
   </ItemGroup>
