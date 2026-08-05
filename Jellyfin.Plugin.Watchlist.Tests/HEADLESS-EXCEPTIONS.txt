@@ -1,0 +1,15 @@
+# Declared departures from the headless rule, one per line.
+#
+#   <source file name> | <rule id> | <why this one is allowed>
+#
+# The file name is the name as the scan reports it, without a directory. The rule
+# id is one of the ids in HeadlessRules.txt. The reason is required and is read by
+# a person, not by a machine.
+#
+# This register fails in both directions. An entry that matches nothing in the
+# tree is stale and reds the guard, so a departure cannot outlive the code that
+# needed it. A departure written in silence is what the guard refuses in the first
+# place.
+#
+# There are no entries today. The suite reaches nothing this rule refuses, so
+# adding one would be a claim with nothing behind it.

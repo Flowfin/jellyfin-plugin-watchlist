@@ -53,8 +53,19 @@ copy to drift against it.
 
 ## What refuses a violation
 
-Nothing yet. This file is a document, and a document is an explanation of a rule
-rather than the rule itself. Issue #44 adds the guard that scans the tracked test
-sources and fails on a banned call, together with the exception register that
-records a departure and its reason. Until that lands, the rule is carried by
-whoever reads this file.
+`HeadlessRuleGuardTests` reads every source file of this suite out of the test
+assembly and scans it against the table in `HeadlessRules.txt`. A match reds the
+run, naming the file, the line, the rule and the call it found. The sources reach
+the scan through a wildcard in the project file rather than a list, so a file
+added tomorrow is covered the moment it is added.
+
+A departure is declared in `HEADLESS-EXCEPTIONS.txt`, one line per entry, naming
+the file, the rule and the reason. The reason is required. An entry that matches
+nothing in the tree is stale and reds the run as well, so a departure cannot
+outlive the code that needed it.
+
+What the guard reads is source text, so it holds against the calls the table
+names and not against a way of reaching the same thing that the table does not.
+Two examples of what it does not see today: a call reached through reflection, and
+a package that brings a display or a network dependency in without any of these
+names appearing in a source file. Add the pattern when the shape appears.

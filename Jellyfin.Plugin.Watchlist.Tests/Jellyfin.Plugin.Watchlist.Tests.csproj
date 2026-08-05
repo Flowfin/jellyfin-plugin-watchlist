@@ -33,6 +33,28 @@
   -->
   <ItemGroup>
     <EmbeddedResource Include="HEADLESS.md" />
+    <EmbeddedResource Include="HeadlessRules.txt" />
+    <EmbeddedResource Include="HEADLESS-EXCEPTIONS.txt" />
+  </ItemGroup>
+
+  <!--
+    The headless guard reads the suite's own sources. They are embedded by a
+    wildcard rather than listed, so a file added tomorrow is scanned the moment it
+    is added and nobody has to remember a list. The fixtures the guard is proven
+    against are .txt on purpose: they hold the calls the guard refuses, so they
+    must not be compiled and must not be scanned as sources.
+
+    A fixture file name carries one extension and no more. A second extension is
+    read as a culture by the build, so a file called Something.cs.txt goes into a
+    Czech satellite assembly and is missing from the manifest at run time.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="**\*.cs" Exclude="bin\**;obj\**">
+      <LogicalName>testsource/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Fixtures\*.txt">
+      <LogicalName>fixture/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
