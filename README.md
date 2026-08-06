@@ -56,6 +56,23 @@ an entry does instead is written in
 A document written by a newer version of the plugin is refused rather than read
 with a guess, so downgrading a server does not corrupt a list.
 
+## The language it ships in
+
+English, and nothing else, for the first release. The configuration page, the log
+lines and every string this plugin produces are English. Other languages are not
+on their way, and if your server runs in another language this is deliberate
+rather than an oversight. What the server does and does not offer a plugin here,
+and what would change the answer, are in
+[docs/page-language.md](docs/page-language.md).
+
+## If your server grows a watchlist of its own
+
+This plugin keeps its own list and its own playlist either way. It never writes
+into a list the server keeps, it does not refuse to load next to one, and it
+carries no migration into something that has not shipped. How to tell the two
+apart on a client, and the way out to something that is not this plugin, are in
+[docs/coexistence.md](docs/coexistence.md).
+
 ## What is built so far
 
 The store is built: the per-user document, its format and version, its atomic
