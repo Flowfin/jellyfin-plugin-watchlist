@@ -154,6 +154,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\build.yaml" LogicalName="build.yaml" />
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+    <EmbeddedResource Include="..\docs\settings.md" LogicalName="settings.md" />
   </ItemGroup>
 
   <!--
