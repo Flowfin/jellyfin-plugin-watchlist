@@ -14,15 +14,68 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.1" />
 
     <!--
-      Coverage is a reading this suite owes rather than a number it gates on. The
-      collector is asked for it by name, by the collect switch on the test command, so
-      a run that does not ask pays nothing and no check here fails on a number.
+      Two ways of taking the same reading, and they are not interchangeable.
+
+      The collector produces a report and nothing else. It is asked for by name, by
+      the collect switch on the test command, so a run that does not ask pays nothing.
+      That is the route for reading coverage while working.
+
+      The msbuild integration is the route the floor runs on. It refuses the run when
+      the reading falls below Threshold below, which is what makes the floor a rule
+      rather than a number in a document, and coverlet is where the comparison lives
+      so that nothing in this tree parses a report to make it.
     -->
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="coverlet.msbuild" Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
+
+  <!--
+    The floor. It is 100 because that is what the first full measurement over the
+    included code was, not because a round number is satisfying. That measurement,
+    with the command that produced it, is on issue #50. It is not pasted here: an XML
+    comment may not carry two dashes in a row, and a command written without its
+    switches is not the command that was run.
+
+    A floor below a measured 100 would admit uncovered code that nobody decided to
+    admit, which is the thing this exists to stop. The cost is that the next line
+    somebody cannot reach from a test is a decision rather than a slip: either it gets
+    a test, or it goes in the exclusion list below with its reason. That is the point,
+    and it will be argued again the first time an adapter over a server interface
+    lands.
+
+    Line and branch. Method rate is left out because a method with one uncovered line
+    already fails on the line rate, and a second number saying the same thing makes a
+    failure harder to read rather than easier.
+
+    None of this runs unless CollectCoverage is asked for, so an ordinary test run
+    costs nothing and reds on nothing.
+  -->
+  <PropertyGroup>
+    <Threshold>100</Threshold>
+    <ThresholdType>line,branch</ThresholdType>
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+  </PropertyGroup>
+
+  <!--
+    What the floor does not cover, one entry with its reason. The list is meant to
+    stay short; today it has one line.
+
+    Plugin.cs is the plugin's entry point over the server's own BasePlugin. Reaching
+    the code in it means constructing that base, which takes the server's application
+    paths and its XML serialiser and writes a configuration file where the server
+    keeps them, so it cannot be exercised without a server. What the file holds beyond
+    that is a name, an identifier and a page list, and PluginIdentityTests and
+    PluginDiscoveryTests already read all three off the type without constructing one.
+  -->
+  <PropertyGroup>
+    <ExcludeByFile>$(ExcludeByFile)**/Plugin.cs</ExcludeByFile>
+  </PropertyGroup>
 
   <!--
     The plugin project excludes the runtime assets of these two packages, because a
