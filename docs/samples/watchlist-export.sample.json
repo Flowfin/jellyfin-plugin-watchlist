@@ -1,0 +1,53 @@
+{
+  "FormatVersion": 1,
+  "Lists": [
+    {
+      "Kind": "Private",
+      "OwnerUserId": "2f4a1e4c-0f9a-4a3f-8b21-000000000001",
+      "ListId": null,
+      "Name": null,
+      "Entries": [
+        {
+          "ItemId": "2f4a1e4c-0f9a-4a3f-8b21-000000000010",
+          "Kind": "Movie",
+          "AddedAt": "2026-03-01T09:15:00+00:00",
+          "ProviderIds": {
+            "Imdb": "tt0111161",
+            "Tmdb": "278"
+          }
+        },
+        {
+          "ItemId": "2f4a1e4c-0f9a-4a3f-8b21-000000000011",
+          "Kind": "Series",
+          "AddedAt": "2026-03-02T20:40:30+00:00",
+          "ProviderIds": {
+            "Tvdb": "81189",
+            "Tmdb": "1396"
+          }
+        },
+        {
+          "ItemId": "2f4a1e4c-0f9a-4a3f-8b21-000000000012",
+          "Kind": "Movie",
+          "AddedAt": "2026-03-04T06:00:00+00:00",
+          "ProviderIds": {}
+        }
+      ]
+    },
+    {
+      "Kind": "Shared",
+      "OwnerUserId": null,
+      "ListId": "2f4a1e4c-0f9a-4a3f-8b21-000000000020",
+      "Name": "Staff picks",
+      "Entries": [
+        {
+          "ItemId": "2f4a1e4c-0f9a-4a3f-8b21-000000000021",
+          "Kind": "Movie",
+          "AddedAt": "2026-02-14T12:00:00+00:00",
+          "ProviderIds": {
+            "Imdb": "tt0068646"
+          }
+        }
+      ]
+    }
+  ]
+}

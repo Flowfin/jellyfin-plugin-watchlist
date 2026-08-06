@@ -79,6 +79,16 @@
     <EmbeddedResource Include="..\build.yaml" LogicalName="build.yaml" />
   </ItemGroup>
 
+  <!--
+    The export sample is embedded from docs/samples for the same reason. It is a file
+    this repository offers to somebody writing a reader, and the suite writes it and
+    compares it, so it has to be the committed file that is compared and not a copy
+    that happens to sit beside the test host.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\docs\samples\watchlist-export.sample.json" LogicalName="watchlist-export.sample.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Jellyfin.Plugin.Watchlist\Jellyfin.Plugin.Watchlist.csproj" />
   </ItemGroup>
