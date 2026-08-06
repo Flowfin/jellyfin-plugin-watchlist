@@ -29,8 +29,19 @@ on:
   # Keeps the Maintained check current and re-scores against upstream drift.
   schedule:
     - cron: "27 4 * * 1"
+  # The default branch of this repository, read rather than assumed:
+  #
+  #     gh repo view --json defaultBranchRef --jq .defaultBranchRef.name
+  #     master
+  #
+  # This was `main` until #118, a branch this repository does not have, so the
+  # push route never fired and nothing said so. The name is a literal because a
+  # branch filter takes no expression, which leaves one residual risk with no
+  # mechanism behind it: renaming the default branch re-creates the same defect
+  # here, and the job guard below would then skip on top of it. A rename is the
+  # moment to read this line.
   push:
-    branches: [main]
+    branches: [master]
 
 # Read-only by default; the analysis job adds only the scopes it needs. A
 # read-only top-level declaration is itself one of the Token-Permissions checks

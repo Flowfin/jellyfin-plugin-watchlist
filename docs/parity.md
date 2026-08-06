@@ -202,7 +202,7 @@ What this command does not run, and cannot:
 | `Reject Trojan Source Unicode` | `Reject Trojan Source Unicode` | Present, reporting and required on both boards. |
 | `Audit workflows (zizmor)` | `Audit workflows (zizmor)` | Present and reporting. Required there, not required here until #63. A second context named `zizmor` reports beside it, from code scanning rather than from the workflow, and #63 has to pick one of the two by name. See the note under the tables. |
 | `dependency-review` | `dependency-review` | Present and reporting. #56 adds the failing tier for a vulnerable dependency, transitive ones included. |
-| `Scorecard analysis` | Declared, not observed | Its push trigger names a branch this repository does not have, so that route never fires. #118 owns it. See the section below. |
+| `Scorecard analysis` | Declared, never run, push route repaired on #118 | Its push trigger named `main`, a branch this repository does not have. The whole run history of the workflow is empty rather than merely quiet, which is the reading in the section below. The trigger now names `master`, and the check cannot be a required context while push and schedule are its whole route, so nothing goes to #63 from this row. |
 | `manifest-freshness` | Not yet | #89 checks that the published manifest still lists the newest release, which under one distribution route is the only thing between a green release and a user who never receives it. |
 | `stryker-mutation` | Not yet | #61 adopts mutation testing over the reconciler, reported and never gating. |
 | `publish`, `regenerate-manifest` | Not yet | #73 packages the artifacts and #74 publishes the manifest every install reads. |
@@ -301,36 +301,56 @@ The workflow triggers and the job inside it does not run, which is why the
 tracker shows the route as present. #72 owns the changelog and #74 owns the
 manifest.
 
-`Scorecard analysis` is a third case and a milder one. Its push trigger names a
-branch this repository does not have:
+`Scorecard analysis` is a third case, and it turned out to be the plainest of the
+three rather than the mildest. Its push trigger named a branch this repository
+does not have:
 
-    grep -n -A1 '  push:' .github/workflows/scorecard.yml
+    git show a664d9e:.github/workflows/scorecard.yml | grep -n -A1 '^  push:'
     32:  push:
     33-    branches: [main]
     gh repo view --json defaultBranchRef --jq .defaultBranchRef.name
     master
 
-The weekly schedule still fires on the default branch, so the check is not dead,
-but no run of it appears in the last forty runs of this repository and the push
-route never fires:
+The earlier reading here was that no run appeared in the last forty runs of the
+repository, and it said in the same breath that forty runs is a window and not
+the history. The count over the whole history is one API field away, and it is
+zero:
 
-    gh run list --limit 40 --json workflowName --jq '[.[].workflowName] | unique | .[]'
-    Coverage
-    DCO
-    Dependency review
-    PR hygiene
-    Repeated test run
-    Suite on every platform
-    Workflow Security Analysis
-    unicode-guard
-    🏗️ Build Plugin
-    📝 Create/Update Release Draft & Release Bump PR
-    🔬 Run CodeQL
-    🧪 Test Plugin
+    gh api repos/iderex/jellyfin-plugin-watchlist/actions/workflows/scorecard.yml/runs --jq .total_count
+    0
 
-Forty runs is a window rather than the history, so that output says the workflow
-has not run recently and does not say it has never run. #118 carries the repair
-and the reading that would replace this one.
+So the weekly schedule has not produced a run either, and the sentence that the
+check is "not dead" was a claim about a cron expression rather than a reading.
+The workflow has never run. Nothing on this board had been scored by it, and the
+score the badge would publish does not exist.
+
+The repair is the push trigger naming `master`. It is one line, and what it buys
+is that every push to the mainline re-scores, which is what makes the weekly
+schedule a floor rather than the only route.
+
+A required context is a different question and the answer is no. A ruleset
+requires a context to report on the head of a pull request, and this workflow
+has no `pull_request` trigger at all:
+
+    git show HEAD:.github/workflows/scorecard.yml \
+      | sed -n '/^on:/,/^permissions:/{/^permissions:/d;p;}' | grep -vE '^ *#|^$'
+    on:
+      branch_protection_rule:
+      schedule:
+        - cron: "27 4 * * 1"
+      push:
+        branches: [master]
+
+That absence is deliberate and the reason is written at the trigger: the
+pull-request path is experimental upstream and cannot publish results. So
+`Scorecard analysis` reports on a push to `master` and never on a pull request,
+and requiring it would be requiring a context no pull request can ever produce.
+Nothing goes from here to #63. This row changes the day the workflow gains a
+route that reports on a pull request.
+
+The first run after the repair is recorded on #118 with the command that read
+it, because that run can only be produced by a push to `master` and this file
+lands on the branch that has not been merged yet.
 
 ## What this file does not say
 
