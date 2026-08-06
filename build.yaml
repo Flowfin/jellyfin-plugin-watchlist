@@ -53,5 +53,11 @@ category: "General"
 owner: "iderex"
 artifacts:
 - "Jellyfin.Plugin.Watchlist.dll"
+# The text a server shows for this version. It is not written here twice: the
+# suite refuses a value that is not the newest section of CHANGELOG.md, so this
+# block is the packaged copy of that section and an edit to one without the other
+# reds the run. Deriving it at package time instead of guarding it belongs to the
+# packaging route, which is #73.
 changelog: >
-  changelog
+  Not released. Nothing has been published from this repository yet, so there is
+  nothing to install, nothing to upgrade from, and nothing a user has to do.
