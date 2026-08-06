@@ -1,0 +1,65 @@
+# Coverage of the plugin's own logic, with a floor under it.
+#
+# A weak signal on its own, and a useful floor: a new branch in this plugin's code
+# cannot arrive untested without somebody deciding to let it, and the deciding is
+# visible, because letting it in means adding a line with a reason to the exclusion
+# list in the test project file.
+#
+# The number and what it excludes are held in Jellyfin.Plugin.Watchlist.Tests.csproj
+# rather than here. The floor belongs next to the suite it is about, and it has to
+# apply the same way to somebody running the command on their own machine as it does
+# to this job. Nothing in this workflow knows what the floor is.
+#
+# The comparison is made by coverlet, not by anything written here. A step that
+# parsed a report and compared a number would be a second implementation of the rule
+# in a language this tree has no suite for.
+#
+# It reports and does not gate. Which checks the mainline requires is decided on #63.
+name: Coverage
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the workflow level; the job below takes only what it reads.
+permissions: {}
+
+# A new push replaces the run under way. A reading that has already been superseded
+# says nothing about the branch as it now stands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: Coverage floor
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Run the suite and take the reading
+        # The instrumentation happens during the build, so this cannot run against a
+        # build made without it and there is no --no-build here.
+        #
+        # The table coverlet prints is the report this job exists to produce, and it
+        # goes to the log where a reader of a red run is already looking. When the
+        # reading is under the floor the same step fails and says which rate it was.
+        run: |
+          set -euo pipefail
+          dotnet restore
+          dotnet test --configuration Release -p:CollectCoverage=true
