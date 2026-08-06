@@ -196,7 +196,7 @@ What this command does not run, and cannot:
 | `ABI floor build` | Not yet | #4 puts the framework, the package set and the declared ABI on both supported lines, and #88 is the check that refuses a package whose declared ABI and build line disagree. |
 | `Package (JPRM) / Build package` | Not yet | #73 packages one artifact per supported line and attaches each with its checksum. |
 | `Package (JPRM) / Generate SBOM` | Not yet | #75 publishes a component inventory and build provenance per artifact. |
-| `CodeQL`, `Analyze (csharp)` | Declared, never runs | See the section on the two checks that never run. #57 makes code scanning a check that runs under a stable name. |
+| `CodeQL`, `Analyze (csharp)` | `Code scanning (csharp)` | Landed on #57, after being declared and skipped on every event since the tree was made. The name is this repository's own, for the reason in the section below, and it is the one #63 requires. |
 | `DCO sign-off` | `DCO sign-off` | Present and reporting, from this repository's own workflow. |
 | `Deterministic PR-hygiene checks` | `Deterministic PR-hygiene checks` | Landed on #59. Body linkage, commit subject linkage and the changelog co-change fail; diff size is an observation. |
 | `Reject Trojan Source Unicode` | `Reject Trojan Source Unicode` | Present, reporting and required on both boards. |
@@ -217,7 +217,7 @@ This board does without these, and the line next to each is why.
 | --- | --- |
 | `prettier` | Refused on #60. The non-code surface here is prose whose wrapping is deliberate, JSON that is generated or is fixture bytes under test, and one page of sixteen lines, so a formatter would take ownership of the files where the arguments live and of files a check already reads for drift. What would change the answer, and the census the refusal is read off, are in `docs/lint-decisions.md`. |
 | `Analyze (javascript-typescript)` | The tree carries no JavaScript or TypeScript to analyse. This row changes the day the configuration page grows a script. |
-| `Analyze (actions)` | Not a decision yet. The workflows here are the same class of release-critical surface as the other board's, and `Audit workflows (zizmor)` covers part of it. #57 owns which languages the scan reads. |
+| `Analyze (actions)` | The scan here reads C# and nothing else, decided on #57. The workflows are the same class of release-critical surface the other board's are, and the instrument over them here is `Audit workflows (zizmor)`, which is required there and reporting here. A second analyser over the same files before the first one has read this tree once would be two instruments and no readings, which is the argument the `opengrep` row makes for C#. This row is wrong the day zizmor is removed or the day a workflow does something zizmor has no query for. |
 | `fuzz` | The other board parses tokens and assertions that arrive from outside the server. This plugin parses one thing, its own documents under the plugin data folder, which are written by this plugin and readable only by someone who already has file access to the server. That is a smaller surface, not an absent one, and if an endpoint ever accepts a document from a caller this row is wrong. |
 | `opengrep` | A second static analyser over the same C# the first one reads. #57 is the issue that gets one analyser actually running here, and a second one before the first one runs would be two instruments and no readings. |
 | `e2e-login` | There is no login path in this plugin. The equivalent end to end proof is the whole loop on a real server, which is #52, and where it runs is #62. |
@@ -235,6 +235,39 @@ This board carries these and the other one does not.
 | `Coverage floor` | Landed on #50. The floor is `<Threshold>100</Threshold>` with `<ThresholdType>line,branch</ThresholdType>` in `Jellyfin.Plugin.Watchlist.Tests/Jellyfin.Plugin.Watchlist.Tests.csproj`, so it is in the test project rather than in the workflow and applies the same way on a contributor's machine. A new branch cannot arrive untested without somebody adding a line with a reason to the exclusion list. |
 | `Suite on ubuntu-latest`, `Suite on macos-latest`, `Suite on windows-latest` | The headless rule refuses a test that needs a display, elevation, a machine trust store, the network or the machine clock, and a guard that reads the sources is not the same as running the suite where those calls would fail. The sweep also reports the privilege the run had, so an unprivileged green is a reading rather than a claim. |
 | `Run the suite three times` | Landed on #51. A suite that passes once and fails on the second run in a different order is a suite that proves nothing, and order randomisation only says so if the run happens more than once. |
+
+## What the code scan reads, and what it does not
+
+The scan compiles the solution and analyses what that build produced, so what it
+read is decided by what compiled and not by a file list.
+
+Which supported server line it builds. Today there is one, so the scan reads the
+whole of the source:
+
+    grep -n 'TargetFramework>' Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj Jellyfin.Plugin.Watchlist.Tests/Jellyfin.Plugin.Watchlist.Tests.csproj
+    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:4:    <TargetFramework>net9.0</TargetFramework>
+    Jellyfin.Plugin.Watchlist.Tests/Jellyfin.Plugin.Watchlist.Tests.csproj:4:    <TargetFramework>net9.0</TargetFramework>
+
+Answer 1 on #1 is that 1.0 supports two lines, and #4 is what puts a second
+framework, a second package set and a second declared ABI in the tree. The day it
+lands, this scan compiles one of the two, and the part it will not have compiled
+is whatever the other line's build carries alone, which #82 says is the playlist
+adapter's per-line implementation. That is a gap the scan cannot report on,
+because code that does not compile into the database is code the queries never
+see. This row is where the decision goes when there is one to make: either the
+scan gains a second run, or the note says which line is read and calls the other
+one accepted. #4 and #82 are the two issues that force the question, and neither
+has landed, so no answer is written here yet and the absence is the answer for
+today rather than an oversight.
+
+What a pull request from a fork does. Not measured. Uploading an analysis needs
+`security-events: write`, and a token on a `pull_request` event from a fork does
+not carry it, so whether this job succeeds without uploading or fails outright is
+a behaviour of the uploader that nobody here has watched. It matters only once a
+context is required, because a required context an outside contribution cannot
+report is a pull request nobody can merge. #63 is where that is decided, and it
+should read a real fork run before it requires this one rather than take the
+paragraph above as an answer.
 
 ## One workflow, two contexts with the same subject
 
@@ -258,29 +291,32 @@ Which of them #63 requires is a decision for #63, and this file records that
 there are two so the decision is taken deliberately rather than by picking
 whichever name is nearer to hand.
 
-## Two checks that are declared here and never run
+## The check that was declared here and never ran, and the one that still does not
 
-Both are the same defect and neither is a deviation anybody decided on.
+Both were the same defect and neither was a deviation anybody decided on. One is
+repaired and the record of what it was stays, because a repair whose reason is
+deleted is a repair nobody can argue with later.
 
-`call / Analyze` is the CodeQL job, and it is skipped on every event:
+`call / Analyze` was the CodeQL job, and it was skipped on every event:
 
     gh run list --limit 40 --json workflowName,conclusion,event \
       --jq '[.[] | .workflowName + " | " + .event + " | " + (.conclusion // "-")] | unique | .[]' | grep CodeQL
     🔬 Run CodeQL | pull_request | skipped
     🔬 Run CodeQL | push | skipped
 
-The reusable workflow it calls is guarded on the repository name, and this
-repository passes the template's name rather than its own:
+The reusable workflow it called was guarded on the repository name, and this
+repository passed the template's name rather than its own:
 
     gh api repos/jellyfin/jellyfin-meta-plugins/contents/.github/workflows/scan-codeql.yaml?ref=eb99033a7ff644881b014bc0b4169916c854a68b \
       --jq '.content' | base64 -d | grep -n 'if:'
     17:    if: ${{ github.repository == inputs.repository-name }}
-    grep -n 'repository-name' .github/workflows/scan-codeql.yaml
+    git show a664d9e:.github/workflows/scan-codeql.yaml | grep -n 'repository-name'
     30:      repository-name: jellyfin/jellyfin-plugin-template
 
-So no line of this repository has ever been read by code scanning. The check is
-green in the sense that it is not red, which is the worst way for an instrument
-to be missing. #57 owns it.
+So no line of this repository had been read by code scanning. The check was green
+in the sense that it was not red, which is the worst way for an instrument to be
+missing. #57 replaced the delegation with a workflow in this tree, and the section
+below says what that scan reads and what it does not.
 
 `📝 Create/Update Release Draft & Release Bump PR` is skipped for exactly the
 same reason, and its guard is in the same place:
