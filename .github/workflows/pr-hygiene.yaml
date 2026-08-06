@@ -1,0 +1,272 @@
+# Deterministic checks over the pull request itself, rather than over the code.
+#
+# Every other check in this tree reads the tree: it builds it, tests it, scans it
+# or greps it. None of them can see whether the change is linked to an issue,
+# whether a single commit will still say why it exists once it is alone in a
+# `git blame`, or whether a version bump carried its changelog entry with it.
+# That class had no check here at all, and this workflow is it.
+#
+# The rules it applies are this repository's own conventions, so the failing tier
+# is narrowed to the people who can be expected to know them. See the two skips
+# below, which have different reasons and carry them at the check.
+#
+# Nothing here is required by the ruleset yet. Which checks the mainline requires
+# is decided on #63, and the required set is read rather than restated:
+#
+#     gh api repos/iderex/jellyfin-plugin-watchlist/rulesets/20456281 \
+#       --jq '[.rules[] | select(.type=="required_status_checks")
+#              | .parameters.required_status_checks[].context]'
+#
+# The pull request body, its title, the commit subjects and the changed file
+# names are all text somebody outside this repository can choose. None of it is
+# ever interpolated into a `run:` block: every value is read from the API objects
+# inside the script step, so there is no shell for it to escape into.
+name: PR hygiene
+
+on:
+  pull_request:
+    # `edited` is in the list so that adding the issue reference to the body
+    # re-runs the check. Without it, the fix for the most common failure would
+    # not clear the failure.
+    types: [opened, edited, synchronize, reopened]
+
+# Nothing at workflow level; the job below asks for what it reads and no more.
+permissions: {}
+
+# A new push replaces the run under way. A reading of a superseded body or commit
+# list says nothing about the pull request as it now stands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    # This name is the check context. Changing it removes a context rather than
+    # renaming one, so it is changed only together with whatever requires it.
+    name: Deterministic PR-hygiene checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # read the changed files and their patches through the API
+      pull-requests: read # read the body, the author association and the commits
+
+    steps:
+      # No checkout. Everything this job judges is pull request metadata, so
+      # there is no working tree to fetch and no untrusted tree to guard.
+      - name: Judge the pull request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            // --- judge:start ---
+            // Everything between these two markers is a pure function of its
+            // argument. It reads no network, no clock and no environment, which
+            // is what lets a reader run it over made-up inputs and watch each
+            // leg bite. The pull request body that lands this workflow records
+            // one such run.
+            function judge(input) {
+              const failures = [];
+              const warnings = [];
+
+              const body = input.body || "";
+              const files = input.files || [];
+              const commits = input.commits || [];
+              const changed = files.map((f) => f.filename);
+
+              // Who the failing tier is for.
+              //
+              // A bot cannot know a convention. Dependabot and the release
+              // preparation workflow both open pull requests with no issue
+              // behind them, and failing those would mean a red check nobody
+              // can clear.
+              //
+              // Somebody arriving from outside this repository has a different
+              // reason: they can read a convention but they have no way to know
+              // which issue number their change belongs to before anyone here
+              // has filed one. Failing their contribution on that is a ritual
+              // rather than a caught mistake. The linkage is still wanted, and
+              // it moves to whoever picks the contribution up, which is what
+              // the annotation below says on the pull request where that person
+              // will meet it.
+              //
+              // `author_association` is the author's relationship to this
+              // repository. COLLABORATOR is deliberately not inside: the tier
+              // is for the people who set the convention.
+              const isBot = input.isBot === true;
+              const inside = ["OWNER", "MEMBER"].includes(
+                input.authorAssociation || "NONE",
+              );
+              const failTierApplies = !isBot && inside;
+              if (!isBot && !inside) {
+                warnings.push(
+                  "The author is outside this repository (author_association: " +
+                    (input.authorAssociation || "NONE") +
+                    "), so the failing checks are skipped. The issue linkage is " +
+                    "still wanted: whoever picks this up supplies the reference, " +
+                    "and files the issue where none exists yet.",
+                );
+              }
+
+              // Leg 1: the body names an issue.
+              //
+              // A bare `#12`, a keyword form such as `Closes #12`, and a full
+              // issue URL all satisfy it. Lenient on purpose: the check is
+              // about whether the change is linked, not about phrasing, and a
+              // false positive here teaches people to ignore the check.
+              const bodyNamesAnIssue =
+                /(^|[^\w])#\d+\b/.test(body) ||
+                /github\.com\/[^\/\s]+\/[^\/\s]+\/issues\/\d+/i.test(body);
+              if (failTierApplies && !bodyNamesAnIssue) {
+                failures.push(
+                  "The body names no issue. Link the issue this change closes, " +
+                    "for example `Closes #12`.",
+                );
+              }
+
+              // Leg 2: every commit subject names an issue.
+              //
+              // The body link dies with the pull request page. `git blame`,
+              // `git bisect` and `git log --oneline` show a subject and nothing
+              // else, so a commit that will be read alone carries its own
+              // reference, bracketed, one bracket per issue: `Do the thing
+              // [#12][#34]`. The closing keyword still belongs in the body,
+              // because a bracket in a subject closes nothing.
+              //
+              // A merge commit is exempt. It is machine written and it inherits
+              // the linkage of what was merged. Both spellings are checked
+              // because the parent count is the reliable one and the subject
+              // prefix catches a merge recorded without its second parent in
+              // the page of commits this API returns.
+              const subjectOf = (message) => (message || "").split("\n")[0];
+              const unlinked = commits.filter((c) => {
+                const authorIsBot =
+                  (c.author && c.author.type === "Bot") ||
+                  /\[bot\]/.test((c.commit.author && c.commit.author.name) || "");
+                const isMerge =
+                  (c.parents || []).length > 1 ||
+                  subjectOf(c.commit.message).startsWith("Merge ");
+                return (
+                  !authorIsBot &&
+                  !isMerge &&
+                  !/\[#\d+\]/.test(subjectOf(c.commit.message))
+                );
+              });
+              if (failTierApplies && unlinked.length > 0) {
+                failures.push(
+                  "Commit subject(s) with no bracketed issue reference: " +
+                    unlinked
+                      .map(
+                        (c) =>
+                          c.sha.slice(0, 7) +
+                          ' ("' +
+                          subjectOf(c.commit.message) +
+                          '")',
+                      )
+                      .join(", ") +
+                    ". Every commit subject carries its issue reference as " +
+                    "`[#N]`, and several as `[#N][#M]`.",
+                );
+              }
+
+              // Leg 3: a version bump carries its changelog entry.
+              //
+              // `build.yaml` is where the version is written and the only place
+              // it is written, so a pull request that touches that line is a
+              // release preparation and nothing else. A pull request that is
+              // not one never edits it, which is why this leg is silent almost
+              // always and loud exactly once per release.
+              //
+              // CHANGELOG.md is not in the tree yet; #72 lands it and the file
+              // name here is the one that issue creates. Until it does, a
+              // version bump made by hand fails this leg, which is the
+              // direction the check wants rather than an accident of ordering.
+              // The release preparation pull request that the changelog
+              // workflow opens is bot authored and is exempt above.
+              const buildYaml = files.find((f) => f.filename === "build.yaml");
+              const versionBumped = Boolean(
+                buildYaml && buildYaml.patch && /^\+\s*version:/m.test(buildYaml.patch),
+              );
+              if (
+                failTierApplies &&
+                versionBumped &&
+                !changed.includes("CHANGELOG.md")
+              ) {
+                failures.push(
+                  "The version in build.yaml changed and CHANGELOG.md did not. " +
+                    "Record the release in CHANGELOG.md.",
+                );
+              }
+
+              // Observation, never a failure: the size of the diff.
+              //
+              // A large change is worth a reader knowing about before they open
+              // it. It is not worth refusing, because a feature, a bulk rename
+              // and a document migration all legitimately exceed any number,
+              // and a check that reds on size teaches people to split a change
+              // into pieces that only make sense together.
+              const changedLines = files.reduce(
+                (total, f) => total + (f.additions || 0) + (f.deletions || 0),
+                0,
+              );
+              if (changedLines >= 400) {
+                warnings.push(
+                  "Large diff: " +
+                    changedLines +
+                    " changed lines over " +
+                    files.length +
+                    " files. This is an observation and it never fails the run.",
+                );
+              }
+
+              return { failures, warnings };
+            }
+            // --- judge:end ---
+
+            const verdict = judge({
+              body: pr.body,
+              files,
+              commits,
+              authorAssociation: pr.author_association,
+              isBot: Boolean(pr.user && pr.user.type === "Bot"),
+            });
+
+            for (const warning of verdict.warnings) {
+              core.warning(warning);
+            }
+            for (const failure of verdict.failures) {
+              core.error(failure);
+            }
+
+            // Say what was examined, so a green run cannot be read as a run that
+            // covered more than it did.
+            core.info(
+              "Examined " +
+                commits.length +
+                " commit(s) and " +
+                files.length +
+                " changed file(s). " +
+                verdict.failures.length +
+                " failure(s), " +
+                verdict.warnings.length +
+                " observation(s).",
+            );
+
+            if (verdict.failures.length > 0) {
+              core.setFailed(
+                verdict.failures.length + " hygiene check(s) failed. See above.",
+              );
+            }
