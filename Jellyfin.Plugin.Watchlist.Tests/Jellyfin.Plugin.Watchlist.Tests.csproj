@@ -142,6 +142,29 @@
     <EmbeddedResource Include="..\docs\samples\watchlist-export.sample.json" LogicalName="watchlist-export.sample.json" />
   </ItemGroup>
 
+  <!--
+    Both project files and both lock files are embedded so a test can compare each pair.
+    They are embedded rather than found on disk at run time for the reason build.yaml
+    above is: what the test judges has to be this tree's file and never a copy that
+    happens to sit beside the test host.
+
+    A missing lock file is refused before this, by the target in Directory.Build.props,
+    so these entries are not what makes a deletion loud. Naming the four files one by
+    one rather than matching them with a wildcard is still deliberate: a wildcard that
+    matched nothing would embed nothing and the tests would fail on a missing resource,
+    which is a worse message than a build error naming the file.
+
+    The extension on the embedded lock files is dropped from the logical name. Two
+    resources ending in .json would otherwise sit beside the fixtures under a different
+    prefix, and the names are what a failing test prints.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Jellyfin.Plugin.Watchlist\Jellyfin.Plugin.Watchlist.csproj" LogicalName="project/Jellyfin.Plugin.Watchlist.csproj" />
+    <EmbeddedResource Include="..\Jellyfin.Plugin.Watchlist\packages.lock.json" LogicalName="lock/Jellyfin.Plugin.Watchlist.json" />
+    <EmbeddedResource Include="Jellyfin.Plugin.Watchlist.Tests.csproj" LogicalName="project/Jellyfin.Plugin.Watchlist.Tests.csproj" />
+    <EmbeddedResource Include="packages.lock.json" LogicalName="lock/Jellyfin.Plugin.Watchlist.Tests.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Jellyfin.Plugin.Watchlist\Jellyfin.Plugin.Watchlist.csproj" />
   </ItemGroup>
