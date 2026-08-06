@@ -1,18 +1,26 @@
 name: '🧪 Test Plugin'
 
+# No paths filter, deliberately. `call / test` is one of the contexts the
+# ruleset on master requires, and a required context that never reports is not
+# a context that passed: the pull request waits for it and is refused. Excluding
+# markdown here saved a run on a change that could not have broken one, and it
+# cost the ability to merge a documentation change at all. Putting the exclusion
+# back reopens that, so do not, unless the requirement moves with it.
 on:
   push:
     branches:
       - master
-    paths-ignore:
-      - '**/*.md'
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - '**/*.md'
   workflow_dispatch:
+
+# Nothing at workflow level; the job below asks for what it needs and no more.
+permissions: {}
 
 jobs:
   call:
-    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/test.yaml@master
+    # Its test job checks out and runs dotnet test. Read is all the token is for.
+    permissions:
+      contents: read
+    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/test.yaml@eb99033a7ff644881b014bc0b4169916c854a68b # master, 2026-07-29

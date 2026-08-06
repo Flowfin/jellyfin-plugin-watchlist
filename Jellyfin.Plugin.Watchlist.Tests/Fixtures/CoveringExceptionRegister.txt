@@ -1,0 +1,4 @@
+# A fixture register, not the real one. It covers the near-miss fixture properly:
+# the file, the rule it trips, and a reason a person can read.
+
+NearMissMachineClock | machine-clock | a fixture that exists to prove the guard bites, and it has to keep tripping it

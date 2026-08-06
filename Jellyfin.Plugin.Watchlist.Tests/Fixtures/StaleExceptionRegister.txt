@@ -1,0 +1,5 @@
+# A fixture register, not the real one. It names a file and a rule that the
+# fixture scan does not produce a finding for, which is what a departure looks
+# like after the code that needed it has gone.
+
+SomeTestThatWasDeleted.cs | network | the fake had not been written yet

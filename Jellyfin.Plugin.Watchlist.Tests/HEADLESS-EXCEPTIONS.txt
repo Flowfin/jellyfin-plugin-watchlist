@@ -1,0 +1,14 @@
+# Declared departures from the headless rule, one per line.
+#
+#   <source file name> | <rule id> | <why this one is allowed>
+#
+# The file name is the name as the scan reports it, without a directory. The rule
+# id is one of the ids in HeadlessRules.txt. The reason is required and is read by
+# a person, not by a machine.
+#
+# This register fails in both directions. An entry that matches nothing in the
+# tree is stale and reds the guard, so a departure cannot outlive the code that
+# needed it. A departure written in silence is what the guard refuses in the first
+# place.
+#
+TemporaryDirectory.cs | machine-wide-path | the one place allowed to ask the operating system where temporary files go, because every other test gets its directory from here and a run root has to start somewhere

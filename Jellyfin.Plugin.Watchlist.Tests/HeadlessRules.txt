@@ -1,0 +1,58 @@
+# The rules the headless guard refuses, one per line.
+#
+#   <rule id> | <regular expression> | <what a match means>
+#
+# The patterns live here rather than in a source file on purpose. A .cs file
+# holding these literals would be found by the scan reading it, and the repair
+# would be an exception covering the guard's own source, which is the one place
+# an exception must not reach.
+#
+# Blank lines and lines starting with # are ignored. A rule id may appear on more
+# than one line; the id is what an exception in HEADLESS-EXCEPTIONS.txt names.
+# The rule these serve is stated in HEADLESS.md next to this file.
+
+certificate-store | \bX509Store\b | opens a certificate store
+certificate-store | \bStoreLocation\s*\. | names a certificate store location
+certificate-store | \bStoreName\s*\. | names a certificate store
+
+elevation | "runas" | relaunches a process elevated
+elevation | \bWindowsIdentity\b | reads the Windows token to decide what it may do
+elevation | \bWindowsPrincipal\b | checks for an administrator role
+
+machine-wide-path | Environment\s*\.\s*SpecialFolder\s*\.\s*ProgramFiles | writes under a machine-wide install root
+machine-wide-path | Environment\s*\.\s*SpecialFolder\s*\.\s*CommonApplicationData | writes under a machine-wide data root
+machine-wide-path | Environment\s*\.\s*SpecialFolder\s*\.\s*Windows | reaches into the system directory
+machine-wide-path | Path\s*\.\s*GetTempPath\s*\( | writes to the shared temporary directory instead of one the test owns
+machine-wide-path | "/etc/ | reaches a machine-wide configuration path
+machine-wide-path | "/usr/ | reaches a machine-wide install path
+machine-wide-path | "/var/ | reaches a machine-wide state path
+
+browser-automation | OpenQA\s*\.\s*Selenium | drives a browser
+browser-automation | Microsoft\s*\.\s*Playwright | drives a browser
+browser-automation | \bPuppeteerSharp\b | drives a browser
+browser-automation | \bWebDriver\b | drives a browser
+
+network | new\s+HttpClient\s*\( | builds an HTTP client outside the designated fake
+network | new\s+HttpClientHandler\s*\( | builds an HTTP transport outside the designated fake
+network | new\s+Socket\s*\( | opens a socket
+network | new\s+TcpClient\s*\( | opens a socket
+network | new\s+TcpListener\s*\( | listens on a socket
+network | new\s+UdpClient\s*\( | opens a socket
+network | WebRequest\s*\.\s*Create\s*\( | makes a web request
+network | \bDns\s*\.\s*GetHost | resolves a name against the network
+
+machine-wide-path | Directory\s*\.\s*CreateTempSubdirectory\s*\( | writes straight under the shared temporary directory instead of a root the run owns
+machine-wide-path | Path\s*\.\s*GetTempFileName\s*\( | writes straight under the shared temporary directory instead of a root the run owns
+
+locale | CultureInfo\s*\.\s*CurrentCulture | reads the machine's locale, so the same test means something different elsewhere
+locale | CultureInfo\s*\.\s*CurrentUICulture | reads the machine's locale, so the same test means something different elsewhere
+locale | \.\s*ToLower\s*\(\s*\) | folds case with the machine's locale rather than a stated one
+locale | \.\s*ToUpper\s*\(\s*\) | folds case with the machine's locale rather than a stated one
+
+machine-clock | DateTime\s*\.\s*Now\b | reads the machine clock instead of an injected one
+machine-clock | DateTime\s*\.\s*UtcNow\b | reads the machine clock instead of an injected one
+machine-clock | DateTime\s*\.\s*Today\b | reads the machine clock instead of an injected one
+machine-clock | DateTimeOffset\s*\.\s*Now\b | reads the machine clock instead of an injected one
+machine-clock | DateTimeOffset\s*\.\s*UtcNow\b | reads the machine clock instead of an injected one
+machine-clock | TimeZoneInfo\s*\.\s*Local\b | reads the local time zone
+machine-clock | Environment\s*\.\s*TickCount | reads the machine clock

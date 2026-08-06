@@ -6,9 +6,18 @@ on:
       - released
   workflow_dispatch:
 
+# Nothing at workflow level; the job below asks for what it needs and no more.
+permissions: {}
+
 jobs:
   call:
-    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/publish.yaml@master
+    # The upload job attaches the built archive and its checksums to the
+    # release, which is a contents write. The rsync and ssh steps further down
+    # that workflow are guarded by a repository name this one does not match,
+    # and they use deploy secrets rather than the token either way.
+    permissions:
+      contents: write
+    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/publish.yaml@eb99033a7ff644881b014bc0b4169916c854a68b # master, 2026-07-29
     with:
       version: ${{ github.event.release.tag_name }}
       is-unstable: ${{ github.event.release.prerelease }}

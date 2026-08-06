@@ -1,0 +1,6 @@
+# A fixture register, not the real one. The first entry covers the near-miss
+# fixture and gives no reason for it, which is a dispensation nobody can read.
+# The second is short a field entirely.
+
+NearMissMachineClock | machine-clock |
+NearMissMachineClock | machine-clock

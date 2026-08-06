@@ -1,7 +1,45 @@
 ---
 name: "Watchlist"
-guid: "eb5d7894-8eef-4b36-aa6f-5d124e828ce1"
-version: "1.0.0.0"
+guid: "6e1631d7-aa49-494d-a23b-d5785853fc0a"
+# The version is written here and nowhere else. Directory.Build.props reads it out
+# of this file and stamps the assembly version, the file version and the package
+# version from it, so the number the dashboard shows and the number in the package
+# cannot drift apart.
+#
+# Four numeric positions and no suffix. A server parses this string into a
+# System.Version, and a string it cannot parse is not refused: it is quietly replaced
+# with the server's own minimum, so "1.0.0.0-rc1" would install as something else
+# entirely.
+#
+#     git show v10.11.11:Emby.Server.Implementations/Plugins/PluginManager.cs | sed -n '697,700p'
+#                         if (!Version.TryParse(manifest.Version, out version))
+#                         {
+#                             manifest.Version = _minimumVersion.ToString();
+#                         }
+#
+# What each position means:
+#
+#   major   raised when an upgrade needs something from the person doing it, and
+#           held at 1 for the release the milestones are written towards.
+#   minor   behaviour added that needs nothing from anybody.
+#   patch   fixes only.
+#   build   the same source packaged again.
+#
+# A pre-release cannot be said in the number, because the number takes no suffix. A
+# major of 0 is what says the feature set called 1.0 is not finished; anything finer
+# belongs to the release and not to this string.
+#
+# 0.1.0.0, not the 1.0.0.0 this file inherited from the upstream template, which
+# ships that value unchanged in every copy of it:
+#
+#     gh api repos/jellyfin/jellyfin-plugin-template/contents/build.yaml \
+#       --jq '.content' | base64 -d | grep '^version:'
+#     version: "1.0.0.0"
+#
+# Nothing here has been released and most of what the milestones describe is not
+# built, so a 1 in the first position would be a claim rather than a number. 1.0.0.0
+# is what the first release takes when those milestones close.
+version: "0.1.0.0"
 targetAbi: "10.9.0.0"
 framework: "net8.0"
 overview: "A private per-user watchlist kept on the server and shown by clients that were never changed."

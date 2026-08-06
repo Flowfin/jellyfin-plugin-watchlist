@@ -1,7 +1,36 @@
 <Project>
+
+    <!--
+        The version is read out of build.yaml and is not written here. build.yaml is
+        the file an installing server reads to decide whether it already has this
+        release, so it is the one that has to be right, and a second copy in this file
+        is a copy that can disagree with it. A plugin reporting one version to the
+        dashboard and another in its package is a support conversation nobody can win.
+
+        The scheme the number follows is written in build.yaml beside the number.
+    -->
     <PropertyGroup>
-        <Version>0.0.0.0</Version>
-        <AssemblyVersion>0.0.0.0</AssemblyVersion>
-        <FileVersion>0.0.0.0</FileVersion>
+        <WatchlistManifestPath>$(MSBuildThisFileDirectory)build.yaml</WatchlistManifestPath>
+        <WatchlistManifestText>$([System.IO.File]::ReadAllText($(WatchlistManifestPath)))</WatchlistManifestText>
+        <WatchlistVersion>$([System.Text.RegularExpressions.Regex]::Match($(WatchlistManifestText), `(?m)(?&lt;=^version:[ \t]*")[^"]*(?="[ \t]*\r?$)`).Value)</WatchlistVersion>
     </PropertyGroup>
+
+    <PropertyGroup>
+        <Version>$(WatchlistVersion)</Version>
+        <AssemblyVersion>$(WatchlistVersion)</AssemblyVersion>
+        <FileVersion>$(WatchlistVersion)</FileVersion>
+    </PropertyGroup>
+
+    <!--
+        A version that could not be read leaves those three properties empty, and
+        MSBuild then supplies 1.0.0.0 of its own accord. That is the one outcome this
+        file must not have: a build quietly stamping a number nobody chose, which
+        happens to be the number the upstream template ships. So it stops here instead.
+    -->
+    <Target Name="RefuseAVersionThatCouldNotBeRead" BeforeTargets="BeforeBuild">
+        <Error
+            Condition="'$(WatchlistVersion)' == ''"
+            Text="No version could be read from $(WatchlistManifestPath). It has to carry a top-level quoted version entry, because every version this build stamps is derived from it." />
+    </Target>
+
 </Project>

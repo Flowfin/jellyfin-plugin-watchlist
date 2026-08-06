@@ -1,0 +1,25 @@
+// A fixture, not a compiled source file. It is the test somebody writes on the day
+// the store learns to stamp an entry: everything about it is careful, it takes its
+// directory from the suite's own helper, it touches no network, and it reads the
+// machine clock on one line to build the value it then asserts on.
+
+using System;
+using System.IO;
+using Xunit;
+
+namespace Jellyfin.Plugin.Watchlist.Tests;
+
+public class WatchlistEntryStampTests
+{
+    [Fact]
+    public void AnAddedEntryCarriesTheTimeItWasAdded()
+    {
+        using var directory = new TemporaryDirectory("entry-stamp");
+
+        var added = DateTime.UtcNow;
+        var entry = new { ItemId = Guid.NewGuid(), Added = added };
+        File.WriteAllText(Path.Combine(directory.FullPath, "entry"), entry.ToString());
+
+        Assert.Equal(added, entry.Added);
+    }
+}
