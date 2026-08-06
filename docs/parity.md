@@ -207,6 +207,7 @@ What this command does not run, and cannot:
 | `stryker-mutation` | Not yet | #61 adopts mutation testing over the reconciler, reported and never gating. |
 | `publish`, `regenerate-manifest` | Not yet | #73 packages the artifacts and #74 publishes the manifest every install reads. |
 | `Report any workflow that concluded non-success on the default branch` | Not yet | The check the other board's `publish-failure-alert` reports under. #78 is the same alert here, for a publish that reports success and ships nothing. |
+| `Enforce greppable invariants` | `call / test` | Adopted on #60, with one invariant: the store is the only part of this plugin that touches the file system. It runs inside the suite rather than as a workflow of its own, because the scanner, the register of declared departures and the fixture shape already exist here for the headless guard, and a check inside the suite runs the same way on a contributor's machine. It reports under a context that is already required, so nothing new goes to #63. The reasoning, the proof that it bites on the real tree, and what a token-level lint cannot do are in `docs/lint-decisions.md`. |
 
 ## Deviated downward
 
@@ -214,8 +215,7 @@ This board does without these, and the line next to each is why.
 
 | Check there | Why not here |
 | --- | --- |
-| `prettier` | There is no JavaScript, no TypeScript, no JSON API surface and no stylesheet in this tree beyond one configuration page. #60 decides whether a formatter check is adopted and records the answer either way, so this row is a decision that is owed rather than one that has been taken. |
-| `Enforce greppable invariants` | The invariants that check enforces are that board's, and this board has not yet written its own. #60 carries the same decision. |
+| `prettier` | Refused on #60. The non-code surface here is prose whose wrapping is deliberate, JSON that is generated or is fixture bytes under test, and one page of sixteen lines, so a formatter would take ownership of the files where the arguments live and of files a check already reads for drift. What would change the answer, and the census the refusal is read off, are in `docs/lint-decisions.md`. |
 | `Analyze (javascript-typescript)` | The tree carries no JavaScript or TypeScript to analyse. This row changes the day the configuration page grows a script. |
 | `Analyze (actions)` | Not a decision yet. The workflows here are the same class of release-critical surface as the other board's, and `Audit workflows (zizmor)` covers part of it. #57 owns which languages the scan reads. |
 | `fuzz` | The other board parses tokens and assertions that arrive from outside the server. This plugin parses one thing, its own documents under the plugin data folder, which are written by this plugin and readable only by someone who already has file access to the server. That is a smaller surface, not an absent one, and if an endpoint ever accepts a document from a caller this row is wrong. |

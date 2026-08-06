@@ -1,0 +1,27 @@
+# The invariants of the plugin's own source, one per line.
+#
+#   <rule id> | <regular expression> | <what a match means>
+#
+# Same three-field shape as HeadlessRules.txt and read by the same scanner. The
+# difference is what it is pointed at: this table is read against the plugin's
+# sources, the headless table against the suite's.
+#
+# The patterns live here rather than in a source file for the same reason as the
+# headless ones. A .cs file holding these literals would be matched by a scan
+# reading it.
+#
+# Blank lines and lines starting with # are ignored. A rule id may appear on more
+# than one line; the id is what an entry in INVARIANT-EXCEPTIONS.txt names.
+#
+# An invariant belongs here only if it is true of the tree today and a person can
+# say what breaks when it stops being true. An aspiration written as a rule is a
+# rule with a permanent exception under it.
+
+store-filesystem | \bPath\s*\.\s*Combine\s*\( | builds a file path outside the store
+store-filesystem | \bPath\s*\.\s*Join\s*\( | builds a file path outside the store
+store-filesystem | \bPath\s*\.\s*GetFullPath\s*\( | resolves a file path outside the store
+store-filesystem | \bPath\s*\.\s*GetDirectoryName\s*\( | takes a file path apart outside the store
+store-filesystem | \bPath\s*\.\s*GetTempPath\s*\( | asks the machine where to write, outside the store
+store-filesystem | \bFile\s*\.\s*[A-Z][A-Za-z]*\s*\( | reads, writes or moves a file outside the store
+store-filesystem | \bDirectory\s*\.\s*[A-Z][A-Za-z]*\s*\( | creates, lists or removes a directory outside the store
+store-filesystem | new\s+FileStream\s*\( | opens a file outside the store

@@ -1,0 +1,20 @@
+using System.IO;
+
+namespace Jellyfin.Plugin.Watchlist.Export;
+
+/// <summary>
+/// A near miss. The export already knows how to turn a list into text, so writing
+/// that text where the caller asked looks like the last small step rather than a
+/// second place in the plugin that owns a file path.
+/// </summary>
+internal static class ExportWriter
+{
+    public static string WriteTo(string folder, string content)
+    {
+        var target = Path.Combine(folder, "watchlist-export.json");
+
+        File.WriteAllText(target, content);
+
+        return target;
+    }
+}

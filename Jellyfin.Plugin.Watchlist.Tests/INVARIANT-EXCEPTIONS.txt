@@ -1,0 +1,17 @@
+# Declared departures from the invariants, one per line.
+#
+#   <source file name> | <rule id> | <why this one is allowed>
+#
+# The file name is the name as the scan reports it, without a directory. The rule
+# id is one of the ids in Invariants.txt. The reason is required and is read by a
+# person, not by a machine.
+#
+# This register fails in both directions, the same way the headless one does. An
+# entry that matches nothing is stale and reds the run, so a departure cannot
+# outlive the code that needed it.
+#
+# The single entry below is not a hole in the rule. It is the rule: the store is
+# the one place allowed to touch the file system, and the entry is how the scan
+# is told which file that is.
+#
+Store/WatchlistDocumentStore.cs | store-filesystem | the store is the only part of this plugin that touches the file system, and this is the file it is

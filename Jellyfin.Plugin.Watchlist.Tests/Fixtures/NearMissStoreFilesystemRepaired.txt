@@ -1,0 +1,14 @@
+namespace Jellyfin.Plugin.Watchlist.Export;
+
+/// <summary>
+/// The same step with the path and the write handed back to the thing that owns
+/// them. The export produces text and says where it belongs; it does not decide
+/// where that is and it does not open anything.
+/// </summary>
+internal static class ExportWriter
+{
+    public static string WriteTo(IExportSink sink, string content)
+    {
+        return sink.Write(content);
+    }
+}
