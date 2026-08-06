@@ -101,6 +101,29 @@
   </ItemGroup>
 
   <!--
+    The invariant guard's table and register, in the same three-field shape as the
+    headless pair above and read by the same scanner. They are data rather than
+    source for the same reason: a .cs file holding these literals would be matched
+    by a scan reading it.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Invariants.txt" />
+    <EmbeddedResource Include="INVARIANT-EXCEPTIONS.txt" />
+  </ItemGroup>
+
+  <!--
+    The plugin's own sources, for the invariant guard to read. Same wildcard
+    treatment as the suite's sources below, and under a prefix of their own so the
+    two scans cannot read each other's files: the headless table judges test code
+    and this set is not test code.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Jellyfin.Plugin.Watchlist\**\*.cs" Exclude="..\Jellyfin.Plugin.Watchlist\bin\**;..\Jellyfin.Plugin.Watchlist\obj\**">
+      <LogicalName>pluginsource/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!--
     The headless guard reads the suite's own sources. They are embedded by a
     wildcard rather than listed, so a file added tomorrow is scanned the moment it
     is added and nobody has to remember a list. The fixtures the guard is proven
