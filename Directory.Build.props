@@ -22,6 +22,63 @@
     </PropertyGroup>
 
     <!--
+        The dependency graph is pinned, and the pin lives here rather than in a
+        workflow because the workflow is not where the graph is resolved. Both of the
+        gate's build legs call a reusable workflow in another repository, which this
+        tree cannot pass a restore flag to, so a rule written into a workflow file
+        here would apply to nothing the gate actually runs. A property every project
+        inherits applies to every restore of this tree, on the gate, in an editor and
+        on a contributor's machine, which is the same rule in one place.
+
+        RestorePackagesWithLockFile writes packages.lock.json next to each project.
+        RestoreLockedMode then refuses a restore whose resolved graph differs from
+        that file, so a package that silently floats to another version stops the
+        build instead of shipping. Two builds of one commit resolving different
+        packages is the failure both lines exist against, and it is a failure whose
+        whole symptom is that nothing looks wrong.
+
+        Locked mode is on everywhere and not only on the gate, deliberately. A pin
+        that binds the gate and not the desk means the first person to meet it is
+        whoever opens the pull request, and the message they get is about a machine
+        they cannot see. Here the restore that would have changed the graph fails on
+        the machine that changed it.
+
+        Changing a dependency on purpose is therefore an explicit act. Run a restore
+        of the solution with the force-evaluate switch, which re-resolves the graph
+        and rewrites the lock files, and commit them with the change to the package
+        reference. A pull request that moves one without the other cannot restore.
+        The switch is not spelled here as a literal because a double hyphen cannot
+        appear inside an XML comment; the restore names it in full in the NU1004 it
+        refuses with, which is where somebody meets this.
+    -->
+    <PropertyGroup>
+        <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+        <RestoreLockedMode>true</RestoreLockedMode>
+    </PropertyGroup>
+
+    <!--
+        Locked mode has one hole, and it was measured rather than guessed at: it applies
+        to a lock file that exists. Move the file away and the next restore writes a new
+        one from whatever the feed offers that day and reports success, so the way to
+        turn the pin off is to delete it. That is also the deletion a reviewer is least
+        likely to look at, because the file is generated and long and nobody reads it.
+
+        This target runs before the restore that would rewrite the file and refuses
+        instead. Every project in this tree has a lock file today, so the condition is
+        false everywhere and this costs nothing until somebody removes one.
+
+        A project added tomorrow has no lock file and meets this error on its first
+        restore, which is the intended cost and not an accident. Restore it once with
+        the locked-mode property set to false, commit the lock file the restore writes,
+        and the target is silent again.
+    -->
+    <Target Name="RefuseARestoreWithNoLockFileToRestoreAgainst" BeforeTargets="CollectPackageReferences">
+        <Error
+            Condition="'$(RestoreLockedMode)' == 'true' And !Exists('$(MSBuildProjectDirectory)/packages.lock.json')"
+            Text="$(MSBuildProjectName) has no packages.lock.json. Locked mode only binds a lock file that exists, so restoring now would resolve the graph afresh and write a new pin over the one that was removed. Restore this project once with RestoreLockedMode set to false and commit the lock file it writes." />
+    </Target>
+
+    <!--
         A version that could not be read leaves those three properties empty, and
         MSBuild then supplies 1.0.0.0 of its own accord. That is the one outcome this
         file must not have: a build quietly stamping a number nobody chose, which
