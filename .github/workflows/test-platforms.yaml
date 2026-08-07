@@ -6,8 +6,16 @@
 # separator, a case-insensitive file system, a locale, would land green.
 #
 # This job runs the suite once on each of the three platforms the rule names and
-# reports the privilege the run had, so "green as an unprivileged user on Linux,
-# macOS and Windows" is a reading rather than a claim.
+# reports the privilege the run had, so what each leg is worth is a reading rather
+# than a claim.
+#
+# It answers less than it was first written to answer, and the reading is what
+# showed that. The hosted Linux and macOS images run the job unprivileged and
+# those two legs do say "green as an unprivileged user". The hosted Windows image
+# runs it under an account holding the built-in Administrators role, so the
+# Windows leg says the suite is green and says nothing about whether it needs
+# elevation. Jellyfin.Plugin.Watchlist.Tests/HEADLESS.md carries the readings and
+# names the half that is still missing; #44 stays open for it.
 #
 # It reports and does not gate. Which checks the mainline requires is decided in
 # M8, on #63.
@@ -66,15 +74,37 @@ jobs:
         # what the run was rather than leaving the reader to assume it. On a
         # POSIX runner uid 0 is root; on Windows the answer is whether the token
         # carries the built-in Administrators role.
+        #
+        # The reading also goes to the job summary, and an elevated reading takes
+        # the sentence that says what it costs with it. A green suite under an
+        # administrator token looks exactly like a green suite under an ordinary
+        # one, so a reader who meets only the tick has been told nothing about
+        # the half of the rule that is about elevation. The hosted Windows image
+        # is elevated today, which is why this sentence exists rather than being
+        # a precaution.
         run: |
           set -euo pipefail
           case "${RUNNER_OS}" in
             Windows)
-              powershell -NoProfile -NonInteractive -Command \
-                '$p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent()); Write-Output ("user=" + [Security.Principal.WindowsIdentity]::GetCurrent().Name + " elevated=" + $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))'
+              reading=$(powershell -NoProfile -NonInteractive -Command \
+                '$p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent()); Write-Output ("user=" + [Security.Principal.WindowsIdentity]::GetCurrent().Name + " elevated=" + $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))')
               ;;
             *)
-              echo "user=$(id -un) uid=$(id -u) elevated=$([ "$(id -u)" -eq 0 ] && echo true || echo false)"
+              reading="user=$(id -un) uid=$(id -u) elevated=$([ "$(id -u)" -eq 0 ] && echo true || echo false)"
+              ;;
+          esac
+          echo "${reading}"
+          {
+            echo "### Privilege on ${RUNNER_OS}"
+            echo
+            echo "    ${reading}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          case "${reading}" in
+            *elevated=[Tt]rue*)
+              {
+                echo
+                echo "This run was elevated, so a green suite here does not say whether the suite needs elevation. Which half of that each reading covers is recorded in Jellyfin.Plugin.Watchlist.Tests/HEADLESS.md."
+              } >> "${GITHUB_STEP_SUMMARY}"
               ;;
           esac
 

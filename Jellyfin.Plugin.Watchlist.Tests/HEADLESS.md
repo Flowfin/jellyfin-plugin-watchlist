@@ -79,3 +79,68 @@ names and not against a way of reaching the same thing that the table does not.
 Two examples of what it does not see today: a call reached through reflection, and
 a package that brings a display or a network dependency in without any of these
 names appearing in a source file. Add the pattern when the shape appears.
+
+## What has actually been run
+
+Reading a source is not running it, and a run whose log has expired is a claim
+rather than a measurement. The readings are kept here so they outlive the logs
+they came from.
+
+`.github/workflows/test-platforms.yaml` runs the suite once on each of the three
+platforms this rule names and prints the privilege the run had. Every leg runs the
+same pair of commands:
+
+    dotnet build --configuration Release --no-restore
+    dotnet test --configuration Release --no-build --verbosity normal
+
+The reading below was taken from the run at `badbf34`, which is the newest run of
+that workflow on the mainline where every leg reached the suite:
+
+    gh api repos/iderex/jellyfin-plugin-watchlist/actions/runs/31111170958/jobs \
+      --jq '.jobs[] | "\(.name) \(.conclusion)"'
+    Suite on windows-latest success
+    Suite on macos-latest success
+    Suite on ubuntu-latest success
+
+138 tests on each leg, none skipped. Two of the three were unprivileged:
+
+    gh api repos/iderex/jellyfin-plugin-watchlist/actions/jobs/92649053525/logs \
+      | grep -m1 'user='
+    user=runner uid=1001 elevated=false
+    gh api repos/iderex/jellyfin-plugin-watchlist/actions/jobs/92649053438/logs \
+      | grep -m1 'user='
+    user=runner uid=501 elevated=false
+
+**The Windows leg of that run was elevated, so a green result there does not
+answer the question this rule asks.** The hosted Windows image runs the job under
+an account carrying the built-in Administrators role, and a suite that needs
+elevation passes under such an account exactly like a suite that does not:
+
+    gh api repos/iderex/jellyfin-plugin-watchlist/actions/jobs/92649053271/logs \
+      | grep -m1 'elevated='
+    ... elevated=True
+
+The account name is elided from that line and the value is not.
+
+So the unprivileged Windows half is a reading taken beside the gate rather than in
+it. On a Windows desktop whose session answers
+
+    powershell -NoProfile -NonInteractive -Command \
+      '$p = New-Object Security.Principal.WindowsPrincipal(
+         [Security.Principal.WindowsIdentity]::GetCurrent())
+       Write-Output ("elevated=" + $p.IsInRole(
+         [Security.Principal.WindowsBuiltInRole]::Administrator))'
+    elevated=False
+
+the suite passes on the tree this change makes, which differs from `6e3e136` in
+this file and in the workflow beside it and nowhere else. That machine carries no
+.NET 9 runtime, so the run rolled forward onto the runtime it has, and it is a
+reading about privilege rather than about the runtime either server line uses:
+
+    DOTNET_CLI_UI_LANGUAGE=en DOTNET_ROLL_FORWARD=LatestMajor \
+      dotnet test --configuration Release
+    Passed!  - Failed:     0, Passed:   138, Skipped:     0, Total:   138
+
+One run that is both unprivileged and Windows inside the gate is what is still
+missing. Until it exists this section stands in its place and says which half each
+reading covers. #44 is where that gap is tracked and it stays open for it.
