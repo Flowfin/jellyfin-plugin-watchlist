@@ -28,18 +28,6 @@ namespace Jellyfin.Plugin.Watchlist.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class WatchlistController : ControllerBase
 {
-    /// <summary>
-    /// The claim the server puts the caller's user identifier in. It lives in an
-    /// assembly a plugin does not reference, so the string is repeated here.
-    /// </summary>
-    /// <remarks>
-    /// A repeated string the server could rename fails silently, by reading as a
-    /// caller with no identity rather than by throwing. #27 is what pins it with a
-    /// test and puts the reading in one helper every endpoint uses; this is the first
-    /// endpoint and the only reader of it today.
-    /// </remarks>
-    internal const string UserIdClaim = "Jellyfin-UserId";
-
     private readonly WatchlistDocumentStore _store;
     private readonly IWatchlistItemDescriber _describer;
     private readonly ILogger<WatchlistController> _logger;
@@ -69,8 +57,9 @@ public class WatchlistController : ControllerBase
     /// <response code="503">The list exists and this plugin will not read it.</response>
     /// <remarks>
     /// No user identifier in the route and none in the query. There is deliberately no
-    /// spelling of this request that names somebody else, which is the property #27
-    /// keeps once there is more than one endpoint to keep it over.
+    /// spelling of this request that names somebody else, and a reflection test over
+    /// every endpoint in this assembly keeps it that way rather than a reading of this
+    /// one signature.
     /// </remarks>
     [HttpGet("Items")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -78,7 +67,7 @@ public class WatchlistController : ControllerBase
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<IReadOnlyList<WatchlistEntryView>> GetWatchlistItems()
     {
-        var userId = CallingUserId();
+        var userId = CallingUser.IdOf(User);
 
         if (userId is null)
         {
@@ -137,13 +126,6 @@ public class WatchlistController : ControllerBase
         SeasonNumber = description.SeasonNumber,
         EpisodeNumber = description.EpisodeNumber,
     };
-
-    private Guid? CallingUserId()
-    {
-        var claim = User.FindFirst(UserIdClaim)?.Value;
-
-        return Guid.TryParse(claim, out var userId) ? userId : null;
-    }
 
     /// <summary>
     /// The describer seen as the resolver the visibility rule takes, so that the rule

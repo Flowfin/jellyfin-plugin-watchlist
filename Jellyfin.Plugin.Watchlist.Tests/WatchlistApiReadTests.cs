@@ -231,7 +231,7 @@ public sealed class WatchlistApiReadTests : IDisposable
 
         if (claimValue is not null)
         {
-            identity.AddClaim(new Claim(WatchlistController.UserIdClaim, claimValue));
+            identity.AddClaim(new Claim(CallingUser.Claim, claimValue));
         }
 
         return new ControllerContext
