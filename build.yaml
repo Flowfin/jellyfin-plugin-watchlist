@@ -1,6 +1,7 @@
 ---
 name: "Watchlist"
 guid: "6e1631d7-aa49-494d-a23b-d5785853fc0a"
+imageUrl: "https://raw.githubusercontent.com/Flowfin/jellyfin-plugin-watchlist/master/img/logo.png"
 # The version is written here and nowhere else. Directory.Build.props reads it out
 # of this file and stamps the assembly version, the file version and the package
 # version from it, so the number the dashboard shows and the number in the package
