@@ -73,9 +73,33 @@
     that is a name, an identifier and a page list, and PluginIdentityTests and
     PluginDiscoveryTests already read all three off the type without constructing one.
   -->
+  <!--
+    The two files that reach the server rather than an interface, added on #25.
+
+    LibraryItemDescriber.cs is the one place in the plugin that knows there is a
+    library. Reaching a line of it means constructing the server's library manager and
+    its user manager, which is a server. Everything above it takes the interface it
+    implements, so the endpoint, the visibility rule and their tests never touch a
+    server type, and what this file holds is three lookups and a projection with no
+    branch of its own that is not a null check on one of them.
+
+    PluginServiceRegistrator.cs is the same argument one layer out: it is the server's
+    own registration hook, it is called with the server's service collection and its
+    application host, and running it means having both.
+  -->
   <PropertyGroup>
-    <ExcludeByFile>$(ExcludeByFile)**/Plugin.cs</ExcludeByFile>
+    <ExcludeByFile>$(ExcludeByFile)**/Plugin.cs,**/LibraryItemDescriber.cs,**/PluginServiceRegistrator.cs</ExcludeByFile>
   </PropertyGroup>
+
+  <!--
+    The suite constructs the controller and hands it a request context, so it needs the
+    same framework the controller compiles against. It is a framework reference rather
+    than a package: the assemblies come from the runtime the tests already run on, so
+    nothing is added to the dependency graph and no lock file moves.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <!--
     The plugin project excludes the runtime assets of these two packages, because a
