@@ -51,7 +51,7 @@ description: >
   surface every stock client already renders, so nothing has to be patched,
   forked or installed alongside it.
 category: "General"
-owner: "iderex"
+owner: "Flowfin"
 artifacts:
 - "Jellyfin.Plugin.Watchlist.dll"
 # The text a server shows for this version. It is not written here twice: the
