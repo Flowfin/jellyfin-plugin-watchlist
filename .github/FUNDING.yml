@@ -1,0 +1,7 @@
+# Sponsor button for this repository.
+#
+# The organisation's .github repository carries the same file as a default for
+# repositories without one. It is stated here explicitly because the default
+# did not arrive, and because an explicit file does not depend on how GitHub
+# resolves defaults.
+buy_me_a_coffee: iderex
