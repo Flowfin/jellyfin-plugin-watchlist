@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -30,6 +31,16 @@ public class WatchlistApiRouteTests
     /// The whole contract. Editing this list is how a route changes; a change reaching
     /// the controller and not this line reds the run instead.
     /// </summary>
+    /// <summary>
+    /// The verbs a heading in the document may open with. It is what tells a section
+    /// about a route from a section about anything else, so a page can carry prose
+    /// headings without either direction of the comparison reading them as routes.
+    /// </summary>
+    private static readonly string[] Verbs =
+    [
+        "DELETE ", "GET ", "HEAD ", "OPTIONS ", "PATCH ", "POST ", "PUT ",
+    ];
+
     private static readonly string[] TheRoutes =
     [
         "DELETE Watchlist/Items/{itemId}",
@@ -134,6 +145,62 @@ public class WatchlistApiRouteTests
     }
 
     /// <summary>
+    /// The document against the same set. A contract written down in one place and
+    /// implemented in another is two things that agree until somebody changes one, and
+    /// the one that gets changed is never the document.
+    /// </summary>
+    [Fact]
+    public void EveryRouteHasASectionInTheDocument()
+    {
+        var document = Document();
+
+        var undocumented = TheRoutes
+            .Where(route => !document.Contains("## " + route, StringComparison.Ordinal))
+            .ToList();
+
+        Assert.True(
+            undocumented.Count == 0,
+            "These routes have no section in docs/api.md: " + string.Join(", ", undocumented));
+    }
+
+    /// <summary>
+    /// And the other direction, because an entry left behind by a removal reads as an
+    /// endpoint somebody can call and cannot.
+    /// </summary>
+    [Fact]
+    public void EverySectionInTheDocumentNamesARoute()
+    {
+        var orphaned = Document()
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split('\n')
+            .Where(line => line.StartsWith("## ", StringComparison.Ordinal))
+            .Select(line => line[3..].Trim())
+            .Where(heading => Verbs.Any(verb => heading.StartsWith(verb, StringComparison.Ordinal)))
+            .Where(heading => !TheRoutes.Contains(heading, StringComparer.Ordinal))
+            .ToList();
+
+        Assert.True(
+            orphaned.Count == 0,
+            "docs/api.md describes these, and this plugin has no such route: "
+                + string.Join(", ", orphaned));
+    }
+
+    /// <summary>
+    /// The near miss for both, and the reason the headings are matched on the whole
+    /// route rather than on the path. A heading naming the right path under the wrong
+    /// verb documents an endpoint nobody can call, and it is one word away from the
+    /// right one.
+    /// </summary>
+    [Fact]
+    public void ASectionUnderTheWrongVerbIsNotASectionForTheRoute()
+    {
+        var document = Document();
+
+        Assert.Contains("## POST Watchlist/Items/{itemId}", document, StringComparison.Ordinal);
+        Assert.DoesNotContain("## PUT Watchlist/Items/{itemId}", document, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// The controllers a server scanning this assembly would add to its route table.
     /// </summary>
     /// <returns>One entry per controller.</returns>
@@ -179,6 +246,27 @@ public class WatchlistApiRouteTests
     /// <param name="prefix">What the controller carries.</param>
     /// <param name="template">What the method carries.</param>
     /// <returns>The path a client would call.</returns>
+    /// <summary>
+    /// The document, read out of the test assembly rather than off disk, so what is
+    /// compared is this tree's file and never a copy that happens to sit beside the
+    /// test host.
+    /// </summary>
+    /// <returns>The document text.</returns>
+    private static string Document()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        const string Resource = "api.md";
+
+        using var stream = assembly.GetManifestResourceStream(Resource)
+            ?? throw new InvalidOperationException(
+                Resource + " is not embedded in the test assembly. The assembly carries: "
+                + string.Join(", ", assembly.GetManifestResourceNames()));
+
+        using var reader = new StreamReader(stream);
+
+        return reader.ReadToEnd();
+    }
+
     private static string Joined(string prefix, string? template)
     {
         var tail = template ?? string.Empty;
