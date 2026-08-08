@@ -50,6 +50,15 @@ public class ConfigurationPageTests
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     /// <summary>
+    /// The form the web client rewrites before this page reaches a browser. It is the
+    /// same three characters a JavaScript template literal opens with, which is why
+    /// the rule is over the whole file rather than over the markup only.
+    /// </summary>
+    private static readonly Regex SubstitutedPlaceholderPattern = new(
+        @"\$\{([^}]*)\}",
+        RegexOptions.CultureInvariant);
+
+    /// <summary>
     /// The page is served out of the plugin assembly under the name the plugin
     /// declares to the server, so a moved file, a renamed namespace or a dropped
     /// EmbeddedResource entry is a page the dashboard cannot open. Reading it through
@@ -212,6 +221,80 @@ public class ConfigurationPageTests
     }
 
     /// <summary>
+    /// Nothing on the page is written in the one form the web client rewrites on the
+    /// way in. The dashboard fetches this page and puts the text through its own
+    /// translator before the view is loaded, and that pass replaces every
+    /// <c>${Key}</c> with a value from the client's own dictionary, or with the key
+    /// itself when the dictionary does not hold it. The measurement behind that, on
+    /// both supported lines, is in docs/page-language.md.
+    /// </summary>
+    /// <remarks>
+    /// So the page has no way to say anything of its own through that form: this
+    /// plugin cannot put a phrase into that dictionary, and the substitution has
+    /// already happened by the time the page is in the document and its script runs.
+    /// What is left is a hazard rather than a feature, and the hazard is silent in
+    /// both directions. A placeholder somebody meant as a template literal is eaten
+    /// before the script that would have filled it exists, and a placeholder whose key
+    /// the client does not carry renders as the bare key with an error only a console
+    /// nobody has open reports.
+    /// </remarks>
+    [Fact]
+    public void ThePageIsWrittenInNoFormTheWebClientRewrites()
+    {
+        Assert.Empty(SubstitutedPlaceholders(Page));
+    }
+
+    /// <summary>
+    /// The near miss this exists for, and the one somebody actually writes. The page
+    /// gained an inline script, so the next value read out of the configuration is a
+    /// line away from being interpolated into a message with a template literal, which
+    /// is valid JavaScript, reviews as ordinary, and is gone before the script runs.
+    /// </summary>
+    [Fact]
+    public void TheScanFindsAPlaceholderInThePagesScript()
+    {
+        var page = Page.Replace(
+            "Dashboard.hideLoadingMsg();",
+            "console.log(`cap is ${config.MaxEntriesPerUser}`);\n                        Dashboard.hideLoadingMsg();",
+            StringComparison.Ordinal);
+
+        Assert.Single(SubstitutedPlaceholders(page));
+    }
+
+    /// <summary>
+    /// The other spelling, in the markup, which is the one a reader who has seen a
+    /// dashboard page would copy: a label written as a key in the belief that the
+    /// client will translate it for them.
+    /// </summary>
+    [Fact]
+    public void TheScanFindsAPlaceholderInTheMarkup()
+    {
+        var page = Page.Replace(
+            "<span>Save</span>",
+            "<span>${ButtonSave}</span>",
+            StringComparison.Ordinal);
+
+        Assert.Single(SubstitutedPlaceholders(page));
+    }
+
+    /// <summary>
+    /// And the other direction, so the scan is not one that refuses any dollar sign or
+    /// any brace it meets. Neither on its own is the form the client rewrites, and
+    /// refusing those would make the guard something people work around rather than
+    /// one they keep.
+    /// </summary>
+    [Fact]
+    public void TheScanPassesTextThatIsNotAPlaceholder()
+    {
+        var page = Page.Replace(
+            "<span>Save</span>",
+            "<span>Save</span>\n<p>$5 and {MaxEntriesPerUser} are not the form.</p>",
+            StringComparison.Ordinal);
+
+        Assert.Empty(SubstitutedPlaceholders(page));
+    }
+
+    /// <summary>
     /// Gets the page as the server would serve it.
     /// </summary>
     private static string Page => EmbeddedPageOrNull(DeclaredPage().EmbeddedResourcePath)
@@ -292,6 +375,11 @@ public class ConfigurationPageTests
         .Select(m => m.Groups[1].Value)
         .Distinct(StringComparer.Ordinal)
         .OrderBy(n => n, StringComparer.Ordinal)
+        .ToList();
+
+    private static IReadOnlyList<string> SubstitutedPlaceholders(string page) => SubstitutedPlaceholderPattern
+        .Matches(page)
+        .Select(m => m.Groups[1].Value)
         .ToList();
 
     private static IReadOnlyList<string> ForeignReferences(string page) => ReferencePattern
