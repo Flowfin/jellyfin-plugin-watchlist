@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Mime;
 using Jellyfin.Plugin.Watchlist.Store;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -22,8 +23,23 @@ namespace Jellyfin.Plugin.Watchlist.Api;
 /// route table. So the route prefix below is not a suggestion the server can decline,
 /// it is a claim on the same namespace the server's own controllers sit in, which is
 /// why it was checked against them rather than chosen.
+///
+/// Who may call it is the server's question rather than this plugin's, so the
+/// authorisation attribute above the type is the whole of the answer and every
+/// endpoint on it inherits that one. It carries no policy name, which is a decision
+/// and not an omission. The server's default policy is the one that means an
+/// authenticated user of this server and nothing further, and it is what the
+/// server's own user-facing controllers take. Every policy the server publishes by
+/// name means something narrower, so naming one here would demand a permission a
+/// watchlist has no reason to demand. Reading your own list requires being somebody,
+/// and that is the entire rule.
+///
+/// Nothing here asks for elevation. If an administrative surface is added later it
+/// names the server's elevation policy at that endpoint and nowhere wider, and the
+/// suite refuses a policy reaching an endpoint that its expected set does not carry.
 /// </remarks>
 [ApiController]
+[Authorize]
 [Route("Watchlist")]
 [Produces(MediaTypeNames.Application.Json)]
 public class WatchlistController : ControllerBase
