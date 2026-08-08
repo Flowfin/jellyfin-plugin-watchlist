@@ -25,3 +25,18 @@ store-filesystem | \bPath\s*\.\s*GetTempPath\s*\( | asks the machine where to wr
 store-filesystem | \bFile\s*\.\s*[A-Z][A-Za-z]*\s*\( | reads, writes or moves a file outside the store
 store-filesystem | \bDirectory\s*\.\s*[A-Z][A-Za-z]*\s*\( | creates, lists or removes a directory outside the store
 store-filesystem | new\s+FileStream\s*\( | opens a file outside the store
+
+# A refusal carries its status code and nothing else. The endpoints answer an item
+# the caller may not see with the same code as an item that is not there, and a
+# body is the surface that undoes it: one sentence explaining the refusal tells a
+# caller which of the two it met, and a title, a path or an exception message tells
+# them about a library they have no access to. Every refusal in the tree is written
+# in the argument-free form today, so this refuses the edit rather than the state.
+api-refusal-body | \breturn\s+BadRequest\s*\(\s*[^)] | refuses with a body a caller can read
+api-refusal-body | \breturn\s+NotFound\s*\(\s*[^)] | refuses with a body a caller can read
+api-refusal-body | \breturn\s+Conflict\s*\(\s*[^)] | refuses with a body a caller can read
+api-refusal-body | \breturn\s+Unauthorized\s*\(\s*[^)] | refuses with a body a caller can read
+api-refusal-body | \breturn\s+Forbid\s*\(\s*[^)] | refuses with a body a caller can read
+api-refusal-body | \breturn\s+StatusCode\s*\(\s*[^,;()]*, | refuses with a status code and a body beside it
+api-refusal-body | \breturn\s+Problem\s*\( | refuses with a problem document, which carries a detail field
+api-refusal-body | \breturn\s+ValidationProblem\s*\( | refuses with a problem document, which carries a detail field
