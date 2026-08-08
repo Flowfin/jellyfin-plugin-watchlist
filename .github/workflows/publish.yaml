@@ -1,27 +1,483 @@
-name: '🚀 Publish Plugin'
+name: Publish Release
 
+# Pushing a tag of the form X.Y.Z-stable or X.Y.Z.W-stable is the only way a release
+# is published. CI builds the plugin from the tagged commit, creates the GitHub release
+# for that tag and uploads the assets. No release is ever created by hand.
+#
+# The numeric part of the tag is the plugin version Jellyfin installs. It must equal
+# build.yaml's `version`, and the gate job below fails the run if it does not.
+#
+# What this workflow publishes is one package for the one server line build.yaml names
+# in `framework` and `targetAbi`. A repository that ships two server lines needs a
+# second manifest and a second route; this file does not provide one, and the checks
+# below refuse to guess.
 on:
-  release:
-    types:
-      - released
-  workflow_dispatch:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+-stable"
+      - "[0-9]+.[0-9]+.[0-9]+.[0-9]+-stable"
 
-# Nothing at workflow level; the job below asks for what it needs and no more.
+# Deny by default. Each job opts into the smallest scope it needs.
 permissions: {}
 
+# One publish per tag. The group is keyed on the tag rather than on the workflow,
+# because two different tags share no state here and GitHub keeps at most one queued
+# run per group: a shared group silently drops the middle tag of three pushed in a
+# row, and a dropped run ends as cancelled, which sends no failure anywhere.
+# cancel-in-progress stays false so a run holding contents:write is never killed
+# between creating a release and attaching its assets.
+concurrency:
+  group: publish-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
-  call:
-    # The upload job attaches the built archive and its checksums to the
-    # release, which is a contents write. The rsync and ssh steps further down
-    # that workflow are guarded by a repository name this one does not match,
-    # and they use deploy secrets rather than the token either way.
+  gate:
+    name: Release metadata gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Pin the checkout to the commit recorded in the push event. Without this,
+          # actions/checkout resolves a tag ref against origin at the moment the job
+          # runs, so a tag force-moved while the run is in flight would put a different
+          # tree in front of the ancestry check below than the one that gets built.
+          # A 40 character hex ref is treated as a commit, not as a ref to resolve.
+          ref: ${{ github.sha }}
+          # Full history so the ancestry check below can compare the tagged commit
+          # against the release branches.
+          fetch-depth: 0
+          # Nothing here pushes, so do not leave the token in .git/config.
+          persist-credentials: false
+
+      - name: Write the manifest reader
+        # One reader, in a file, so the parsing rules are stated once. A quoted scalar
+        # ends at its closing quote, and an unquoted one ends at a comment or at the end
+        # of the line. Trailing whitespace and a CR from a CRLF checkout are removed
+        # before either rule is applied, because otherwise the closing quote is no
+        # longer the last character on the line and stays in the value.
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/manifest"
+          cat > "${RUNNER_TEMP}/manifest/read_scalar.awk" <<'AWK'
+          index($0, key ":") == 1 {
+            value = substr($0, length(key) + 2)
+            sub(/\r$/, "", value)
+            sub(/^[[:space:]]+/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            if (substr(value, 1, 1) == "\"") {
+              value = substr(value, 2)
+              end = index(value, "\"")
+              if (end > 0) { value = substr(value, 1, end - 1) }
+            } else if (substr(value, 1, 1) == "'") {
+              value = substr(value, 2)
+              end = index(value, "'")
+              if (end > 0) { value = substr(value, 1, end - 1) }
+            } else {
+              sub(/[[:space:]]*#.*$/, "", value)
+              sub(/[[:space:]]+$/, "", value)
+            }
+            print value
+            exit
+          }
+          AWK
+
+      - name: Check the tag and build.yaml agree
+        id: metadata
+        env:
+          # Space separated list of branches a release may be cut from.
+          RELEASE_REFS: "master"
+          EXPECTED_FRAMEWORK: "net8.0"
+        run: |
+          set -euo pipefail
+
+          # A workflow_dispatch or a run started from a branch would name the release
+          # after the branch and tag a commit nobody released.
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::This workflow publishes from a tag only, but it was started from ${GITHUB_REF_TYPE} ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+
+          # The checkout above asked for a commit rather than for the tag. Read that
+          # back instead of trusting it, so a change to the checkout step that reopens
+          # the moved-tag window shows up here rather than in a signed release.
+          head="$(git rev-parse HEAD)"
+          if [ "${head}" != "${GITHUB_SHA}" ]; then
+            echo "::error::The working tree is at ${head}, but the push event recorded ${GITHUB_SHA}. The tag was moved after the run started, or the checkout step no longer pins the commit."
+            exit 1
+          fi
+
+          tag="${GITHUB_REF_NAME}"
+          case "${tag}" in
+            *-stable) numeric="${tag%-stable}" ;;
+            *)
+              echo "::error::Tag ${tag} does not end in -stable."
+              exit 1
+              ;;
+          esac
+
+          if [ ! -f build.yaml ]; then
+            echo "::error::build.yaml is missing from the repository root. The packaging step reads all plugin metadata from it."
+            exit 1
+          fi
+
+          # The packaging tool takes the first of several file names it recognises, and
+          # build.yaml is last in that list. A leftover jprm.yaml or meta.yaml would be
+          # packaged instead of the file every check here reads.
+          shadow=0
+          for other in jprm.yaml .jprm.yaml .ci/jprm.yaml .github/jprm.yaml .gitlab/jprm.yaml meta.yaml; do
+            if [ -f "${other}" ]; then
+              echo "::error::${other} exists. The packaging tool reads it in preference to build.yaml, so the package would carry metadata nothing in this workflow checked. Remove it or fold it into build.yaml."
+              shadow=1
+            fi
+          done
+          if [ "${shadow}" -ne 0 ]; then
+            exit 1
+          fi
+
+          read_scalar() {
+            awk -v key="$1" -f "${RUNNER_TEMP}/manifest/read_scalar.awk" build.yaml
+          }
+
+          # changelog is in this list because the packaging tool reads build_cfg
+          # ['changelog'] without a default and dies with a Python KeyError when it is
+          # absent. That happens after the plugin has already been compiled, which is
+          # far past the point where the tag is spent.
+          missing=0
+          for key in name guid version targetAbi framework owner overview description category artifacts changelog; do
+            if ! grep -Eq "^${key}:" build.yaml; then
+              echo "::error::build.yaml has no top level '${key}' field. A catalog entry built from this package would be incomplete."
+              missing=1
+            fi
+          done
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
+
+          # `image` names a file that is copied into the archive. The packaging tool
+          # exits on a missing one, again after the build.
+          if grep -Eq "^image:" build.yaml; then
+            image="$(read_scalar image)"
+            if [ ! -f "${image}" ]; then
+              echo "::error::build.yaml declares image '${image}', which is not in the repository. The packaging step copies that file into the archive and fails without it."
+              exit 1
+            fi
+          fi
+
+          version="$(read_scalar version)"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::build.yaml version '${version}' is not three or four numeric parts (X.Y.Z or X.Y.Z.W)."
+            exit 1
+          fi
+
+          if [ "${version}" != "${numeric}" ]; then
+            echo "::error::Tag ${tag} carries version ${numeric} but build.yaml declares ${version}. Bump build.yaml, or tag the version that is in it."
+            exit 1
+          fi
+
+          abi="$(read_scalar targetAbi)"
+          if [[ ! "${abi}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::build.yaml targetAbi '${abi}' is not four numeric parts (A.B.C.D). Jellyfin compares this value to decide whether to offer the plugin at all."
+            exit 1
+          fi
+
+          framework="$(read_scalar framework)"
+          if [ "${framework}" != "${EXPECTED_FRAMEWORK}" ]; then
+            echo "::error::build.yaml framework '${framework}' does not match the target this workflow builds (${EXPECTED_FRAMEWORK}). Either the manifest names a runtime the project is not compiled for, or the workflow was filled in for a different server line."
+            exit 1
+          fi
+
+          guid="$(read_scalar guid)"
+          if [[ ! "${guid}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            echo "::error::build.yaml guid '${guid}' is not a UUID. It must be the plugin's own, permanent id."
+            exit 1
+          fi
+
+          # A tag can be pushed onto any commit, including one that was never merged.
+          # Require the tagged commit to be contained in a release branch.
+          reachable=0
+          for branch in ${RELEASE_REFS}; do
+            if git rev-parse --verify --quiet "refs/remotes/origin/${branch}" >/dev/null; then
+              if git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${branch}"; then
+                reachable=1
+                break
+              fi
+            else
+              echo "::warning::There is no branch named '${branch}' on origin, so it cannot contain anything. Check the release branch list this workflow was filled in with."
+            fi
+          done
+          if [ "${reachable}" -ne 1 ]; then
+            echo "::error::Commit ${GITHUB_SHA} is not contained in any of the release branches (${RELEASE_REFS}), so it must not be published."
+            exit 1
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Publishing version ${version} from tag ${tag}."
+
+  build:
+    name: Build package
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Reads the source and nothing else. The signing scopes are deliberately not here:
+    # this job runs a NuGet restore and arbitrary MSBuild logic from every restored
+    # package, and a job that can be made to run someone else's code must not also be
+    # able to mint an attestation under this repository's identity.
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The same commit the gate job checked, for the same reason.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up .NET
+        # No dependency cache in the publish path. A cache entry written by another
+        # run must never be able to reach the bytes that get released.
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Check the project is built for the target in the manifest
+        env:
+          EXPECTED_FRAMEWORK: "net8.0"
+        # Asked of MSBuild rather than read out of the project file, because the target
+        # frameworks are often set in Directory.Build.props or behind a property. The
+        # packaging step runs `dotnet publish -f <target>`, and a target the project
+        # does not declare fails there with NETSDK1005, after the gate has passed.
+        run: |
+          set -euo pipefail
+          singular="$(dotnet msbuild "Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj" -getProperty:TargetFramework -nologo | tr -d '[:space:]')"
+          plural="$(dotnet msbuild "Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj" -getProperty:TargetFrameworks -nologo | tr -d '[:space:]')"
+          declared="${plural:-${singular}}"
+          if [ -z "${declared}" ]; then
+            echo "::error::Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj declares neither TargetFramework nor TargetFrameworks."
+            exit 1
+          fi
+          found=0
+          IFS=';' read -ra frameworks <<< "${declared}"
+          for tfm in "${frameworks[@]}"; do
+            if [ "${tfm}" = "${EXPECTED_FRAMEWORK}" ]; then
+              found=1
+            fi
+          done
+          if [ "${found}" -ne 1 ]; then
+            echo "::error::Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj is built for '${declared}', which does not include ${EXPECTED_FRAMEWORK}. build.yaml and the project disagree about which server line this is. Bring them into line before tagging."
+            exit 1
+          fi
+          if [ "${#frameworks[@]}" -gt 1 ]; then
+            echo "::notice::The project is built for ${declared}. This run publishes only ${EXPECTED_FRAMEWORK}, the line build.yaml names. The other lines are not published by this workflow."
+          fi
+
+      - name: Restore against the committed lock file
+        # The packaging tool calls dotnet itself and passes no restore arguments, so
+        # without this step the graph the release is compiled from is whatever the feed
+        # served at that minute. Locked mode refuses a graph that does not match
+        # packages.lock.json, which is the file review actually saw.
+        #
+        # A repository with no lock file fails here rather than building. Creating one
+        # is a single command and is written up in docs/RELEASING.md.
+        run: |
+          set -euo pipefail
+          project="Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj"
+          lock="$(dirname "${project}")/packages.lock.json"
+          if [ ! -f "${lock}" ]; then
+            echo "::error::${lock} does not exist. The release build restores in locked mode so the shipped bytes come from the dependency graph that was reviewed. Run: dotnet restore ${project} -p:RestorePackagesWithLockFile=true, then commit the file."
+            exit 1
+          fi
+          dotnet restore "${project}" --locked-mode
+
+      - name: Check the assembly version matches the manifest
+        env:
+          MANIFEST_VERSION: ${{ needs.gate.outputs.version }}
+          EXPECTED_FRAMEWORK: "net8.0"
+        # The gate proved the tag and the manifest agree. Nothing so far has looked at
+        # the number that ends up inside the DLL, and a project that sets AssemblyVersion
+        # by hand can ship a plugin whose assembly says one thing while the catalog entry
+        # says another. A three part number is padded to four on both sides before they
+        # are compared, because 1.4.0 and 1.4.0.0 are the same version written twice.
+        run: |
+          set -euo pipefail
+          assembly="$(dotnet msbuild "Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj" \
+            -getProperty:AssemblyVersion -nologo \
+            -p:TargetFramework="${EXPECTED_FRAMEWORK}" | tr -d '[:space:]')"
+          if [ -z "${assembly}" ]; then
+            echo "::error::Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj sets no AssemblyVersion, so the build stamps the SDK default and the shipped DLL will not carry ${MANIFEST_VERSION}."
+            exit 1
+          fi
+          if [[ ! "${assembly}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj stamps AssemblyVersion '${assembly}', which is not three or four numeric parts, so it cannot be the manifest version ${MANIFEST_VERSION}."
+            exit 1
+          fi
+          want="${MANIFEST_VERSION}"
+          got="${assembly}"
+          case "${want}" in *.*.*.*) ;; *) want="${want}.0" ;; esac
+          case "${got}" in *.*.*.*) ;; *) got="${got}.0" ;; esac
+          if [ "${want}" != "${got}" ]; then
+            echo "::error::build.yaml declares version ${MANIFEST_VERSION} but the assembly is stamped ${assembly}. Derive the assembly version from build.yaml so the two cannot drift, or fix whichever one is wrong."
+            exit 1
+          fi
+          echo "Assembly version ${assembly} matches the manifest."
+
+      - name: Build the plugin package
+        id: jprm
+        # No version input: the packager reads the version from build.yaml, and the
+        # gate job has already proven that value equals the tag.
+        uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
+        with:
+          dotnet-target: "net8.0"
+
+      - name: Check both release inputs exist
+        env:
+          ARTIFACT: ${{ steps.jprm.outputs.artifact }}
+        # if-no-files-found on the upload below fires only when no pattern matches at
+        # all, so a missing metadata file would ride through as a warning and leave the
+        # release one asset short. Named here, one file at a time.
+        run: |
+          set -euo pipefail
+          for file in "${ARTIFACT}" "${ARTIFACT}.meta.json"; do
+            if [ ! -f "${file}" ]; then
+              echo "::error::The packaging step did not produce ${file}. Both the archive and the metadata written beside it are release assets."
+              exit 1
+            fi
+          done
+          ls -l "${ARTIFACT}" "${ARTIFACT}.meta.json"
+
+      - name: Hand the package to the later jobs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: build-artifact
+          retention-days: 30
+          if-no-files-found: error
+          # The archive and the metadata the packager writes beside it. The metadata
+          # travels with the release so a catalog can be built from the package that
+          # was actually shipped instead of from a file read back out of the tree.
+          path: |
+            ${{ steps.jprm.outputs.artifact }}
+            ${{ steps.jprm.outputs.artifact }}.meta.json
+
+  attest:
+    name: Attest build provenance
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The only job that can mint an attestation under this repository's identity, and
+    # it runs no build tooling and checks out nothing. It sees the archive and the
+    # OIDC token and nothing else.
+    permissions:
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: build-artifact
+
+      - name: Attest build provenance
+        # Signs a SLSA v1.1 provenance statement for the exact archive this run
+        # produced, keyless, using the OIDC token above. Anyone can then check that a
+        # downloaded archive came from this repository and this workflow with
+        #   gh attestation verify <archive>.zip --repo <owner>/<repository>
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: "./*.zip"
+
+  release:
+    name: Publish the release
+    needs: [build, attest]
+    runs-on: ubuntu-latest
+    # Generous, because this job builds nothing and the time it spends is asset
+    # uploads on somebody else's network. A timeout that fires between creating the
+    # release and attaching the last asset leaves exactly the half-published release
+    # the concurrency setting above exists to avoid.
+    timeout-minutes: 45
+    # The only job with write access, and it runs no build tooling.
     permissions:
       contents: write
-    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/publish.yaml@eb99033a7ff644881b014bc0b4169916c854a68b # master, 2026-07-29
-    with:
-      version: ${{ github.event.release.tag_name }}
-      is-unstable: ${{ github.event.release.prerelease }}
-    secrets:
-      deploy-host: ${{ secrets.DEPLOY_HOST }}
-      deploy-user: ${{ secrets.DEPLOY_USER }}
-      deploy-key: ${{ secrets.DEPLOY_KEY }}
+    steps:
+      # No checkout. This job only handles the bytes the build job produced.
+      - name: Download the package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: build-artifact
+
+      - name: Refuse to touch a release that already exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The upload step below replaces an asset of the same name without complaint,
+        # so a second run on the same tag would swap the bytes of a version people have
+        # already installed and report success. Asked before anything is written, and
+        # anything other than a clean 404 stops the run.
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}")"
+          case "${code}" in
+            404)
+              echo "No release exists for ${GITHUB_REF_NAME} yet."
+              ;;
+            200)
+              echo "::error::A release already exists for ${GITHUB_REF_NAME}. Its assets are what people have installed, so this run will not replace them. Raise the version in build.yaml and push a new tag. docs/RELEASING.md describes the case where the first run left the release incomplete."
+              exit 1
+              ;;
+            *)
+              echo "::error::Asking whether a release exists for ${GITHUB_REF_NAME} returned HTTP ${code}. Not publishing on an unclear answer."
+              exit 1
+              ;;
+          esac
+
+      - name: Write the checksums
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          # Exactly one archive, therefore exactly one .md5. The MD5 sidecar is the
+          # value a Jellyfin catalog serves as the plugin checksum, and a catalog
+          # generator that picks a checksum by filename will pick the wrong one the
+          # moment a second .md5 exists. Every other asset gets a sha256 instead.
+          zips=(./*.zip)
+          if [ "${#zips[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one plugin archive, found ${#zips[@]}."
+            exit 1
+          fi
+
+          metas=(./*.zip.meta.json)
+          if [ "${#metas[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one packaging metadata file, found ${#metas[@]}."
+            exit 1
+          fi
+
+          zip="${zips[0]#./}"
+          # The bare filename, so the checksum line names the file a client downloads.
+          md5sum "${zip}" > "${zip%.zip}.md5"
+          sha256sum "${zip}" > "${zip%.zip}.sha256"
+          ls -l
+
+      - name: Create the release and upload the assets
+        # Creates the release for the pushed tag and attaches every file in the
+        # working directory. fail_on_unmatched_files keeps a run that produced
+        # nothing from publishing an empty release. overwrite_files is false because
+        # the default is true, and silently replacing a published asset is the one
+        # thing this route must never do.
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          overwrite_files: false
+          preserve_order: true
+          files: ./*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
