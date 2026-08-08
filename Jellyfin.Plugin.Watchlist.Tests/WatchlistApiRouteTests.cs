@@ -32,7 +32,9 @@ public class WatchlistApiRouteTests
     /// </summary>
     private static readonly string[] TheRoutes =
     [
+        "DELETE Watchlist/Items/{itemId}",
         "GET Watchlist/Items",
+        "POST Watchlist/Items/{itemId}",
     ];
 
     /// <summary>

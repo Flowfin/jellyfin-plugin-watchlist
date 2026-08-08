@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using Jellyfin.Plugin.Watchlist.Api;
+using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Store;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -246,6 +247,8 @@ public sealed class WatchlistApiReadTests : IDisposable
     private WatchlistController ControllerOver(IWatchlistItemDescriber describer) => new(
         new WatchlistDocumentStore(DataFolder),
         describer,
+        new PluginConfiguration(),
+        new StoppedClock(WhenItWasAdded),
         NullLogger<WatchlistController>.Instance);
 
     private void Store(Guid userId, params WatchlistEntry[] entries)

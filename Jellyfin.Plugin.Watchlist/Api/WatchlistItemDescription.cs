@@ -1,3 +1,5 @@
+using Jellyfin.Plugin.Watchlist.Store;
+
 namespace Jellyfin.Plugin.Watchlist.Api;
 
 /// <summary>
@@ -19,6 +21,21 @@ public sealed record WatchlistItemDescription
     /// Gets the name the library holds for the item.
     /// </summary>
     public required string Name { get; init; }
+
+    /// <summary>
+    /// Gets what kind of thing the library holds this as, now.
+    /// </summary>
+    /// <remarks>
+    /// Read rather than taken from the caller, because a caller that names the kind
+    /// names it in its own interest: the add endpoint refuses a kind a list does not
+    /// hold, and a refusal a client can talk its way out of is not one.
+    ///
+    /// It defaults to <see cref="WatchlistItemKind.Unknown"/>, which the add endpoint
+    /// refuses along with everything else outside the accepted set. A describer that
+    /// forgets to answer therefore refuses the add rather than recording an entry
+    /// whose kind nothing decided.
+    /// </remarks>
+    public WatchlistItemKind Kind { get; init; }
 
     /// <summary>
     /// Gets the year, where the library has one.
