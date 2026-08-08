@@ -1,0 +1,46 @@
+// The near miss for api-refusal-body.
+//
+// Nobody adds a body to a refusal in order to leak a library. They add it while
+// helping somebody whose client is getting a 404 and cannot see why, and the
+// helpful version is the one that says which of the two 404s this was. That is the
+// distinction the endpoints exist not to make.
+//
+// Three refusals below, each in the form somebody actually writes. This file is a
+// fixture and is never compiled.
+
+[HttpPost("Items/{itemId}")]
+public ActionResult AddWatchlistItem(Guid itemId)
+{
+    var userId = CallingUser.IdOf(User);
+
+    if (userId is null)
+    {
+        return Unauthorized("This request carried no user identity.");
+    }
+
+    var described = _describer.Describe(itemId, userId.Value);
+
+    if (described is null)
+    {
+        return NotFound("No item " + itemId + " is in the library, or it is not one you may see.");
+    }
+
+    if (!AcceptedWatchlistItemKinds.Contains(described.Kind))
+    {
+        return BadRequest(new { item = described.Name, kind = described.Kind });
+    }
+
+    var result = _store.Add(userId.Value, itemId, described.Kind);
+
+    if (result.Outcome == WatchlistAddOutcome.AtCap)
+    {
+        return Conflict(new { cap = _configuration.MaxEntriesPerUser });
+    }
+
+    if (result.Outcome == WatchlistAddOutcome.Unreadable)
+    {
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, result.Failure.Message);
+    }
+
+    return NoContent();
+}

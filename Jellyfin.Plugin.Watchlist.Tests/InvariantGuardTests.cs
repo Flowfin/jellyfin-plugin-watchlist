@@ -92,6 +92,39 @@ public class InvariantGuardTests
     }
 
     /// <summary>
+    /// The near-miss for the other invariant. An endpoint saying why it refused,
+    /// written the way somebody writes it while helping a client author who is
+    /// getting a 404 and cannot see which of the two 404s it was. Every line of it
+    /// compiles, and the one that names the item hands a caller the title of
+    /// something they were never allowed to know exists.
+    /// </summary>
+    [Fact]
+    public void TheGuardRefusesARefusalThatCarriesABody()
+    {
+        var findings = ScanFixture("NearMissApiRefusalBody.txt");
+
+        Assert.NotEmpty(findings);
+        Assert.All(findings, f => Assert.Equal("api-refusal-body", f.RuleId));
+    }
+
+    /// <summary>
+    /// The same endpoint with every refusal handing back its code and nothing else.
+    /// Without this the test above would prove that the fixture is unusual rather
+    /// than that the guard reads the argument.
+    /// </summary>
+    [Fact]
+    public void TheOneChangeNeighbourOfTheRefusalNearMissPasses()
+    {
+        var findings = ScanFixture("NearMissApiRefusalBodyRepaired.txt");
+
+        Assert.True(
+            findings.Count == 0,
+            "The repaired fixture should trip nothing, and it tripped:"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, findings));
+    }
+
+    /// <summary>
     /// The register that ships. An entry in it that covers nothing reds this run, so
     /// the day the store stops touching the file system the entry has to go rather
     /// than sit there widening the rule for a file that no longer needs it.

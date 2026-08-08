@@ -1,0 +1,43 @@
+// The one-change neighbour of NearMissApiRefusalBody.txt.
+//
+// Same endpoint, same five outcomes, same order, with every refusal handing back
+// its status code and nothing beside it. What the caller learns is what the code
+// says, and an item they may not see is answered exactly as an item that is not
+// there. This file is a fixture and is never compiled.
+
+[HttpPost("Items/{itemId}")]
+public ActionResult AddWatchlistItem(Guid itemId)
+{
+    var userId = CallingUser.IdOf(User);
+
+    if (userId is null)
+    {
+        return Unauthorized();
+    }
+
+    var described = _describer.Describe(itemId, userId.Value);
+
+    if (described is null)
+    {
+        return NotFound();
+    }
+
+    if (!AcceptedWatchlistItemKinds.Contains(described.Kind))
+    {
+        return BadRequest();
+    }
+
+    var result = _store.Add(userId.Value, itemId, described.Kind);
+
+    if (result.Outcome == WatchlistAddOutcome.AtCap)
+    {
+        return Conflict();
+    }
+
+    if (result.Outcome == WatchlistAddOutcome.Unreadable)
+    {
+        return StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+
+    return NoContent();
+}

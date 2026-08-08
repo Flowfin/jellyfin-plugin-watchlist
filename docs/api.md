@@ -35,6 +35,24 @@ them came from a real server.
     curl -H 'Authorization: MediaBrowser Token="<token>"' \
       https://jellyfin.example/Watchlist/Items
 
+## What a refusal carries
+
+Its status code, and nothing else. No refusal from this plugin returns a body, so
+none of them can carry a media title, a path, a stack trace or an exception
+message.
+
+That is not a habit. A refusal that explains itself is one sentence away from
+telling a caller which of two answers they met, and the tables below give the
+same answer to an item that is not in the library and an item this caller may not
+see. The explanation is the leak, not the code. So the rule is refused rather
+than remembered: the suite reads this plugin's own sources and fails on a refusal
+written with an argument, under the invariant named `api-refusal-body` in
+`Jellyfin.Plugin.Watchlist.Tests/Invariants.txt`.
+
+What it does not reach is a refusal the server itself produces before a request
+arrives here, and a body the framework writes for a request this plugin's code
+never sees is not something this plugin decides.
+
 ## GET Watchlist/Items
 
 Reads the calling user's list, oldest entry first, as the stored document holds
