@@ -1,4 +1,6 @@
 using System;
+using Jellyfin.Plugin.Watchlist.Store;
+using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 
@@ -61,10 +63,26 @@ public sealed class LibraryItemDescriber : IWatchlistItemDescriber
         return new WatchlistItemDescription
         {
             Name = item.Name ?? string.Empty,
+            Kind = KindOf(item),
             ProductionYear = item.ProductionYear,
             SeriesName = episode?.SeriesName,
             SeasonNumber = episode?.ParentIndexNumber,
             EpisodeNumber = episode?.IndexNumber,
         };
     }
+
+    /// <summary>
+    /// What the library holds this as, in the plugin's own vocabulary. Everything the
+    /// three named types do not cover is <see cref="WatchlistItemKind.Other"/> rather
+    /// than a guess, and the add endpoint is where that answer is refused.
+    /// </summary>
+    /// <param name="item">The library item.</param>
+    /// <returns>The kind.</returns>
+    private static WatchlistItemKind KindOf(MediaBrowser.Controller.Entities.BaseItem item) => item switch
+    {
+        Movie => WatchlistItemKind.Movie,
+        Series => WatchlistItemKind.Series,
+        Episode => WatchlistItemKind.Episode,
+        _ => WatchlistItemKind.Other,
+    };
 }

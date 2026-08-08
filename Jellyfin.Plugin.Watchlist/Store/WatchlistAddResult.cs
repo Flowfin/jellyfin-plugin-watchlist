@@ -43,6 +43,19 @@ public sealed record WatchlistAddResult
     public bool WasAdded => Outcome == WatchlistAddOutcome.Added;
 
     /// <summary>
+    /// Gets a value indicating whether the entry is on the list, whether this call put
+    /// it there or found it there.
+    /// </summary>
+    /// <remarks>
+    /// This is the question a caller asking for an item to be on a list is actually
+    /// asking, and it is separate from <see cref="WasAdded"/> because the two answers
+    /// come apart on a repeat. A caller that could only ask the second one would have
+    /// to report a retry after a timeout as a failure, which is the shape that makes a
+    /// client add the same thing twice.
+    /// </remarks>
+    public bool IsOnTheList => Outcome is WatchlistAddOutcome.Added or WatchlistAddOutcome.AlreadyOnTheList;
+
+    /// <summary>
     /// The entry went on the list and the document was written.
     /// </summary>
     /// <param name="entryCount">How many entries the list holds now.</param>
@@ -63,6 +76,17 @@ public sealed record WatchlistAddResult
         new(WatchlistAddOutcome.RefusedListIsFull, entryCount, cap);
 
     /// <summary>
+    /// The item was already on the list, so nothing was written. It is not a refusal:
+    /// the list holds what the caller asked it to hold, and writing the entry a second
+    /// time would leave the list holding one item twice.
+    /// </summary>
+    /// <param name="entryCount">How many entries the list holds, unchanged.</param>
+    /// <param name="cap">The cap it was judged against.</param>
+    /// <returns>The result.</returns>
+    public static WatchlistAddResult AlreadyOnTheList(int entryCount, int cap) =>
+        new(WatchlistAddOutcome.AlreadyOnTheList, entryCount, cap);
+
+    /// <summary>
     /// The list could not be read, so nothing can be added to it. Writing over a
     /// document this plugin refused to read is how a downgrade drops entries.
     /// </summary>
@@ -79,6 +103,11 @@ public sealed record WatchlistAddResult
         WatchlistAddOutcome.Added => string.Format(
             CultureInfo.InvariantCulture,
             "Added. The list holds {0} of at most {1} entries.",
+            EntryCount,
+            Cap),
+        WatchlistAddOutcome.AlreadyOnTheList => string.Format(
+            CultureInfo.InvariantCulture,
+            "Already on the list. Nothing was written. The list holds {0} of at most {1} entries.",
             EntryCount,
             Cap),
         WatchlistAddOutcome.RefusedListIsFull => string.Format(

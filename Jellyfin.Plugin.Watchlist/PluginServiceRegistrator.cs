@@ -1,3 +1,4 @@
+using System;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Store;
 using MediaBrowser.Controller;
@@ -30,6 +31,17 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         serviceCollection.AddSingleton<IWatchlistItemDescriber, LibraryItemDescriber>();
+
+        // The system clock, as a dependency rather than a call inside the controller.
+        // An entry carries the instant it was added, and the suite is not allowed to
+        // read the machine's clock to check it, so the one place that reads a real
+        // clock is this line.
+        serviceCollection.AddSingleton(TimeProvider.System);
+
+        // The plugin's configuration, resolved when something asks rather than once.
+        // The server replaces the object when the page is saved, so a singleton here
+        // would hand every later request the cap that was set when the server started.
+        serviceCollection.AddScoped(_ => Plugin.Instance!.Configuration);
 
         serviceCollection.AddSingleton(provider => new WatchlistDocumentStore(
             Plugin.Instance!.DataFolderPath,

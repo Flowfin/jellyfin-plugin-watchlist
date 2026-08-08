@@ -287,6 +287,16 @@ public sealed class WatchlistDocumentStore
 
             var document = read.Document!;
 
+            // Asked and answered. The check is inside the gate rather than in the
+            // caller, because a caller that reads then adds is two changes and two
+            // clients retrying one timeout each would both read a list without the
+            // item and both write it. A list holding one film twice is a list the
+            // user has to repair by hand.
+            if (document.Entries.Any(existing => existing.ItemId == entry.ItemId))
+            {
+                return WatchlistAddResult.AlreadyOnTheList(document.Entries.Count, maxEntriesPerUser);
+            }
+
             if (document.Entries.Count >= maxEntriesPerUser)
             {
                 _logger.LogWarning(
