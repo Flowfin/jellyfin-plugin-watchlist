@@ -5,8 +5,9 @@
 
 # Watchlist
 
-A private per-user watchlist for Jellyfin, kept on the server and shown by
-clients that were never changed.
+A private per-user watchlist for Jellyfin, kept on the server, shown by clients
+that were never changed, and appearing as a playlist owned by the user whose list
+it is.
 
 Each user gets their own list. It is held on the server, so it is the same list
 on every device that user signs in from, and it is not visible to anyone else.
@@ -17,8 +18,8 @@ from the private ones.
 
 In the client you already use. The plugin projects a user's list into a playlist
 owned by that user, and a playlist is a surface every stock client already
-renders. Nothing has to be patched, forked, side-loaded or installed alongside
-it, and there is no browser extension and no modified web client.
+renders, which is why nothing on the client side has to change for the list to
+show up.
 
 Adding an item to that playlist from a client puts it on the list, and removing
 it takes it off, so the list can be worked from the same place it is read.
@@ -44,12 +45,27 @@ because the README is where somebody looks for it.
 ## What it stores about you, and where
 
 One document per user, in the plugin's own data folder on the server, holding
-that user's entries. Nothing is written to a user's media, nothing is sent
-anywhere off the server, and no third party is contacted.
+that user's entries. Nothing is written to a user's media. Where the data does
+not go is in the next section rather than repeated here.
 
 A list has an upper bound on how many entries it may hold, ten thousand by
 default. An add that would take a list past the bound is refused and nothing is
 written, rather than the oldest entry being dropped quietly.
+
+## What it does not do
+
+No external service is contacted. Nothing in this plugin opens a socket or builds
+an HTTP client, so a list has no route off the server that holds it.
+
+No client is modified. What a user is shown is a playlist, which every stock
+client already renders, so nothing is patched, forked, side-loaded or installed
+beside the client, and there is no browser extension and no modified web client.
+
+No user's private list is visible to anyone else. A request is answered for the
+user it came from: who a request is from is read in one place, and a request
+carrying no identity this plugin will use is refused rather than answered with a
+default. The shared list is a list of its own rather than a view over anybody's
+private one.
 
 ## What refuses to happen
 
@@ -82,9 +98,21 @@ apart on a client, and the way out to something that is not this plugin, are in
 
 The store is built: the per-user document, its format and version, its atomic
 write, its bound, and the rule for an entry whose item can no longer be
-resolved. The projection into a playlist, the HTTP endpoints and the
-configuration page are planned and not yet built, which is why there is no
-release.
+resolved.
+
+The HTTP endpoints are built. There are three, one to read a user's list and one
+each to put an item on it and take an item off, and what they answer is in
+[docs/api.md](docs/api.md). The configuration page is built and carries the one
+setting that exists so far, described in [docs/settings.md](docs/settings.md).
+The format a list leaves in is fixed, in
+[docs/export-format.md](docs/export-format.md), together with the code that
+writes it and the rule that matches an imported entry onto this server's items;
+no endpoint hands a file out or takes one in yet.
+
+The projection into a playlist is not built, and it is the part a user would
+notice, because until it exists the list is reachable over the API and appears
+on no client. The shared list the opening describes is not built either. That is
+why there is no release.
 
 This section is here so the description above is not read as a description of
 what the code does today. The tracker carries the rest.
