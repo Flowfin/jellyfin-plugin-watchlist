@@ -31,6 +31,15 @@ internal static class BuildManifest
         RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
     /// <summary>
+    /// A top-level quoted name entry, anchored per line for the same reason as the two
+    /// above: the word appears inside the description and under other keys, and neither
+    /// of those is the name the package is published under.
+    /// </summary>
+    private static readonly Regex NameEntry = new(
+        @"^name:[ \t]*""(?<name>[^""]*)""[ \t]*\r?$",
+        RegexOptions.Multiline | RegexOptions.CultureInvariant);
+
+    /// <summary>
     /// Gets the manifest text embedded at build time from the build.yaml beside the solution.
     /// </summary>
     public static string Text { get; } = ReadEmbeddedManifest();
@@ -116,6 +125,44 @@ internal static class BuildManifest
         GuidEntry.Replace(
             manifestText,
             m => m.Value.Replace(m.Groups["guid"].Value, replacement.ToString(), StringComparison.Ordinal),
+            1);
+
+    /// <summary>
+    /// Reads the name a manifest declares.
+    /// </summary>
+    /// <param name="manifestText">The manifest to read.</param>
+    /// <returns>The declared name.</returns>
+    public static string ReadName(string manifestText)
+    {
+        var match = NameEntry.Match(manifestText);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException("The manifest declares no top-level quoted name entry.");
+        }
+
+        return match.Groups["name"].Value;
+    }
+
+    /// <summary>
+    /// Answers whether a manifest and a plugin class call the plugin the same thing.
+    /// </summary>
+    /// <param name="manifestText">The manifest to read.</param>
+    /// <param name="pluginName">The name the plugin class declares.</param>
+    /// <returns>True when the two agree.</returns>
+    public static bool NamesAgree(string manifestText, string pluginName) =>
+        string.Equals(ReadName(manifestText), pluginName, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Returns the manifest with a different name in it, leaving every other byte alone.
+    /// Used to build the near miss: one manifest, one changed name.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <param name="replacement">The name to put in it.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithName(string manifestText, string replacement) =>
+        NameEntry.Replace(
+            manifestText,
+            m => m.Value.Replace(m.Groups["name"].Value, replacement, StringComparison.Ordinal),
             1);
 
     private static string ReadEmbeddedManifest()
