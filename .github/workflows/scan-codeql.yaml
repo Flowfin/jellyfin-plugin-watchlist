@@ -75,6 +75,15 @@ jobs:
           # queries beside them, which is what the other board's scan runs, and
           # comparing the two boards is only meaningful if they run the same set.
           queries: +security-and-quality
+          # Path filtering for the ANALYSIS. The paths-ignore under `on:` above
+          # decides when this workflow runs, not what CodeQL reads, so without
+          # this block the generated sources under obj/ are analysed too. They
+          # are not in the tree, nobody can change them, and the source
+          # generator that writes them does not follow these rules.
+          config: |
+            paths-ignore:
+              - "**/obj/**"
+              - "**/bin/**"
 
       - name: Build what is scanned
         # Built by name rather than by autobuild. Autobuild guesses, and a guess
