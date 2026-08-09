@@ -138,9 +138,13 @@ internal static class HeadlessRuleScanner
 
     private static IEnumerable<string[]> ContentLines(string text)
     {
-        foreach (var raw in text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+        var lines = text
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split('\n')
+            .Select(raw => raw.Trim());
+
+        foreach (var line in lines)
         {
-            var line = raw.Trim();
             if (line.Length == 0 || line.StartsWith('#'))
             {
                 continue;

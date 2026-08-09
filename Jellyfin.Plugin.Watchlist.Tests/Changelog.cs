@@ -58,15 +58,11 @@ internal static class Changelog
     /// <returns>The folded section text, or null when there is no section for it.</returns>
     public static string? EntryFor(string changelogText, Version version)
     {
-        foreach (Match match in Section.Matches(changelogText))
-        {
-            if (Version.Parse(match.Groups["version"].Value) == version)
-            {
-                return Fold(match.Groups["body"].Value);
-            }
-        }
+        var match = Section
+            .Matches(changelogText)
+            .FirstOrDefault(m => Version.Parse(m.Groups["version"].Value) == version);
 
-        return null;
+        return match is null ? null : Fold(match.Groups["body"].Value);
     }
 
     /// <summary>
