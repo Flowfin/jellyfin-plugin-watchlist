@@ -196,7 +196,7 @@ What this command does not run, and cannot:
 | `ABI floor build` | Not yet | #4 puts the framework, the package set and the declared ABI on both supported lines, and #88 is the check that refuses a package whose declared ABI and build line disagree. |
 | `Package (JPRM) / Build package` | Not yet | #73 packages one artifact per supported line and attaches each with its checksum. |
 | `Package (JPRM) / Generate SBOM` | Not yet | #75 publishes a component inventory and build provenance per artifact. |
-| `CodeQL`, `Analyze (csharp)` | `Code scanning (csharp)` | Landed on #57, after being declared and skipped on every event since the tree was made. The name is this repository's own, for the reason in the section below, and it is the one #63 requires. |
+| `CodeQL`, `Analyze (csharp)` | `Code scanning (csharp)` | Landed on #57, after being declared and skipped on every event since the tree was made. A second context named `CodeQL` reports beside it, from code scanning rather than from the workflow, and #63 has to pick one of the two by name. See the note under the tables. |
 | `DCO sign-off` | `DCO sign-off` | Present and reporting, from this repository's own workflow. |
 | `Deterministic PR-hygiene checks` | `Deterministic PR-hygiene checks` | Landed on #59. Body linkage, commit subject linkage and the changelog co-change fail; diff size is an observation. |
 | `Reject Trojan Source Unicode` | `Reject Trojan Source Unicode` | Present, reporting and required on both boards. |
@@ -269,7 +269,7 @@ report is a pull request nobody can merge. #63 is where that is decided, and it
 should read a real fork run before it requires this one rather than take the
 paragraph above as an answer.
 
-## One workflow, two contexts with the same subject
+## Two instruments, each reporting under two names
 
 The workflow audit reports twice on this board, under two names produced by two
 different apps:
@@ -290,6 +290,35 @@ measured here; both were successful on the commit above and that is one reading.
 Which of them #63 requires is a decision for #63, and this file records that
 there are two so the decision is taken deliberately rather than by picking
 whichever name is nearer to hand.
+
+The code scan has the same shape, and this file described it as though one name
+reported. Both contexts are on the head of the newest merged pull request:
+
+    gh api "repos/Flowfin/jellyfin-plugin-watchlist/commits/385ae24/check-runs?per_page=100" \
+      --jq '.check_runs[] | select(.name=="CodeQL" or .name=="Code scanning (csharp)") | "\(.name) :: app=\(.app.slug) :: \(.conclusion)"' | sort -u
+    Code scanning (csharp) :: app=github-actions :: success
+    CodeQL :: app=github-advanced-security :: success
+
+    grep -n 'name:' .github/workflows/scan-codeql.yaml | head -2
+    22:name: Code scanning
+    48:    name: Code scanning (csharp)
+
+`Code scanning (csharp)` is the job in this repository's own workflow. `CodeQL`
+comes from the code scanning app, over the analysis that job uploads. So the
+choice belongs to #63 twice rather than once.
+
+The two halves of this pair are not interchangeable, and the reason is the
+unmeasured behaviour the section above records. The workflow's context concludes
+on the job whether or not the upload happened; whether the app's context
+concludes at all when the upload did not happen is not measured here. That is
+the same question a pull request from a fork raises, and requiring the app's
+name rather than the workflow's would make the answer to it a precondition of
+every merge.
+
+The row for the code scan said the workflow's name is the one #63 requires. That
+sentence was a decision written in the table rather than taken on the issue, and
+it is the reason this pair went unrecorded while the other one was named. It has
+been removed, and the row now says what the zizmor row says.
 
 ## The check that was declared here and never ran, and the one that still does not
 
