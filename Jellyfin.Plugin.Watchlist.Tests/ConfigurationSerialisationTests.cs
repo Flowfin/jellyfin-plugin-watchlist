@@ -22,21 +22,23 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// What the server actually does with the configuration, on the current stable line:
+/// What the server actually does with the configuration, on the current stable line,
+/// read in a jellyfin checkout:
 /// </para>
 /// <code>
-/// git show v10.11.11:MediaBrowser.Common/Plugins/BasePluginOfT.cs | grep -n 'XmlSerializer\|SerializeToFile'
+/// git show v10.11.11:MediaBrowser.Common/Plugins/BasePluginOfT.cs | grep -n 'IXmlSerializer xmlSerializer\|SerializeToFile'
 ///  41:        protected BasePlugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer)
-///  79:        protected IXmlSerializer XmlSerializer { get; private set; }
 /// 150:                XmlSerializer.SerializeToFile(config, ConfigurationFilePath);
 /// git show v10.11.11:Emby.Server.Implementations/Serialization/MyXmlSerializer.cs | grep -n 'new XmlSerializer(t)\|Formatting.Indented\|XmlReader.Create'
 ///  23:                static (_, t) =&gt; new XmlSerializer(t),
-///  63:                textWriter.Formatting = Formatting.Indented;
 ///  45:            using (var reader = XmlReader.Create(stream))
+///  62:                textWriter.Formatting = Formatting.Indented;
+/// git show v12.0-rc3:Emby.Server.Implementations/Serialization/MyXmlSerializer.cs | grep -c 'new XmlSerializer(t)'
+/// 1
 /// </code>
 /// <para>
-/// The same three calls are in that file on the next line as well, so both supported
-/// lines store the configuration through <c>System.Xml.Serialization.XmlSerializer</c>.
+/// So both supported lines store the configuration through
+/// <c>System.Xml.Serialization.XmlSerializer</c>.
 /// </para>
 /// <para>
 /// The implementation itself is in <c>Emby.Server.Implementations</c>, which is a
