@@ -136,10 +136,10 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
         var store = new WatchlistDocumentStore(DataFolder);
         var root = store.DataFolderPath + Path.DirectorySeparatorChar;
 
-        foreach (var userId in new[] { AUser, AnotherUser, Guid.Empty, Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff") })
-        {
-            var path = store.PathFor(userId);
+        var userIds = new[] { AUser, AnotherUser, Guid.Empty, Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff") };
 
+        foreach (var path in userIds.Select(store.PathFor))
+        {
             Assert.Equal(Path.GetFullPath(path), path);
             Assert.StartsWith(root, path, StringComparison.Ordinal);
             Assert.Equal(store.DataFolderPath, Path.GetDirectoryName(path));

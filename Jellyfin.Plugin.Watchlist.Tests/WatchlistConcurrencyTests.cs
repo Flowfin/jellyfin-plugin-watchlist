@@ -103,7 +103,7 @@ public sealed class WatchlistConcurrencyTests : IDisposable
     {
         var store = new WatchlistDocumentStore(DataFolder);
         var counts = new List<int>();
-        var writesDone = new ManualResetEventSlim(false);
+        using var writesDone = new ManualResetEventSlim(false);
 
         var reader = Task.Run(() =>
         {
@@ -139,8 +139,8 @@ public sealed class WatchlistConcurrencyTests : IDisposable
     public async Task OneUsersGateDoesNotBlockAnother()
     {
         var store = new WatchlistDocumentStore(DataFolder);
-        var held = new ManualResetEventSlim(false);
-        var release = new ManualResetEventSlim(false);
+        using var held = new ManualResetEventSlim(false);
+        using var release = new ManualResetEventSlim(false);
 
         var holder = Task.Run(() =>
         {
@@ -231,7 +231,7 @@ public sealed class WatchlistConcurrencyTests : IDisposable
     /// <returns>What each piece returned.</returns>
     private static IReadOnlyList<object> RunTogether(IEnumerable<Func<object>> work)
     {
-        var ready = new ManualResetEventSlim(false);
+        using var ready = new ManualResetEventSlim(false);
         var tasks = work
             .Select(piece => Task.Run(() =>
             {

@@ -52,12 +52,14 @@ public class SuiteDeterminismTests
 
     /// <summary>
     /// Disposing twice is what happens when a test disposes explicitly inside a
-    /// using block, and it must not throw on the second pass.
+    /// using block, and it must not throw on the second pass. The using block is
+    /// written here rather than described, so the directory is still removed when an
+    /// assertion below fails, and the block's own dispose is a third pass.
     /// </summary>
     [Fact]
     public void DisposingATemporaryDirectoryTwiceIsHarmless()
     {
-        var directory = new TemporaryDirectory("disposed-twice");
+        using var directory = new TemporaryDirectory("disposed-twice");
 
         directory.Dispose();
         directory.Dispose();

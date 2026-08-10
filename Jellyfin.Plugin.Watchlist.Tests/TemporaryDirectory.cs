@@ -41,9 +41,14 @@ public sealed class TemporaryDirectory : IDisposable
             }
             catch (IOException)
             {
+                // Swallowed on purpose. The root is empty by this point, so failing to
+                // remove it costs an empty folder and nothing else, and there is no
+                // reporting surface left in a process that is already exiting.
             }
             catch (UnauthorizedAccessException)
             {
+                // Same, for the case where something else holds the root open: an
+                // empty folder left behind is not worth failing an otherwise good run.
             }
         };
     }
