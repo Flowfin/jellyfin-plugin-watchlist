@@ -1,0 +1,183 @@
+# The endpoints in the server's generated API document
+
+`WatchlistApiRouteTests` pins the routes by reading the attributes off the
+assembly. That is a reading of what the source declares and never of what a
+server builds from it, so no test in the suite can answer whether these
+endpoints reach the document a server generates. This file is the record of a
+run that asked one server of each supported line.
+
+A later reader compares a new run against the rows here rather than against a
+memory of one. Every block below is the output of the command above it, and no
+command needed a graphical session, an elevated account or anything installed on
+the host beyond a container runtime.
+
+## What was read
+
+| | |
+| --- | --- |
+| Built from commit | 0e4a8978948c5feefa1475622cbedd4af2c3bb2f |
+| Artifact | Jellyfin.Plugin.Watchlist.dll |
+| Artifact sha256 | 9b7243d4217324ae42f4891bc492debe6081668da565319bae89d4d542241681 |
+| Document | `GET /api-docs/openapi.json` |
+
+    dotnet publish Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj -c Release -o pkg
+    sha256sum pkg/Jellyfin.Plugin.Watchlist.dll
+    9b7243d4217324ae42f4891bc492debe6081668da565319bae89d4d542241681
+
+## The servers
+
+| Line | Image | Digest | Version the server reported |
+| --- | --- | --- | --- |
+| Current stable | `jellyfin/jellyfin:10.11.11` | `sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db` | 10.11.11 |
+| Next | `jellyfin/jellyfin:12.0-rc4` | `sha256:db1df1d111c27ba1f10bb8fce6630892f66eb66b12c2b24e79011453ac18b3db` | 12.0.0 |
+
+Both are the published images with nothing added to them, which is the same pair
+`docs/first-load.md` records. The plugin was copied into a running container and
+the container was restarted:
+
+    docker run -d --name wl-1011 -p 18096:8096 jellyfin/jellyfin:10.11.11
+    docker exec wl-1011 mkdir -p /config/plugins/Watchlist_0.1.0.0
+    docker cp pkg/Jellyfin.Plugin.Watchlist.dll wl-1011:/config/plugins/Watchlist_0.1.0.0/
+    docker cp pkg/meta.json                     wl-1011:/config/plugins/Watchlist_0.1.0.0/
+    docker restart wl-1011
+
+The same lines against `wl-12rc4` on port 18097 for the other image. Both
+servers said they loaded it:
+
+    docker logs wl-1011 2>&1 | grep -i watchlist
+    [08:55:46] [INF] [10] Emby.Server.Implementations.Plugins.PluginManager: Loaded assembly Jellyfin.Plugin.Watchlist, Version=0.1.0.0, Culture=neutral, PublicKeyToken=null from /config/plugins/Watchlist_0.1.0.0/Jellyfin.Plugin.Watchlist.dll
+    [08:55:46] [INF] [10] Emby.Server.Implementations.Plugins.PluginManager: Loaded plugin: Watchlist 0.1.0.0
+
+    docker logs wl-12rc4 2>&1 | grep -i watchlist
+    [09:00:24.947] [INF] [9] Emby.Server.Implementations.Plugins.PluginManager: Loaded assembly Jellyfin.Plugin.Watchlist, Version=0.1.0.0, Culture=neutral, PublicKeyToken=null from /config/plugins/Watchlist_0.1.0.0/Jellyfin.Plugin.Watchlist.dll
+    [09:00:25.221] [INF] [9] Emby.Server.Implementations.Plugins.PluginManager: Loaded plugin: Watchlist 0.1.0.0
+
+## A stock server carries no such path
+
+The document was fetched from the 10.11 line before the plugin was copied in, so
+what appears afterwards is this plugin and not something the server ships:
+
+    curl -s -o openapi-before.json -w 'status %{http_code} bytes %{size_download}\n' \
+      http://127.0.0.1:18096/api-docs/openapi.json
+    status 200 bytes 2082318
+
+    python -c "import json; d = json.load(open('openapi-before.json', encoding='utf-8')); print(len(d['paths']), sorted(p for p in d['paths'] if p.startswith('/Watchlist')))"
+    315 []
+
+and afterwards, from the same server:
+
+    python -c "import json; d = json.load(open('openapi-1011.json', encoding='utf-8')); print(len(d['paths']), sorted(p for p in d['paths'] if p.startswith('/Watchlist')))"
+    317 ['/Watchlist/Items', '/Watchlist/Items/{itemId}']
+
+Two paths and three operations, because adding and removing an item share one
+template and differ by verb. That is the reason the pin in the suite holds the
+verb and the template together rather than the template alone.
+
+## What the document carries
+
+The document is authenticated nowhere in this reading: `GET /api-docs/openapi.json`
+answered 200 to a request with no token on both servers.
+
+    cat shape.py
+    import json, sys
+
+    document = json.load(open(sys.argv[1], encoding="utf-8"))
+    for path in sorted(p for p in document["paths"] if p.startswith("/Watchlist")):
+        for verb, operation in sorted(document["paths"][path].items()):
+            print(verb.upper(), path)
+            for parameter in operation.get("parameters", []):
+                schema = parameter["schema"]
+                print("  parameter", parameter["name"], parameter["in"], schema["type"], schema.get("format", ""))
+            for code, response in sorted(operation["responses"].items()):
+                body = response.get("content", {}).get("application/json")
+                print("  response", code, json.dumps(body["schema"], sort_keys=True) if body else "(no body)")
+
+On 10.11.11:
+
+    python shape.py openapi-1011.json
+    GET /Watchlist/Items
+      response 200 {"items": {"$ref": "#/components/schemas/WatchlistEntryView"}, "type": "array"}
+      response 401 {"$ref": "#/components/schemas/ProblemDetails"}
+      response 403 (no body)
+      response 503 (no body)
+    DELETE /Watchlist/Items/{itemId}
+      parameter itemId path string uuid
+      response 204 (no body)
+      response 401 {"$ref": "#/components/schemas/ProblemDetails"}
+      response 403 (no body)
+      response 503 (no body)
+    POST /Watchlist/Items/{itemId}
+      parameter itemId path string uuid
+      response 204 (no body)
+      response 400 {"$ref": "#/components/schemas/ProblemDetails"}
+      response 401 {"$ref": "#/components/schemas/ProblemDetails"}
+      response 403 (no body)
+      response 404 {"$ref": "#/components/schemas/ProblemDetails"}
+      response 409 {"$ref": "#/components/schemas/ProblemDetails"}
+      response 503 (no body)
+
+On 12.0.0 the same script prints the same twenty lines. The two documents
+themselves are not identical, because the server generates the whole of its own
+API into them and the two lines do not carry the same API:
+
+    python -c "import json; print(json.load(open('openapi-1011.json', encoding='utf-8'))['openapi'], len(json.load(open('openapi-1011.json', encoding='utf-8'))['paths']))"
+    3.0.1 317
+    python -c "import json; print(json.load(open('openapi-12rc4.json', encoding='utf-8'))['openapi'], len(json.load(open('openapi-12rc4.json', encoding='utf-8'))['paths']))"
+    3.0.4 296
+
+The type the list comes back as is generated too, with every property the view
+declares:
+
+    python -c "import json,sys; d = json.load(open(sys.argv[1], encoding='utf-8')); print(json.dumps({k: (v.get('type') or 'WatchlistItemKind') for k, v in sorted(d['components']['schemas']['WatchlistEntryView']['properties'].items())}, sort_keys=True))" openapi-1011.json
+    {"AddedAt": "string", "EpisodeNumber": "integer", "ItemId": "string", "Kind": "WatchlistItemKind", "Name": "string", "ProductionYear": "integer", "SeasonNumber": "integer", "SeriesName": "string"}
+
+and the same on the other line.
+
+## The set is the set the suite pins
+
+`WatchlistApiRouteTests` holds three strings, verb and template together:
+
+    grep -nE '"(GET|POST|DELETE) Watchlist' Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs | head -3
+    46:        "DELETE Watchlist/Items/{itemId}",
+    47:        "GET Watchlist/Items",
+    48:        "POST Watchlist/Items/{itemId}",
+
+The three operations above are those three with a leading slash the server adds.
+So the reflection pin, `docs/api.md` and the document a server generates all
+describe one set, and the pin is what a later run is compared against.
+
+## What this run did not cover
+
+The prose written at each endpoint does not reach the document. Every response
+in `WatchlistController` carries a `<response>` line saying what that code means
+for a caller, and what the document shows instead is the framework's own word
+for the status code, `Success`, `Unauthorized`, `Forbidden`, `Server Error` on
+one line and `OK`, `No Content`, `Service Unavailable` on the other. The
+assembly's XML documentation file is not read by the server, and nothing in this
+repository puts it there. So a client author reads the shape from this document
+and the meaning from `docs/api.md`, and that is a fact about the route rather
+than a gap in the controller.
+
+`403` appears on every operation and no endpoint declares it. It is added by the
+server's own authorisation handling rather than by this plugin, so the set of
+codes in the document is a superset of the set in the source, and a later run
+that finds a code here which the controller does not name has not necessarily
+found a defect.
+
+Nothing was rendered. Every reading above is an HTTP response or a log line, so
+no claim here is about what a person saw on a screen.
+
+No endpoint of this plugin was called. This run reads the document a server
+builds and says nothing about what any of the three operations does when it is
+invoked, which needs a user, a library and the harness in #52.
+
+The plugin was installed by copying it into a container rather than through the
+server's own install route, and the `meta.json` beside the assembly was written
+by hand from `build.yaml`, because nothing has been published from this
+repository. `docs/first-load.md` records the same two departures for the same
+reason.
+
+The assembly read here was built on `net9.0` against the 10.9.11 package set,
+which is the pair the tree still declares and is neither of the two supported
+lines. #4 is where those three values are brought into agreement, and a run
+after that lands is the one whose artifact is the artifact a user installs.
