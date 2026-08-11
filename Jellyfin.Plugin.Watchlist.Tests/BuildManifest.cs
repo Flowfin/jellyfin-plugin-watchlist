@@ -40,6 +40,15 @@ internal static class BuildManifest
         RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
     /// <summary>
+    /// A top-level quoted targetAbi entry, anchored per line for the same reason as the
+    /// three above. The word appears in the comments this manifest carries, and a
+    /// comment is not what a server reads.
+    /// </summary>
+    private static readonly Regex TargetAbiEntry = new(
+        @"^targetAbi:[ \t]*""(?<abi>[^""]*)""[ \t]*\r?$",
+        RegexOptions.Multiline | RegexOptions.CultureInvariant);
+
+    /// <summary>
     /// Gets the manifest text embedded at build time from the build.yaml beside the solution.
     /// </summary>
     public static string Text { get; } = ReadEmbeddedManifest();
@@ -164,6 +173,52 @@ internal static class BuildManifest
             manifestText,
             m => m.Value.Replace(m.Groups["name"].Value, replacement, StringComparison.Ordinal),
             1);
+
+    /// <summary>
+    /// Reads the ABI a manifest declares.
+    /// </summary>
+    /// <param name="manifestText">The manifest to read.</param>
+    /// <returns>The declared ABI, as text.</returns>
+    /// <remarks>
+    /// Returned as text rather than parsed, because what this value is compared against
+    /// is a package version, and both are read for the server line they name rather than
+    /// for their fourth position. A missing entry throws instead of answering, because a
+    /// key dropped from the manifest would otherwise leave every comparison against it
+    /// quietly true.
+    /// </remarks>
+    public static string ReadTargetAbi(string manifestText)
+    {
+        var match = TargetAbiEntry.Match(manifestText);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException("The manifest declares no top-level quoted targetAbi entry.");
+        }
+
+        return match.Groups["abi"].Value;
+    }
+
+    /// <summary>
+    /// Returns the manifest with a different ABI in it, leaving every other byte alone.
+    /// Used to build the near miss: one manifest, one changed ABI.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <param name="replacement">The ABI to put in it.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithTargetAbi(string manifestText, string replacement) =>
+        TargetAbiEntry.Replace(
+            manifestText,
+            m => m.Value.Replace(m.Groups["abi"].Value, replacement, StringComparison.Ordinal),
+            1);
+
+    /// <summary>
+    /// Returns the manifest with no targetAbi entry at all. Used to prove the reading
+    /// refuses a manifest that has lost the value rather than passing everything
+    /// compared against it.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithoutTargetAbi(string manifestText) =>
+        TargetAbiEntry.Replace(manifestText, string.Empty, 1);
 
     private static string ReadEmbeddedManifest()
     {

@@ -193,7 +193,7 @@ What this command does not run, and cannot:
 | Check, under the name it reports | Here | Reference |
 | --- | --- | --- |
 | `build` | `call / build` | The build is a required context on both boards. |
-| `ABI floor build` | Not yet | #4 puts the framework, the package set and the declared ABI on both supported lines, and #88 is the check that refuses a package whose declared ABI and build line disagree. |
+| `ABI floor build` | Partly, under `call / test` | The half that compares the declared ABI with the package set the artifact is compiled from is in the suite, from #88, so it runs on every pull request that can change either value and reports under a context that is already required, and nothing new goes to #63 from this row. It sits there rather than in a workflow because the manifest and the project file are already read by the suite, and a second parser for either beside that one is a thing that can disagree with it. What is not run here is a build against the floor, which needs the second framework and the second package set from #4. #88 also stays open for the half that judges more than one artifact of one release, and there is one artifact today. |
 | `Package (JPRM) / Build package` | Not yet | #73 packages one artifact per supported line and attaches each with its checksum. |
 | `Package (JPRM) / Generate SBOM` | Not yet | #75 publishes a component inventory and build provenance per artifact. |
 | `CodeQL`, `Analyze (csharp)` | `Code scanning (csharp)` | Landed on #57, after being declared and skipped on every event since the tree was made. A second context named `CodeQL` reports beside it, from code scanning rather than from the workflow, and #63 has to pick one of the two by name. See the note under the tables. |
