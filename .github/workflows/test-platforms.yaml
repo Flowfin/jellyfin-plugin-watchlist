@@ -9,13 +9,13 @@
 # reports the privilege the run had, so what each leg is worth is a reading rather
 # than a claim.
 #
-# It answers less than it was first written to answer, and the reading is what
-# showed that. The hosted Linux and macOS images run the job unprivileged and
-# those two legs do say "green as an unprivileged user". The hosted Windows image
-# runs it under an account holding the built-in Administrators role, so the
-# Windows leg says the suite is green and says nothing about whether it needs
-# elevation. Jellyfin.Plugin.Watchlist.Tests/HEADLESS.md carries the readings and
-# names the half that is still missing; #44 stays open for it.
+# The hosted Linux and macOS images run the job unprivileged, so those two legs
+# say "green as an unprivileged user" with nothing else needed. The hosted
+# Windows image runs the job under an account holding the built-in Administrators
+# role, and a suite that needs elevation passes under such an account exactly
+# like one that does not. So the Windows leg drops that role before it starts the
+# suite and reads the privilege inside the process that runs it, rather than
+# beside it. Jellyfin.Plugin.Watchlist.Tests/HEADLESS.md carries the readings.
 #
 # It reports and does not gate. Which checks the mainline requires is decided in
 # M8, on #63.
@@ -75,6 +75,10 @@ jobs:
         # POSIX runner uid 0 is root; on Windows the answer is whether the token
         # carries the built-in Administrators role.
         #
+        # This is the job's own token. On Windows it is not the token the suite
+        # runs under, because the step that runs the suite drops the role first
+        # and takes its own reading there.
+        #
         # The reading also goes to the job summary, and an elevated reading takes
         # the sentence that says what it costs with it. A green suite under an
         # administrator token looks exactly like a green suite under an ordinary
@@ -103,7 +107,7 @@ jobs:
             *elevated=[Tt]rue*)
               {
                 echo
-                echo "This run was elevated, so a green suite here does not say whether the suite needs elevation. Which half of that each reading covers is recorded in Jellyfin.Plugin.Watchlist.Tests/HEADLESS.md."
+                echo "The job's own token is elevated, so a green suite under it would not say whether the suite needs elevation. The suite step below runs under a token without that role and prints its own reading. Which half of the rule each reading covers is recorded in Jellyfin.Plugin.Watchlist.Tests/HEADLESS.md."
               } >> "${GITHUB_STEP_SUMMARY}"
               ;;
           esac
@@ -115,6 +119,84 @@ jobs:
           dotnet build --configuration Release --no-restore
 
       - name: Run the suite
+        # On Linux and macOS the job's own token is the unprivileged one the step
+        # above read, so the suite runs directly under it.
+        #
+        # On Windows it is not. `runas /trustlevel:0x20000` starts a process at
+        # the normal user level, where the built-in Administrators group is
+        # present in the token for denial only, so a call that needs the role is
+        # refused exactly as it would be for an ordinary account. It is the same
+        # account, the same profile and the same package cache, with one
+        # privilege fewer, and it asks for no password and creates nothing on the
+        # machine.
+        #
+        # The privilege is read by that process rather than beside it. A reading
+        # taken in the step and a suite run somewhere else are two runs, and the
+        # question this leg exists for is what the suite itself had.
+        #
+        # runas returns as soon as it has started the command and the console it
+        # starts is not this one, so everything the run produces goes to files and
+        # the exit status comes back as one of them. No status file after the wait
+        # is a failure and never a pass.
         run: |
           set -euo pipefail
-          dotnet test --configuration Release --no-build --verbosity normal
+          if [ "${RUNNER_OS}" != "Windows" ]; then
+            dotnet test --configuration Release --no-build --verbosity normal
+            exit 0
+          fi
+
+          out="$(cygpath -u "${RUNNER_TEMP}")/unprivileged-suite"
+          rm -rf "${out}"
+          mkdir -p "${out}"
+          win_out="$(cygpath -w "${out}")"
+          work="$(cygpath -w "${PWD}")"
+          dotnet_exe="$(cygpath -w "$(command -v dotnet)")"
+          case "${dotnet_exe}" in
+            *.exe) ;;
+            *) dotnet_exe="${dotnet_exe}.exe" ;;
+          esac
+
+          cat > "${out}/suite.cmd" <<CMD
+          @echo off
+          cd /d "${work}"
+          powershell -NoProfile -NonInteractive -Command "\$p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent()); Write-Output ('elevated=' + \$p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))" > "${win_out}\reading.txt" 2>&1
+          "${dotnet_exe}" test --configuration Release --no-build --verbosity normal > "${win_out}\suite.log" 2>&1
+          echo %ERRORLEVEL%> "${win_out}\code.txt"
+          CMD
+
+          runas /trustlevel:0x20000 "cmd.exe /c \"${win_out}\\suite.cmd\""
+
+          waited=0
+          while [ ! -f "${out}/code.txt" ] && [ "${waited}" -lt 900 ]; do
+            sleep 5
+            waited=$((waited + 5))
+          done
+
+          if [ -f "${out}/suite.log" ]; then
+            cat "${out}/suite.log"
+          fi
+
+          if [ ! -f "${out}/code.txt" ]; then
+            echo "The suite under the filtered token left no exit status after ${waited}s. Nothing here reads that as a pass."
+            exit 1
+          fi
+
+          reading="$(tr -d '\r\n' < "${out}/reading.txt")"
+          echo "the process that ran the suite: ${reading}"
+          {
+            echo "### The suite's own token on ${RUNNER_OS}"
+            echo
+            echo "    ${reading}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          case "${reading}" in
+            elevated=False) ;;
+            *)
+              echo "The suite was to run without the built-in Administrators role and this reading does not say so. Refusing the leg rather than reporting a green under an unknown privilege."
+              exit 1
+              ;;
+          esac
+
+          code="$(tr -dc '0-9' < "${out}/code.txt")"
+          echo "the suite exited ${code}"
+          exit "${code}"
