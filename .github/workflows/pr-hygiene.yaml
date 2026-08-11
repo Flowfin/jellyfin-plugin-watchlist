@@ -190,10 +190,9 @@ jobs:
               // not one never edits it, which is why this leg is silent almost
               // always and loud exactly once per release.
               //
-              // CHANGELOG.md is not in the tree yet; #72 lands it and the file
-              // name here is the one that issue creates. Until it does, a
-              // version bump made by hand fails this leg, which is the
-              // direction the check wants rather than an accident of ordering.
+              // CHANGELOG.md is in the tree, landed under #72, and the name
+              // here is that file. A version bump made by hand that leaves it
+              // alone fails this leg, which is the direction the check wants.
               // The release preparation pull request that the changelog
               // workflow opens is bot authored and is exempt above.
               const buildYaml = files.find((f) => f.filename === "build.yaml");
