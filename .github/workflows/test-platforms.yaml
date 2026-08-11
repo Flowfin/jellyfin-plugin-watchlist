@@ -161,7 +161,11 @@ jobs:
           cd /d "${work}"
           powershell -NoProfile -NonInteractive -Command "\$p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent()); Write-Output ('elevated=' + \$p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))" > "${win_out}\reading.txt" 2>&1
           "${dotnet_exe}" test --configuration Release --no-build --verbosity normal > "${win_out}\suite.log" 2>&1
-          echo %ERRORLEVEL%> "${win_out}\code.txt"
+          set rc=%ERRORLEVEL%
+          rem The redirection comes first because a digit written immediately
+          rem before it is read as a stream number and not as text, which leaves
+          rem an empty file where the status should be.
+          > "${win_out}\code.txt" echo rc=%rc%
           CMD
 
           runas /trustlevel:0x20000 "cmd.exe /c \"${win_out}\\suite.cmd\""
@@ -198,5 +202,9 @@ jobs:
           esac
 
           code="$(tr -dc '0-9' < "${out}/code.txt")"
+          if [ -z "${code}" ]; then
+            echo "The status file holds no number: $(cat "${out}/code.txt")"
+            exit 1
+          fi
           echo "the suite exited ${code}"
           exit "${code}"
