@@ -93,54 +93,55 @@ same pair of commands:
     dotnet build --configuration Release --no-restore
     dotnet test --configuration Release --no-build --verbosity normal
 
-The reading below was taken from the run at `badbf34`, which is the newest run of
-that workflow on the mainline where every leg reached the suite:
+The reading below was taken from the run at `454ce1c`, on all three platforms:
 
-    gh api repos/iderex/jellyfin-plugin-watchlist/actions/runs/31111170958/jobs \
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/actions/runs/31534276029/jobs \
       --jq '.jobs[] | "\(.name) \(.conclusion)"'
-    Suite on windows-latest success
     Suite on macos-latest success
     Suite on ubuntu-latest success
+    Suite on windows-latest success
 
-138 tests on each leg, none skipped. Two of the three were unprivileged:
+250 tests on each leg, none skipped. Linux and macOS are unprivileged because the
+hosted images run the job that way:
 
-    gh api repos/iderex/jellyfin-plugin-watchlist/actions/jobs/92649053525/logs \
-      | grep -m1 'user='
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/actions/jobs/93921526688/logs \
+      | grep -m1 -oE 'user=runner uid=[0-9]+ elevated=false'
     user=runner uid=1001 elevated=false
-    gh api repos/iderex/jellyfin-plugin-watchlist/actions/jobs/92649053438/logs \
-      | grep -m1 'user='
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/actions/jobs/93921526654/logs \
+      | grep -m1 -oE 'user=runner uid=[0-9]+ elevated=false'
     user=runner uid=501 elevated=false
 
-**The Windows leg of that run was elevated, so a green result there does not
-answer the question this rule asks.** The hosted Windows image runs the job under
-an account carrying the built-in Administrators role, and a suite that needs
-elevation passes under such an account exactly like a suite that does not:
+**The hosted Windows image does not run the job that way.** Its account carries
+the built-in Administrators role, and a suite that needs elevation passes under
+such an account exactly like a suite that does not, so the Windows job's own token
+still reads:
 
-    gh api repos/iderex/jellyfin-plugin-watchlist/actions/jobs/92649053271/logs \
-      | grep -m1 'elevated='
-    ... elevated=True
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/actions/jobs/93921526720/logs \
+      | grep -m1 -oE 'elevated=True'
+    elevated=True
 
 The account name is elided from that line and the value is not.
 
-So the unprivileged Windows half is a reading taken beside the gate rather than in
-it. On a Windows desktop whose session answers
+The suite is not run under that token. The Windows leg starts it through
+`runas /trustlevel:0x20000`, which builds a token at the normal user level where
+the Administrators group is present for denial only, and the process that runs the
+suite reads its own privilege rather than taking the step's:
 
-    powershell -NoProfile -NonInteractive -Command \
-      '$p = New-Object Security.Principal.WindowsPrincipal(
-         [Security.Principal.WindowsIdentity]::GetCurrent())
-       Write-Output ("elevated=" + $p.IsInRole(
-         [Security.Principal.WindowsBuiltInRole]::Administrator))'
-    elevated=False
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/actions/jobs/93921526720/logs \
+      | grep -aoE 'the process that ran the suite: elevated=[A-Za-z]+|the suite exited [0-9]+'
+    the process that ran the suite: elevated=False
+    the suite exited 0
 
-the suite passes on the tree this change makes, which differs from `6e3e136` in
-this file and in the workflow beside it and nowhere else. That machine carries no
-.NET 9 runtime, so the run rolled forward onto the runtime it has, and it is a
-reading about privilege rather than about the runtime either server line uses:
+What that reading covers and what it does not. It is the same account with one
+privilege filtered out of its token, not a second account created for the run, so
+it says the suite needs no administrator role and says nothing about a profile
+that never had one. The leg fails closed on both ways a wrong answer could arrive:
+a reading that is not `elevated=False` refuses the leg, and a run that leaves no
+exit status behind is a failure rather than a pass. The second of those was
+measured rather than intended, on the run before this one, where an empty status
+file reddened a leg whose 250 tests had passed.
 
-    DOTNET_CLI_UI_LANGUAGE=en DOTNET_ROLL_FORWARD=LatestMajor \
-      dotnet test --configuration Release
-    Passed!  - Failed:     0, Passed:   138, Skipped:     0, Total:   138
-
-One run that is both unprivileged and Windows inside the gate is what is still
-missing. Until it exists this section stands in its place and says which half each
-reading covers. #44 is where that gap is tracked and it stays open for it.
+A reading taken off the gate, on a Windows desktop whose session answers
+`elevated=False`, is what stood here before the leg existed. It is not repeated,
+because the gate now takes the same reading on every commit and that one was of
+one machine on one day.
