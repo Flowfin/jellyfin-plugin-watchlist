@@ -7,9 +7,15 @@ endpoints reach the document a server generates. This file is the record of a
 run that asked one server of each supported line.
 
 A later reader compares a new run against the rows here rather than against a
-memory of one. Every block below is the output of the command above it, and no
-command needed a graphical session, an elevated account or anything installed on
-the host beyond a container runtime.
+memory of one. Every block below is the output of the command above it.
+
+What the host had to carry is a .NET SDK, for the publish step that produces the
+assembly, and a container runtime for everything after it. Nothing rendered a
+page and no browser was involved, so no reading here needs a graphical session.
+Whether the session that ran these commands held the administrators role was not
+read, so "without elevation" is a statement about what the commands ask for
+rather than a measurement of what they had; no consent prompt appeared, which is
+weaker evidence than a reading.
 
 ## What was read
 
@@ -152,11 +158,30 @@ The prose written at each endpoint does not reach the document. Every response
 in `WatchlistController` carries a `<response>` line saying what that code means
 for a caller, and what the document shows instead is the framework's own word
 for the status code, `Success`, `Unauthorized`, `Forbidden`, `Server Error` on
-one line and `OK`, `No Content`, `Service Unavailable` on the other. The
-assembly's XML documentation file is not read by the server, and nothing in this
-repository puts it there. So a client author reads the shape from this document
-and the meaning from `docs/api.md`, and that is a fact about the route rather
-than a gap in the controller.
+one line and `OK`, `No Content`, `Service Unavailable` on the other.
+
+The obvious explanation is wrong and was checked rather than assumed. `dotnet
+publish` writes an XML documentation file beside the assembly, and the install
+above copies only the assembly and its `meta.json`, so the first guess is that
+the prose is missing because that file is missing. It is not. Copying the file
+in and restarting the server produces the same document, byte for byte:
+
+    docker cp pkg/Jellyfin.Plugin.Watchlist.xml wl-1011:/config/plugins/Watchlist_0.1.0.0/
+    docker restart wl-1011
+    docker exec wl-1011 ls -1 /config/plugins/Watchlist_0.1.0.0/
+    Jellyfin.Plugin.Watchlist.dll
+    Jellyfin.Plugin.Watchlist.xml
+    meta.json
+
+    sha256sum openapi-1011.json openapi-1011-withxml.json
+    280a5abfd3442ad478513684e9d1f078dce856490b2187aeabf33c4e6e960cd1 *openapi-1011.json
+    280a5abfd3442ad478513684e9d1f078dce856490b2187aeabf33c4e6e960cd1 *openapi-1011-withxml.json
+
+So the server does not read a plugin's XML documentation into the document it
+generates, and shipping that file in a package would not change what a client
+author sees. The shape comes from this document and the meaning from
+`docs/api.md`, and that is a fact about the route rather than a gap in the
+controller.
 
 `403` appears on every operation and no endpoint declares it. It is added by the
 server's own authorisation handling rather than by this plugin, so the set of
