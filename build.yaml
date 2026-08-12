@@ -54,12 +54,18 @@ category: "General"
 owner: "Flowfin"
 artifacts:
 - "Jellyfin.Plugin.Watchlist.dll"
-# The text a server shows for this version. It is not written here twice: the
-# suite refuses a value that is not the newest section of CHANGELOG.md, so this
-# block is the packaged copy of that section and an edit to one without the other
-# reds the run. The publish route reads this key and never reads CHANGELOG.md, so
-# this block is what a package carries. Whether it is derived at package time
-# instead of guarded here is the open half of #72.
+# The text a server shows for this version. CHANGELOG.md is where it is written;
+# this block is not the source of it. Before the package is built, the publish
+# route replaces everything under this key with the CHANGELOG.md section for the
+# version above, and refuses the run when there is no such section. So what a
+# release ships is the changelog, and an edit made here alone reaches nobody.
+#
+# The block stays for two reasons rather than as a leftover. The packaging tool
+# reads this key without a default and dies with a KeyError after the compile when
+# it is absent, which is far past the point where the tag is spent. And the suite
+# compares it against the newest CHANGELOG.md section on every pull request, so a
+# change to either file that separates them is refused at a moment that can be
+# repeated, rather than at the one push that cannot.
 changelog: >
   Not released. Nothing has been published from this repository yet, so there is
   nothing to install, nothing to upgrade from, and nothing a user has to do.
