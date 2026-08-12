@@ -21,8 +21,19 @@
 name: Workflow Security Analysis
 
 on:
+  # The default branch of this repository, read rather than assumed:
+  #
+  #     gh repo view --json defaultBranchRef --jq .defaultBranchRef.name
+  #     master
+  #
+  # This was `main` until #166, a branch this repository does not have, so the
+  # push route never fired over eighty runs and nothing said so. The name is a
+  # literal because a branch filter takes no expression, and the same literal is
+  # repeated in the upload condition below, so a rename of the default branch
+  # re-creates the defect in two places at once. A rename is the moment to read
+  # this line.
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
     branches: [ "**" ]
 
@@ -65,13 +76,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload SARIF
-        # Only upload where the GITHUB_TOKEN can write security events: pushes to main
-        # and same-repo human PRs. Fork and Dependabot pull requests run with a
-        # read-only token, so the upload is skipped there - the gate step below still
-        # runs and blocks on findings. continue-on-error keeps the security gate
-        # independent of the upload: a transient code-scanning upload failure must not
-        # skip the "Fail on actionable findings" step below.
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]')
+        # Only upload where the GITHUB_TOKEN can write security events: pushes to
+        # the default branch and same-repo human PRs. Fork and Dependabot pull
+        # requests run with a read-only token, so the upload is skipped there - the
+        # gate step below still runs and blocks on findings. continue-on-error keeps
+        # the security gate independent of the upload: a transient code-scanning
+        # upload failure must not skip the "Fail on actionable findings" step below.
+        #
+        # The branch here is the second copy of the literal the trigger carries, and
+        # it named `main` until #166 for the same reason. Both move together.
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]')
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
