@@ -1,6 +1,16 @@
 # Static analysis of the GitHub Actions workflows themselves (zizmor). The
-# workflow YAML is release-critical attack surface - publish-beta.yml runs on
-# every push to main with contents:write - so it is audited like any other code.
+# workflow YAML in this repository is release-critical attack surface, and the
+# case for auditing it is made from this tree rather than from a shape some
+# other repository has. publish.yaml runs on a pushed tag, creates the release
+# and attaches its assets, and its release job is the one that holds
+# `contents: write`. It is not the only job here holding a write token, and
+# which ones do is read rather than listed, because a list written into a
+# comment drifts against the files it describes while every run stays green:
+#
+#     git grep -nE '^ +(contents|packages|id-token|attestations|issues|pull-requests|security-events): write' -- .github/workflows/
+#
+# A workflow edited by somebody who should not be editing it spends those
+# tokens, so the YAML is audited like any other code.
 #
 # The gate runs zizmor's regular persona at --min-severity=low: it fails the
 # build on any actionable (low/medium/high/critical) security finding -
@@ -9,10 +19,12 @@
 # regular persona is the one zizmor documents for CI ("high-signal, low-noise,
 # actionable"). The pedantic persona is deliberately NOT used to gate: it adds
 # low-severity hygiene findings (undocumented permissions, missing concurrency,
-# pin-comment mismatches, unnamed jobs) that are stylistic, not security-blocking,
-# and some are context-blind (it would demand run-cancelling concurrency on the
-# release workflows, which must never be cancelled mid-publish). That backlog is
-# tracked as a code-quality task (#263), not gated here.
+# pin-comment mismatches, unnamed jobs) that are stylistic rather than
+# security-blocking. What that persona reports on this tree has not been read,
+# because nothing here has ever run it, so the sentence above is a statement
+# about what is gated and not a claim that the ungated set is empty. No issue in
+# this repository holds that backlog; a comment here can only point at one once
+# it exists.
 #
 # Rule for future workflow changes: every new or edited workflow must pass this
 # gate before merge. Keep actions SHA-pinned, keep checkout on
