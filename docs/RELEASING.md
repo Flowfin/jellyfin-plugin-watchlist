@@ -43,6 +43,11 @@ file. Both the archive and the metadata are checked for existence by name before
 release job runs, so a release with three of the four files is not a state this route
 can reach.
 
+The release notes the package carries are taken from `CHANGELOG.md`, from the
+section for the version in `build.yaml`, and written into the manifest the packaging
+step reads. Nothing is typed into a release by hand at that point: the section is
+what ships, and the copy in `build.yaml` is overwritten before the package is built.
+
 The run also signs a build provenance statement for the archive, in a separate job
 that downloads the archive and runs no build tooling. A downloaded archive can be
 checked against it:
@@ -72,6 +77,10 @@ is gone and no catalog is fed until a manifest generator is added.
   cannot restore against a reviewed dependency graph. Create one with
   `dotnet restore <project> -p:RestorePackagesWithLockFile=true` and commit it.
 - The version stamped into the assembly is not the version in `build.yaml`.
+- `CHANGELOG.md` is missing, or carries no section for the version in `build.yaml`.
+  The release notes in the package are taken from that section, so a version with
+  no section has nothing to ship.
+- `build.yaml` has no folded `changelog: >` block for the notes to be written into.
 - The build produced no archive, or more than one, or no packaging metadata.
 - A release already exists for the tag.
 

@@ -326,6 +326,134 @@ jobs:
           fi
           echo "Assembly version ${assembly} matches the manifest."
 
+      - name: Take the packaged changelog from CHANGELOG.md
+        env:
+          MANIFEST_VERSION: ${{ needs.gate.outputs.version }}
+        # The release notes a server shows are written in CHANGELOG.md, and this step
+        # is what puts them in the package. The packaging tool below reads build.yaml's
+        # `changelog` key and never opens CHANGELOG.md, so without this the packaged
+        # text is whatever somebody typed into the manifest a second time.
+        #
+        # The suite holds the two together on every pull request, so on any commit that
+        # can reach a tag they already say the same thing and this step writes the same
+        # words back. What it changes is which file decides: after it, the section in
+        # CHANGELOG.md is what ships, and the block in build.yaml is a copy the route
+        # overwrites rather than the source it reads.
+        #
+        # It fails rather than guessing, and every failure here lands in the build job,
+        # before the release exists, which is the state docs/RELEASING.md describes as
+        # leaving the tag clean.
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/changelog"
+
+          # The body of the section a version carries: the heading that starts with the
+          # version, then every line under it up to the next heading. The version is
+          # compared as the string build.yaml declares, so a heading written with a
+          # different number of parts is no section rather than a near match.
+          cat > "${RUNNER_TEMP}/changelog/section.awk" <<'AWK'
+          /^##[ \t]/ {
+            heading = $0
+            sub(/\r$/, "", heading)
+            sub(/^##[ \t]+/, "", heading)
+            split(heading, parts, /[ \t]+/)
+            grab = (parts[1] == want)
+            next
+          }
+          grab {
+            line = $0
+            sub(/\r$/, "", line)
+            print line
+          }
+          AWK
+
+          # One paragraph: every line trimmed, blank lines dropped, the rest joined by
+          # single spaces. Both sides of every comparison below go through this, so the
+          # rule is about the words and not about where a line happens to wrap. It is
+          # the same fold the suite applies to the same two files.
+          cat > "${RUNNER_TEMP}/changelog/fold.awk" <<'AWK'
+          {
+            line = $0
+            sub(/\r$/, "", line)
+            sub(/^[ \t]+/, "", line)
+            sub(/[ \t]+$/, "", line)
+            if (length(line) > 0) {
+              out = (length(out) > 0) ? out " " line : line
+            }
+          }
+          END { print out }
+          AWK
+
+          # The manifest's folded changelog block: the key, then every indented line
+          # under it. The block ends at the first line that is not indented, so a key
+          # written after it is neither read nor eaten by the rewrite.
+          cat > "${RUNNER_TEMP}/changelog/block.awk" <<'AWK'
+          /^changelog:[ \t]*>[ \t]*\r?$/ { inblock = 1; next }
+          inblock {
+            line = $0
+            sub(/\r$/, "", line)
+            if (line !~ /^[ \t]+/) { exit }
+            print line
+          }
+          AWK
+
+          # The manifest with that block replaced by one folded line. Every other line
+          # is printed back byte for byte, so the file the packager reads differs from
+          # the tracked one in the block and nowhere else. The text arrives through the
+          # environment rather than through -v, which would read backslash escapes in
+          # it.
+          cat > "${RUNNER_TEMP}/changelog/rewrite.awk" <<'AWK'
+          !replaced && /^changelog:[ \t]*>[ \t]*\r?$/ {
+            print
+            print "  " ENVIRON["DERIVED"]
+            replaced = 1
+            dropping = 1
+            next
+          }
+          dropping {
+            probe = $0
+            sub(/\r$/, "", probe)
+            if (probe ~ /^[ \t]+/) { next }
+            dropping = 0
+          }
+          { print }
+          END { if (!replaced) { exit 3 } }
+          AWK
+
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error::CHANGELOG.md is not in the repository. The packaged release notes are taken from it, so there is nothing to package."
+            exit 1
+          fi
+
+          derived="$(awk -v want="${MANIFEST_VERSION}" -f "${RUNNER_TEMP}/changelog/section.awk" CHANGELOG.md \
+            | awk -f "${RUNNER_TEMP}/changelog/fold.awk")"
+          if [ -z "${derived}" ]; then
+            echo "::error::CHANGELOG.md carries no section for ${MANIFEST_VERSION}, or that section is empty. A release ships the notes for the version it declares, and there are none to ship."
+            exit 1
+          fi
+
+          carried="$(awk -f "${RUNNER_TEMP}/changelog/block.awk" build.yaml \
+            | awk -f "${RUNNER_TEMP}/changelog/fold.awk")"
+          if [ -z "${carried}" ]; then
+            echo "::error::build.yaml has no folded 'changelog: >' block for this step to replace. The packaging tool reads that key without a default and dies with a KeyError after the compile when it is absent."
+            exit 1
+          fi
+
+          DERIVED="${derived}" awk -f "${RUNNER_TEMP}/changelog/rewrite.awk" build.yaml > build.yaml.derived
+          mv build.yaml.derived build.yaml
+
+          # Read back rather than trust. A rewrite that produced a block this route
+          # cannot read again is a package whose notes are unreadable to whatever reads
+          # them next, and the tag is already spent by the time anybody opens it.
+          written="$(awk -f "${RUNNER_TEMP}/changelog/block.awk" build.yaml \
+            | awk -f "${RUNNER_TEMP}/changelog/fold.awk")"
+          if [ "${written}" != "${derived}" ]; then
+            echo "::error::The changelog block in build.yaml was rewritten and does not read back as the section it was taken from. It now reads: ${written}"
+            exit 1
+          fi
+
+          echo "::notice::Packaged changelog taken from the CHANGELOG.md section for ${MANIFEST_VERSION}: ${derived}"
+
       - name: Build the plugin package
         id: jprm
         # No version input: the packager reads the version from build.yaml, and the
