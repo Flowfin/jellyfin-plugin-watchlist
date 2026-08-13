@@ -8,11 +8,11 @@ using System.Text.RegularExpressions;
 namespace Jellyfin.Plugin.Watchlist.Tests;
 
 /// <summary>
-/// The changelog, as the test assembly carries it, and the comparison between it
-/// and the manifest's packaged copy. The comparison lives here as a named function
-/// so the test that asserts the real pair and the tests that feed it a mutated pair
-/// exercise the same code rather than two similar ones, which is how BuildManifest
-/// beside it is arranged and for the same reason.
+/// The changelog, as the test assembly carries it, and the rule that keeps the notes
+/// in one file. The rule lives here as a named function so the test that asserts the
+/// real manifest and the tests that feed it a mutated one exercise the same code
+/// rather than two similar ones, which is how BuildManifest beside it is arranged and
+/// for the same reason.
 /// </summary>
 internal static class Changelog
 {
@@ -51,6 +51,18 @@ internal static class Changelog
         .ToList();
 
     /// <summary>
+    /// The text of every section the changelog carries, folded the same way, in the
+    /// order they appear. What the rule below is against is the manifest holding one
+    /// of these paragraphs, and which version it was copied from does not soften it.
+    /// </summary>
+    /// <param name="changelogText">The changelog to read.</param>
+    /// <returns>The folded section texts.</returns>
+    public static IReadOnlyList<string> Entries(string changelogText) => Section
+        .Matches(changelogText)
+        .Select(m => Fold(m.Groups["body"].Value))
+        .ToList();
+
+    /// <summary>
     /// The text of the section a version carries, folded to one paragraph.
     /// </summary>
     /// <param name="changelogText">The changelog to read.</param>
@@ -82,19 +94,34 @@ internal static class Changelog
     }
 
     /// <summary>
-    /// The whole rule. The version a manifest declares has a section in the changelog,
-    /// and the text the manifest packages is that section. Either half failing is the
-    /// same defect from a user's side: a release whose notes say something other than
-    /// what the repository says changed.
+    /// Returns the manifest with a different changelog block in it, leaving every other
+    /// byte alone. Used to build the near misses: one manifest, one changed block.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <param name="replacement">The text to put under the key.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithPackagedEntry(string manifestText, string replacement) =>
+        ManifestBlock.Replace(manifestText, _ => "changelog: >\n  " + replacement, 1);
+
+    /// <summary>
+    /// The whole rule. The notes a release ships are written in CHANGELOG.md and
+    /// nowhere else, so the manifest's changelog block points at that file instead of
+    /// repeating what it says. Both halves are the same defect from a reader's side.
+    /// A block holding one of the changelog's paragraphs is a second copy, and the
+    /// publish route overwrites it before the package is built, so it is the copy that
+    /// goes stale while nobody notices it never shipped. A block holding neither the
+    /// notes nor a pointer at them leaves somebody editing this key with no way to
+    /// find the file that decides.
     /// </summary>
     /// <param name="manifestText">The manifest to read.</param>
     /// <param name="changelogText">The changelog to read.</param>
-    /// <returns>True when the two agree.</returns>
-    public static bool Agrees(string manifestText, string changelogText)
+    /// <returns>True when the notes are written once.</returns>
+    public static bool NotesAreWrittenOnce(string manifestText, string changelogText)
     {
-        var entry = EntryFor(changelogText, BuildManifest.ReadVersion(manifestText));
+        var packaged = PackagedEntry(manifestText);
 
-        return entry is not null && string.Equals(entry, PackagedEntry(manifestText), StringComparison.Ordinal);
+        return packaged.Contains("CHANGELOG.md", StringComparison.Ordinal)
+            && !Entries(changelogText).Contains(packaged, StringComparer.Ordinal);
     }
 
     /// <summary>

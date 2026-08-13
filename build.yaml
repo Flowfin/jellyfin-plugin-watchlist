@@ -54,18 +54,18 @@ category: "General"
 owner: "Flowfin"
 artifacts:
 - "Jellyfin.Plugin.Watchlist.dll"
-# The text a server shows for this version. CHANGELOG.md is where it is written;
-# this block is not the source of it. Before the package is built, the publish
-# route replaces everything under this key with the CHANGELOG.md section for the
-# version above, and refuses the run when there is no such section. So what a
-# release ships is the changelog, and an edit made here alone reaches nobody.
+# The text a server shows for this version is written in CHANGELOG.md and nowhere
+# else. Before the package is built, the publish route replaces everything under
+# this key with the CHANGELOG.md section for the version above, and refuses the run
+# when there is no such section. So what a release ships is the changelog, and
+# whatever stands here is overwritten on the way.
 #
-# The block stays for two reasons rather than as a leftover. The packaging tool
-# reads this key without a default and dies with a KeyError after the compile when
-# it is absent, which is far past the point where the tag is spent. And the suite
-# compares it against the newest CHANGELOG.md section on every pull request, so a
-# change to either file that separates them is refused at a moment that can be
-# repeated, rather than at the one push that cannot.
+# The key stays rather than being deleted because the packaging tool reads it
+# without a default and dies with a KeyError after the compile when it is absent,
+# which is far past the point where the tag is spent. What stands under it is a
+# pointer at the file the notes come from, and the suite refuses notes written here
+# instead: two files carrying the same paragraph is a copy that goes stale against
+# the one that ships, and this is the copy nobody reads.
 changelog: >
-  Not released. Nothing has been published from this repository yet, so there is
-  nothing to install, nothing to upgrade from, and nothing a user has to do.
+  Written at package time from the CHANGELOG.md section for the version above.
+  Nothing typed here reaches a release.

@@ -53,7 +53,9 @@ missing one of the eight is not a state this route can reach.
 The release notes the package carries are taken from `CHANGELOG.md`, from the
 section for the version in `build.yaml`, and written into the manifest the packaging
 step reads. Nothing is typed into a release by hand at that point: the section is
-what ships, and the copy in `build.yaml` is overwritten before the package is built.
+what ships, and the `changelog` block in `build.yaml` is a pointer at that file which
+the run overwrites on the way. The notes are written in one file, and the suite
+refuses a second copy of them appearing in the manifest.
 
 The run also signs a build provenance statement for the archive, in a separate job
 that downloads the archive and runs no build tooling. A downloaded archive can be

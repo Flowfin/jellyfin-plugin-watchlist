@@ -334,11 +334,11 @@ jobs:
         # `changelog` key and never opens CHANGELOG.md, so without this the packaged
         # text is whatever somebody typed into the manifest a second time.
         #
-        # The suite holds the two together on every pull request, so on any commit that
-        # can reach a tag they already say the same thing and this step writes the same
-        # words back. What it changes is which file decides: after it, the section in
-        # CHANGELOG.md is what ships, and the block in build.yaml is a copy the route
-        # overwrites rather than the source it reads.
+        # There is no second copy to reconcile. The block in build.yaml is a pointer at
+        # the file the notes come from, and the suite refuses notes written there
+        # instead, so this step replaces a sentence rather than agreeing with a
+        # paragraph. What the package ships is the CHANGELOG.md section and nothing
+        # else.
         #
         # It fails rather than guessing, and every failure here lands in the build job,
         # before the release exists, which is the state docs/RELEASING.md describes as
