@@ -88,6 +88,13 @@ line, so the form is exact and a near miss is a failure:
 `git rebase --signoff <base>` adds it to each of them. The trailer is how an
 author asserts the Developer Certificate of Origin over what they are sending.
 
+What the trailer asserts is `DCO` at the root of this repository. It carries
+version 1.1 of the Developer Certificate of Origin and nothing else, because a
+certificate somebody signs is the wrong place for a local remark. Read it before
+you sign, since the trailer is the assertion rather than a formality in front of
+it.
+
 The gate is `.github/workflows/dco.yml`. It walks every commit in the range the
 pull request adds and it fails closed, so one commit without the trailer reds
-the check for the whole branch.
+the check for the whole branch. A commit it refuses prints a message naming this
+document and `./DCO`, and both of those are in the tree.
