@@ -30,18 +30,22 @@ serialising them by hand is what keeps the release order readable.
 ## What the run produces
 
 The workflow builds the plugin from the tagged commit, creates the GitHub release
-for the tag, and attaches four files:
+for the tag, and attaches six files:
 
 - the plugin archive
 - the packaging metadata written beside it, `<archive>.zip.meta.json`
 - one `.md5` file, the checksum of the archive
 - one `.sha256` file for the same archive
+- the signed build provenance bundle, `<archive without .zip>.sigstore.json`
+- one `.sha256` file for that bundle
 
 The `.md5` is the value a Jellyfin catalog serves as the plugin checksum. There is
-exactly one per release so that no generator can pair a checksum with the wrong
-file. Both the archive and the metadata are checked for existence by name before the
-release job runs, so a release with three of the four files is not a state this route
-can reach.
+exactly one per release, and the step that writes it counts the `.md5` files in the
+directory afterwards and fails on a second one, so a tool added to this route later
+cannot leave a catalog to choose between two. Every other asset carries a `.sha256`
+instead. The archive and the metadata are checked for existence by name before the
+release job runs, and the bundle is checked by the same job that names it, so a
+release missing one of the six is not a state this route can reach.
 
 The release notes the package carries are taken from `CHANGELOG.md`, from the
 section for the version in `build.yaml`, and written into the manifest the packaging
@@ -55,6 +59,18 @@ checked against it:
 ```
 gh attestation verify <archive>.zip --repo <owner>/<repository>
 ```
+
+That command reads the statement out of this repository's attestation store. The
+same statement is attached to the release as `<archive without .zip>.sigstore.json`,
+so a reader who has the release page has the archive and its proof in one place and
+can hand the file to the same command:
+
+```
+gh attestation verify <archive>.zip --repo <owner>/<repository> --bundle <archive>.sigstore.json
+```
+
+Whether that second form reaches a verdict with no network at all has not been run
+here, so nothing above claims it does.
 
 Nothing here writes a plugin catalog. A GitHub release is the whole output. If this
 repository previously published through the Jellyfin meta plugins workflow, that path
@@ -82,6 +98,10 @@ is gone and no catalog is fed until a manifest generator is added.
   no section has nothing to ship.
 - `build.yaml` has no folded `changelog: >` block for the notes to be written into.
 - The build produced no archive, or more than one, or no packaging metadata.
+- The attestation step reported no bundle on disk, so there is nothing to attach as
+  the archive's proof.
+- The release job found no attestation bundle, or more than one.
+- More than one `.md5` ended up in the directory the release is assembled from.
 - A release already exists for the tag.
 
 All of these fail before anything is published.
