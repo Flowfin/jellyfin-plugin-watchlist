@@ -117,10 +117,56 @@ why there is no release.
 This section is here so the description above is not read as a description of
 what the code does today. The tracker carries the rest.
 
+## Checking a release
+
+Every release carries the plugin archive, a component inventory saying what is in
+it, and a signed statement tying it to the commit and the workflow run that built
+it. Both are attached to the release page beside the archive, so they outlive the
+run, and both carry a `.sha256` of their own.
+
+The statement is checked with the GitHub CLI. The first form reads it out of this
+repository's attestation store, the second reads the copy attached to the release,
+so a reader who downloaded the whole page needs nothing else:
+
+```
+gh attestation verify <archive>.zip --repo Flowfin/jellyfin-plugin-watchlist
+gh attestation verify <archive>.zip --repo Flowfin/jellyfin-plugin-watchlist \
+  --bundle <archive>.sigstore.json
+```
+
+The inventory is CycloneDX, so any tool that reads that format reads it. What it
+says about this archive, without such a tool:
+
+```
+sha256sum -c <archive>.cdx.json.sha256
+jq -r '.metadata.component | .name, (.hashes[] | .alg + " " + .content)' <archive>.cdx.json
+jq -r '.components[] | select(.scope == "required") | [.type, .name] | @tsv' <archive>.cdx.json
+jq -r '.components[] | select(.type != "file")
+  | [.name, .version, .scope, ((.licenses // []) | map(.license.id // .license.name // .expression) | join(", "))]
+  | @tsv' <archive>.cdx.json
+```
+
+The second command names the archive the document is about and repeats its digest,
+so an inventory downloaded next to the wrong archive is visible rather than
+assumed. The third lists what the archive ships. The fourth lists every package
+the release build resolved, with the licence each package declares: `required`
+means the archive carries it, `excluded` means the plugin was compiled against it
+and the bytes are not in the zip. The licences are read out of the packages
+themselves by the generator and are not asserted here.
+
+Nothing has been released from this repository yet, so these commands describe what
+the route produces and have not been run against a release.
+
 ## Licence
 
 GPLv3, in [LICENSE](LICENSE). A compiled Jellyfin plugin links against the
 Jellyfin NuGet packages, which are GPLv3, so the built artifact is GPLv3
 whatever this repository says.
+
+That is the position for the shipped artifact as well as for the source. The
+inventory above is where a reader sees it per component rather than as a sentence:
+the Jellyfin packages this plugin compiles against declare `GPL-3.0-only`
+themselves, which is what makes the paragraph above a reading rather than a
+preference.
 
 See [NOTICE.md](NOTICE.md) for the intended-use notice.

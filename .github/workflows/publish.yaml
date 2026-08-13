@@ -478,18 +478,154 @@ jobs:
           done
           ls -l "${ARTIFACT}" "${ARTIFACT}.meta.json"
 
+      - name: Write the component inventory
+        id: inventory
+        env:
+          ARTIFACT: ${{ steps.jprm.outputs.artifact }}
+          MANIFEST_VERSION: ${{ needs.gate.outputs.version }}
+          EXPECTED_FRAMEWORK: "net8.0"
+          # The generator, pinned by version. A NuGet package carries no digest a
+          # workflow can pin the way the actions here are pinned by commit, so the
+          # version is the whole pin and it is worth knowing that it is weaker.
+          INVENTORY_TOOL_VERSION: "6.2.0"
+        # Somebody about to put a binary into their media server should be able to
+        # read what is in it and what each part is licensed under. CycloneDX is the
+        # format the .NET ecosystem's own generator writes and a scanner reads with
+        # nothing explained to it, and the licence of every component comes out of the
+        # package that declares it rather than out of a list written here.
+        #
+        # The generator installs under the runner's temporary directory rather than
+        # onto the PATH, so nothing it unpacks can land in the directory the release
+        # is assembled from.
+        #
+        # The restore that decides this graph already ran above, in locked mode,
+        # against the committed lock file. The generator is told not to restore again:
+        # a second resolution under no such constraint would describe a graph the
+        # package was not built from, which is the one thing an inventory must not do.
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          project="Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj"
+          archive="${ARTIFACT##*/}"
+          inventory="$(dirname "${ARTIFACT}")/${archive%.zip}.cdx.json"
+          tool="${RUNNER_TEMP}/inventory-tool"
+          work="${RUNNER_TEMP}/inventory"
+          rm -rf "${tool}" "${work}"
+          mkdir -p "${work}"
+
+          dotnet tool install CycloneDX --version "${INVENTORY_TOOL_VERSION}" --tool-path "${tool}"
+
+          "${tool}/dotnet-CycloneDX" "${project}" \
+            --framework "${EXPECTED_FRAMEWORK}" \
+            --output "${work}" \
+            --filename resolved.json \
+            --output-format Json \
+            --exclude-dev \
+            --no-serial-number \
+            --disable-package-restore \
+            --set-name "${archive}" \
+            --set-version "${MANIFEST_VERSION}"
+
+          if [ ! -s "${work}/resolved.json" ]; then
+            echo "::error::The inventory generator exited without writing ${work}/resolved.json. A release must not carry an inventory that is absent or empty, because a reader cannot tell that from one saying the package ships nothing."
+            exit 1
+          fi
+
+          # What the archive actually ships, one file per line with its digest. The
+          # generator describes the graph the project resolved; this describes the
+          # bytes, and the two are not the same set. Both package references here
+          # exclude their runtime assets, so the resolved graph is what the plugin was
+          # compiled against and almost none of it is in the zip.
+          mkdir -p "${work}/contents"
+          unzip -q -o "${ARTIFACT}" -d "${work}/contents"
+          ( cd "${work}/contents" && find . -type f | sed 's|^\./||' | sort ) > "${work}/shipped.txt"
+          : > "${work}/shipped.tsv"
+          while IFS= read -r file; do
+            printf '%s\t%s\n' "${file}" "$(sha256sum "${work}/contents/${file}" | cut -d' ' -f1)" >> "${work}/shipped.tsv"
+          done < "${work}/shipped.txt"
+
+          # `scope` is the field that carries the difference. The generator marks every
+          # resolved package required, which is true of the build and false of the
+          # archive, so it is rewritten from the archive's own contents: required where
+          # the zip carries that assembly, excluded where it does not. The shipped
+          # files are then added as components of their own, so the document answers
+          # "what is in this file" out of the file rather than out of a project.
+          jq --rawfile shipped "${work}/shipped.tsv" \
+             --arg digest "$(sha256sum "${ARTIFACT}" | cut -d' ' -f1)" '
+            ($shipped | split("\n") | map(select(length > 0)) | map(split("\t") | {path: .[0], digest: .[1]})) as $files
+            | ($files | map(.path | sub(".*/"; ""))) as $names
+            | .metadata.component.hashes = [{alg: "SHA-256", content: $digest}]
+            | .components = ((.components // []) | map(. as $component | .scope = (if ($names | index($component.name + ".dll")) then "required" else "excluded" end)))
+            | .components += ($files | map({type: "file", name: .path, scope: "required", hashes: [{alg: "SHA-256", content: .digest}]}))
+          ' "${work}/resolved.json" > "${inventory}"
+
+          if ! jq -e '.bomFormat == "CycloneDX"' "${inventory}" > /dev/null; then
+            echo "::error::${inventory} is not a CycloneDX document. Whatever the generator produced, nothing that reads an inventory will read this."
+            exit 1
+          fi
+          if ! jq -e --arg a "${archive}" '.metadata.component.name == $a' "${inventory}" > /dev/null; then
+            echo "::error::${inventory} does not name ${archive} as the thing it describes. A reader holding two files from a release has nothing to match them up by."
+            exit 1
+          fi
+
+          # The assembly this build produced is the subject of the inventory rather
+          # than one of its components, so it is asked for by name instead of being
+          # assumed to be the only file in the zip. MSBuild is asked, not the project
+          # file, for the same reason the steps above ask it.
+          own="$(dotnet msbuild "${project}" -getProperty:AssemblyName -nologo \
+            -p:TargetFramework="${EXPECTED_FRAMEWORK}" | tr -d '[:space:]').dll"
+          if [ "${own}" = ".dll" ]; then
+            echo "::error::${project} reports no AssemblyName, so the file the archive is built around cannot be told from a dependency that shipped beside it."
+            exit 1
+          fi
+
+          # The refusal this step exists for. Every shipped file is listed above with
+          # its digest, so an assembly nothing else accounts for still appears in the
+          # document as a bare filename: no package, no version, no licence. That is
+          # the shape a release would publish while looking exactly like one that says
+          # what it ships, and nothing downstream would say otherwise. So each shipped
+          # assembly that is not the one this build produced has to be accounted for
+          # by a package the resolved graph names.
+          unaccounted=()
+          while IFS= read -r file; do
+            base="${file##*/}"
+            case "${base}" in
+              *.dll | *.DLL) ;;
+              *) continue ;;
+            esac
+            if [ "${base}" = "${own}" ]; then
+              continue
+            fi
+            if ! jq -e --arg n "${base%.*}" 'any(.components[]? | select(.type != "file"); .name == $n)' "${inventory}" > /dev/null; then
+              unaccounted+=("${base}")
+            fi
+          done < "${work}/shipped.txt"
+
+          if [ "${#unaccounted[@]}" -ne 0 ]; then
+            echo "::error::The archive ships ${unaccounted[*]}, and no package in ${inventory} accounts for it, so the release would carry an assembly with no version and no licence beside it. Either the inventory was written from a different graph than the package, or a dependency started shipping and nobody said what it is."
+            exit 1
+          fi
+
+          echo "inventory=${inventory}" >> "${GITHUB_OUTPUT}"
+          echo "::notice::${inventory} describes ${archive}: $(jq '[.components[] | select(.type != "file")] | length' "${inventory}") resolved component(s) and $(wc -l < "${work}/shipped.txt") shipped file(s)."
+          ls -l "${inventory}"
+
       - name: Hand the package to the later jobs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: build-artifact
           retention-days: 30
           if-no-files-found: error
-          # The archive and the metadata the packager writes beside it. The metadata
-          # travels with the release so a catalog can be built from the package that
-          # was actually shipped instead of from a file read back out of the tree.
+          # The archive, the metadata the packager writes beside it and the component
+          # inventory. The metadata travels with the release so a catalog can be built
+          # from the package that was actually shipped instead of from a file read back
+          # out of the tree, and the inventory travels with it so the answer to what is
+          # inside the archive outlives the run that produced it.
           path: |
             ${{ steps.jprm.outputs.artifact }}
             ${{ steps.jprm.outputs.artifact }}.meta.json
+            ${{ steps.inventory.outputs.inventory }}
 
   attest:
     name: Attest build provenance
@@ -633,12 +769,20 @@ jobs:
             exit 1
           fi
 
+          inventories=(./*.cdx.json)
+          if [ "${#inventories[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one component inventory, found ${#inventories[@]}. Every archive a release carries has an inventory of its own, and a release attaching one document for two packages says nothing about either."
+            exit 1
+          fi
+
           zip="${zips[0]#./}"
           bundle="${bundles[0]#./}"
+          inventory="${inventories[0]#./}"
           # The bare filename, so the checksum line names the file a client downloads.
           md5sum "${zip}" > "${zip%.zip}.md5"
           sha256sum "${zip}" > "${zip%.zip}.sha256"
           sha256sum "${bundle}" > "${bundle}.sha256"
+          sha256sum "${inventory}" > "${inventory}.sha256"
 
           # The sentence at the top of this step was a property of one line writing one
           # file rather than of anything refusing a second, and the assets in this
