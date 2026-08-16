@@ -1,0 +1,30 @@
+// The same fixture with one call changed. The debounce is driven forward through
+// the clock the handler was given instead of being waited out on the machine's,
+// and nothing else about the test moves.
+
+using System;
+using Xunit;
+
+namespace Jellyfin.Plugin.Watchlist.Tests;
+
+public class WatchedRemovalStormTests
+{
+    [Fact]
+    public void ABurstOfPlayedEventsWritesTheDocumentOnce()
+    {
+        using var directory = new TemporaryDirectory("played-storm");
+
+        var clock = new StoppedClock(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var store = new CountingStore(directory.FullPath);
+        var handler = new WatchedRemovalHandler(store, TimeSpan.FromMilliseconds(200), clock);
+
+        for (var i = 0; i < 500; i++)
+        {
+            handler.OnPlayed(Guid.NewGuid());
+        }
+
+        clock.Advance(TimeSpan.FromMilliseconds(500));
+
+        Assert.Equal(1, store.Writes);
+    }
+}

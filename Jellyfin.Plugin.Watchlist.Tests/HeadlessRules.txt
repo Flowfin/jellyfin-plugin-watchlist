@@ -56,3 +56,9 @@ machine-clock | DateTimeOffset\s*\.\s*Now\b | reads the machine clock instead of
 machine-clock | DateTimeOffset\s*\.\s*UtcNow\b | reads the machine clock instead of an injected one
 machine-clock | TimeZoneInfo\s*\.\s*Local\b | reads the local time zone
 machine-clock | Environment\s*\.\s*TickCount | reads the machine clock
+
+wall-clock-wait | Thread\s*\.\s*Sleep\s*\( | waits by sleeping on the machine clock instead of driving an injected one
+wall-clock-wait | Task\s*\.\s*Delay\s*\( | waits on the machine clock instead of driving an injected one
+wall-clock-wait | new\s+Timer\s*\( | starts a real timer instead of driving an injected clock
+wall-clock-wait | new\s+PeriodicTimer\s*\( | starts a real timer instead of driving an injected clock
+wall-clock-wait | System\s*\.\s*Timers\s*\.\s*Timer | starts a real timer instead of driving an injected clock

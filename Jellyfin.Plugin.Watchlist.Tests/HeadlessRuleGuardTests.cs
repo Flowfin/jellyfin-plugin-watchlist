@@ -10,8 +10,8 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// <summary>
 /// The guard. It reads the suite's own source files out of the test assembly and
 /// refuses the calls HEADLESS.md names, so a test that needs a display, elevation,
-/// a trust store, the network or the machine clock reds this run instead of
-/// running fine on the machine it was written on.
+/// a trust store, the network, the machine clock or a wait bought off it reds this
+/// run instead of running fine on the machine it was written on.
 ///
 /// The sources are embedded by a wildcard in the project file rather than listed
 /// anywhere, so a file added tomorrow is covered the moment it is added.
@@ -79,6 +79,38 @@ public class HeadlessRuleGuardTests
     public void TheOneChangeNeighbourOfTheNearMissPasses()
     {
         var findings = ScanFixture("NearMissMachineClockRepaired.txt");
+
+        Assert.True(
+            findings.Count == 0,
+            "The repaired fixture should trip nothing, and it tripped:"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, findings));
+    }
+
+    /// <summary>
+    /// The second near-miss. A storm test that owns its directory, reaches no
+    /// network and reads no clock, and buys the wait for a debounce off the
+    /// machine on one line. It passes on the machine it was written on and it is
+    /// the first thing to fail when a build agent is busy.
+    /// </summary>
+    [Fact]
+    public void TheGuardRefusesTheWaitingNearMiss()
+    {
+        var findings = ScanFixture("NearMissWallClockWait.txt");
+
+        var finding = Assert.Single(findings);
+        Assert.Equal("wall-clock-wait", finding.RuleId);
+    }
+
+    /// <summary>
+    /// The same fixture with that one line replaced by moving an injected clock.
+    /// Without this the test above would prove the fixture unusual rather than the
+    /// rule readable.
+    /// </summary>
+    [Fact]
+    public void TheOneChangeNeighbourOfTheWaitingNearMissPasses()
+    {
+        var findings = ScanFixture("NearMissWallClockWaitRepaired.txt");
 
         Assert.True(
             findings.Count == 0,
@@ -171,6 +203,7 @@ public class HeadlessRuleGuardTests
             "browser-automation",
             "network",
             "machine-clock",
+            "wall-clock-wait",
             "locale",
         })
         {

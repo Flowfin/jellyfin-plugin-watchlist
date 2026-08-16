@@ -1,0 +1,31 @@
+// A fixture, not a compiled source file. It is the storm test somebody writes on
+// the day the first handler debounces: it owns its directory, it touches no
+// network, it reads no clock, and it buys the wait for the debounce off the
+// machine on one line so the count it asserts on has settled by the time it looks.
+
+using System;
+using System.Threading;
+using Xunit;
+
+namespace Jellyfin.Plugin.Watchlist.Tests;
+
+public class WatchedRemovalStormTests
+{
+    [Fact]
+    public void ABurstOfPlayedEventsWritesTheDocumentOnce()
+    {
+        using var directory = new TemporaryDirectory("played-storm");
+
+        var store = new CountingStore(directory.FullPath);
+        var handler = new WatchedRemovalHandler(store, TimeSpan.FromMilliseconds(200));
+
+        for (var i = 0; i < 500; i++)
+        {
+            handler.OnPlayed(Guid.NewGuid());
+        }
+
+        Thread.Sleep(500);
+
+        Assert.Equal(1, store.Writes);
+    }
+}
