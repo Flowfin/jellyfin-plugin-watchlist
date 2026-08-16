@@ -38,6 +38,14 @@ port, and a file copy where a link was wanted.
 fails at a date boundary on someone else's machine. Instead take an injected
 clock.
 
+**A test that waits for something by sleeping, or that starts a real timer.**
+Refused, it buys the wait off the machine clock, so it is slower than it needs to
+be where it passes and it fails on a loaded machine for a reason that is not the
+code under test. It is the shape a debounce invites, because the obvious way to
+count what a burst of events wrote is to wait for the burst to settle. Instead
+hand the code the clock, move that clock in the test, and assert on what was done
+rather than on how long it took.
+
 **A test that reads the machine's locale.** Refused, it passes where it was
 written and fails where the same text sorts or folds differently. Instead state
 the culture, or use an ordinal comparison where no culture is meant.
