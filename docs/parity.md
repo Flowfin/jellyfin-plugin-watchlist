@@ -7,16 +7,28 @@ this board carries something the other one does not. A gap with a reason next to
 it is a decision. A gap with nothing next to it is a defect, and that is what
 this file exists to make impossible to leave lying around.
 
-Nothing here is required by the mainline yet. What the mainline requires is
-printed rather than restated, because a set written into a document drifts
-against the live one without anybody noticing:
+What the mainline requires is printed rather than restated, because a set
+written into a document drifts against the live one without anybody noticing:
 
-    gh api repos/iderex/jellyfin-plugin-watchlist/rulesets/20456281 \
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/rulesets/20456281 \
       --jq '{enforcement, bypass: .bypass_actors, required: [.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context]}'
-    {"bypass":[],"enforcement":"active","required":["call / build","call / test","Reject Trojan Source Unicode"]}
+    {"bypass":[],"enforcement":"active","required":["call / build","call / test","Reject Trojan Source Unicode","Audit workflows (zizmor)"]}
 
-Requiring the adopted set is #63, and it happens once, after the checks are
-green.
+That set has four contexts in it, and this file described a set of three until
+the change carrying this paragraph. The sentences that carried the old set,
+counted at the commit this change starts from:
+
+    git show 53ea2ea:docs/parity.md | grep -c 'three required contexts\|not required here until #63\|required there and reporting here\|Nothing here is required by the mainline'
+    4
+
+The set drifted exactly the way the sentence above warns about, which is why
+this is a reading taken again rather than a rewording.
+
+Requiring the whole adopted set is #63 and it has not happened. What has changed
+is that one context left the adopted-and-not-required group, and the section
+`Two instruments, each reporting under two names` is where that is followed up,
+because the name that was taken is one half of a pair this file asked #63 to
+choose between.
 
 ## The two gates as measured
 
@@ -107,10 +119,17 @@ that it was the newest at the time.
       && rc=0 && { git grep -nIP "$pattern" -- . || rc=$?; } \
       && case "$rc" in 0) echo "unicode: refused" ; false ;; 1) echo "unicode: clean" ;; *) echo "unicode: scanner error $rc, refused" ; false ;; esac
 
-Three legs, in the order the three required contexts appear in the ruleset:
-build, then the suite, then the Unicode scan. It fails at the first failing leg,
-and the Unicode leg fails closed on a scanner error rather than reading a broken
-scanner as a clean tree, which is how the workflow reads it too.
+Three legs, in the order the first three required contexts appear in the
+ruleset: build, then the suite, then the Unicode scan. It fails at the first
+failing leg, and the Unicode leg fails closed on a scanner error rather than
+reading a broken scanner as a clean tree, which is how the workflow reads it
+too.
+
+It is no longer the whole required set. `Audit workflows (zizmor)` is required
+now and this command does not run it, for the reason the last bullet under
+`What this command does not run, and cannot` gives. So a green run of the
+command above is three of the four contexts a merge waits for, and a contributor
+who reads a green run as the whole gate is now wrong by one.
 
 The scan pattern is read out of the workflow rather than retyped. A second copy
 of that character class in this file would be the rule written twice, and the
@@ -180,13 +199,15 @@ What this command does not run, and cannot:
       | Jellyfin.Plugin.Watchlist | 100% | 100%   | 100%   |
 
   The platform sweep and the repeat are three machines and three runs, and one
-  machine cannot be three. The leg is out of the command above because the three
-  required contexts are what that command mirrors, and this one is not among
-  them until #63 says so.
+  machine cannot be three. The leg is out of the command above because that
+  command mirrors required contexts, and neither of these is required.
 - `DCO sign-off`, `Deterministic PR-hygiene checks` and `dependency-review` read
   a pull request through the API. There is no pull request before you push.
 - `Audit workflows (zizmor)` needs zizmor, which is not in this tree and is not
-  a dependency of it.
+  a dependency of it. This is the one entry in this list that is required, so
+  it is also the one gap between a green local run and a mergeable head. What
+  closes it is either a run of zizmor a contributor has to install the tool for,
+  or the pull request itself, and neither is the command above.
 
 ## Adopted
 
@@ -200,7 +221,7 @@ What this command does not run, and cannot:
 | `DCO sign-off` | `DCO sign-off` | Present and reporting, from this repository's own workflow. |
 | `Deterministic PR-hygiene checks` | `Deterministic PR-hygiene checks` | Landed on #59. Body linkage, commit subject linkage and the changelog co-change fail; diff size is an observation. |
 | `Reject Trojan Source Unicode` | `Reject Trojan Source Unicode` | Present, reporting and required on both boards. |
-| `Audit workflows (zizmor)` | `Audit workflows (zizmor)` | Present and reporting. Required there, not required here until #63. A second context named `zizmor` reports beside it, from code scanning rather than from the workflow, and #63 has to pick one of the two by name. See the note under the tables. |
+| `Audit workflows (zizmor)` | `Audit workflows (zizmor)` | Present, reporting and required on both boards. This row said it was not required here until #63, and the required set names it. A second context named `zizmor` reports beside it, from code scanning rather than from the workflow, and the set names this one and not that one. See the note under the tables. |
 | `dependency-review` | `dependency-review` | Present and reporting. #56 adds the failing tier for a vulnerable dependency, transitive ones included. |
 | `Scorecard analysis` | Declared, never run, push route repaired on #118 | Its push trigger named `main`, a branch this repository does not have. The whole run history of the workflow is empty rather than merely quiet, which is the reading in the section below. The trigger now names `master`, and the check cannot be a required context while push and schedule are its whole route, so nothing goes to #63 from this row. |
 | `manifest-freshness` | Not yet | #89 checks that the published manifest still lists the newest release, which under one distribution route is the only thing between a green release and a user who never receives it. |
@@ -217,7 +238,7 @@ This board does without these, and the line next to each is why.
 | --- | --- |
 | `prettier` | Refused on #60. The non-code surface here is prose whose wrapping is deliberate, JSON that is generated or is fixture bytes under test, and one page of sixteen lines, so a formatter would take ownership of the files where the arguments live and of files a check already reads for drift. What would change the answer, and the census the refusal is read off, are in `docs/lint-decisions.md`. |
 | `Analyze (javascript-typescript)` | The tree carries no JavaScript or TypeScript to analyse. This row changes the day the configuration page grows a script. |
-| `Analyze (actions)` | The scan here reads C# and nothing else, decided on #57. The workflows are the same class of release-critical surface the other board's are, and the instrument over them here is `Audit workflows (zizmor)`, which is required there and reporting here. A second analyser over the same files before the first one has read this tree once would be two instruments and no readings, which is the argument the `opengrep` row makes for C#. This row is wrong the day zizmor is removed or the day a workflow does something zizmor has no query for. |
+| `Analyze (actions)` | The scan here reads C# and nothing else, decided on #57. The workflows are the same class of release-critical surface the other board's are, and the instrument over them here is `Audit workflows (zizmor)`, which is required on both boards. A second analyser over the same files before the first one has read this tree once would be two instruments and no readings, which is the argument the `opengrep` row makes for C#. This row is wrong the day zizmor is removed or the day a workflow does something zizmor has no query for. |
 | `fuzz` | The other board parses tokens and assertions that arrive from outside the server. This plugin parses one thing, its own documents under the plugin data folder, which are written by this plugin and readable only by someone who already has file access to the server. That is a smaller surface, not an absent one, and if an endpoint ever accepts a document from a caller this row is wrong. |
 | `opengrep` | A second static analyser over the same C# the first one reads. #57 is the issue that gets one analyser actually running here, and a second one before the first one runs would be two instruments and no readings. |
 | `e2e-login` | There is no login path in this plugin. The equivalent end to end proof is the whole loop on a real server, which is #52, and where it runs is #62. |
@@ -287,9 +308,25 @@ different apps:
 comes from the code scanning app rather than from the workflow, and the workflow
 uploads a SARIF file for it. Whether the two can conclude differently is not
 measured here; both were successful on the commit above and that is one reading.
-Which of them #63 requires is a decision for #63, and this file records that
-there are two so the decision is taken deliberately rather than by picking
-whichever name is nearer to hand.
+
+Of that pair the required set names the workflow's job and not the app's:
+
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/rulesets/20456281 \
+      --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context' \
+      | grep -iE 'zizmor|codeql|code scanning'
+    Audit workflows (zizmor)
+
+One line out of the four contexts these two instruments report under, and it is
+the half produced by a workflow in this tree rather than by the scanning app.
+This file asked #63 to pick one of the two by name so the choice was not made by
+picking whichever was nearer to hand, and the half in the required set is the
+one that issue argued for: the workflow's job concludes on its findings whether
+or not the upload happened, and the upload is switched off for a pull request
+whose head sits outside this repository.
+
+What that leaves unread is what it left unread before. Whether the app's context
+is then absent on such a run, rather than red, is not measured here, and
+requiring the workflow's name is what keeps a merge from waiting on the answer.
 
 The code scan has the same shape, and this file described it as though one name
 reported. Both contexts are on the head of the newest merged pull request:
@@ -304,8 +341,11 @@ reported. Both contexts are on the head of the newest merged pull request:
     48:    name: Code scanning (csharp)
 
 `Code scanning (csharp)` is the job in this repository's own workflow. `CodeQL`
-comes from the code scanning app, over the analysis that job uploads. So the
-choice belongs to #63 twice rather than once.
+comes from the code scanning app, over the analysis that job uploads. This is
+the pair that is still open, so the choice belongs to #63 once now rather than
+twice. It is also the pair the reading above cannot settle, because there the
+job and the upload are one step and separating them is what a fork run would
+answer.
 
 The two halves of this pair are not interchangeable, and the reason is the
 unmeasured behaviour the section above records. The workflow's context concludes
