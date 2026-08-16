@@ -135,7 +135,8 @@ The scan pattern is read out of the workflow rather than retyped. A second copy
 of that character class in this file would be the rule written twice, and the
 copy would be the one that goes stale.
 
-The three legs were run at the commit this file lands on. Set
+The three legs were run at `b5e0bd7`, and that commit is named in the paste
+because the suite total moves whenever anybody adds a test. Set
 `DOTNET_CLI_UI_LANGUAGE=en` first if the machine's locale is not English, because
 the output below is what an English reader gets and a translated one cannot be
 compared with it:
@@ -145,7 +146,28 @@ compared with it:
         0 Warning(s)
         0 Error(s)
     dotnet test Jellyfin.Plugin.Watchlist.sln --configuration Release --no-build
-    Passed!  - Failed:     0, Passed:   114, Skipped:     0, Total:   114
+    Passed!  - Failed:     0, Passed:   264, Skipped:     0, Total:   264
+
+That paragraph said the legs were run at the commit this file lands on, and
+pasted a total of 114. The sentence was true once and stopped being true without
+anybody editing it. The number entered on the commit that created this file and
+was never taken again:
+
+    git log --oneline -S'Passed:   114' b5e0bd7 -- docs/parity.md
+    2c3f8ed Write the check parity table against the SSO board's gate [#53]
+    git log --oneline --no-merges 2c3f8ed..b5e0bd7 -- docs/parity.md | wc -l
+    6
+
+Six later commits changed this file and none of them re-ran the leg the sentence
+above them promised was re-run. What it cost a reader is the reason the commit is
+now in the paste: somebody whose own run printed a total in the two hundreds had
+this file telling them the gate passes 114, and no way to tell a paste that had
+gone stale from a tree that had lost half its suite. Every check-run reading
+further up names its commit for that reason, and this one did not.
+
+The build leg and the coverage leg below both still reproduce at `b5e0bd7`, and
+so does the runtime reading in the next paragraph. The suite total was the only
+line that had moved.
 
 The suite leg needs the runtime the projects target, and an SDK a major version
 ahead of it is not that runtime. On a machine carrying the 10.0 SDK and no 9.0
