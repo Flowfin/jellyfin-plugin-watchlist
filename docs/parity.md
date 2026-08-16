@@ -135,7 +135,8 @@ The scan pattern is read out of the workflow rather than retyped. A second copy
 of that character class in this file would be the rule written twice, and the
 copy would be the one that goes stale.
 
-The three legs were run at the commit this file lands on. Set
+The three legs were run at `b5e0bd7`, and that commit is named in the paste
+because the suite total moves whenever anybody adds a test. Set
 `DOTNET_CLI_UI_LANGUAGE=en` first if the machine's locale is not English, because
 the output below is what an English reader gets and a translated one cannot be
 compared with it:
@@ -145,7 +146,28 @@ compared with it:
         0 Warning(s)
         0 Error(s)
     dotnet test Jellyfin.Plugin.Watchlist.sln --configuration Release --no-build
-    Passed!  - Failed:     0, Passed:   114, Skipped:     0, Total:   114
+    Passed!  - Failed:     0, Passed:   264, Skipped:     0, Total:   264
+
+That paragraph said the legs were run at the commit this file lands on, and
+pasted a total of 114. The sentence was true once and stopped being true without
+anybody editing it. The number entered on the commit that created this file and
+was never taken again:
+
+    git log --oneline -S'Passed:   114' b5e0bd7 -- docs/parity.md
+    2c3f8ed Write the check parity table against the SSO board's gate [#53]
+    git log --oneline --no-merges 2c3f8ed..b5e0bd7 -- docs/parity.md | wc -l
+    6
+
+Six later commits changed this file and none of them re-ran the leg the sentence
+above them promised was re-run. What it cost a reader is the reason the commit is
+now in the paste: somebody whose own run printed a total in the two hundreds had
+this file telling them the gate passes 114, and no way to tell a paste that had
+gone stale from a tree that had lost half its suite. Every check-run reading
+further up names its commit for that reason, and this one did not.
+
+The build leg and the coverage leg below both still reproduce at `b5e0bd7`, and
+so does the runtime reading in the next paragraph. The suite total was the only
+line that had moved.
 
 The suite leg needs the runtime the projects target, and an SDK a major version
 ahead of it is not that runtime. On a machine carrying the 10.0 SDK and no 9.0
@@ -418,20 +440,51 @@ does not have:
 
 The earlier reading here was that no run appeared in the last forty runs of the
 repository, and it said in the same breath that forty runs is a window and not
-the history. The count over the whole history is one API field away, and it is
-zero:
+the history. The count over the whole history was one API field away, and before
+the repair below it was zero:
 
     gh api repos/iderex/jellyfin-plugin-watchlist/actions/workflows/scorecard.yml/runs --jq .total_count
     0
 
-So the weekly schedule has not produced a run either, and the sentence that the
-check is "not dead" was a claim about a cron expression rather than a reading.
-The workflow has never run. Nothing on this board had been scored by it, and the
-score the badge would publish does not exist.
+So the weekly schedule had not produced a run either, and the sentence that the
+check was "not dead" was a claim about a cron expression rather than a reading.
+The workflow had never run, nothing on this board had been scored by it, and the
+score the badge would publish did not exist.
 
 The repair is the push trigger naming `master`. It is one line, and what it buys
 is that every push to the mainline re-scores, which is what makes the weekly
 schedule a floor rather than the only route.
+
+Those sentences stood in the present tense until the change carrying this
+paragraph, and the repair they describe had already made every one of them
+false. The same field answers differently now:
+
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/actions/workflows/scorecard.yml/runs --jq .total_count
+    50
+    gh api "repos/Flowfin/jellyfin-plugin-watchlist/actions/workflows/scorecard.yml/runs?per_page=100" \
+      --jq '[.workflow_runs[].event] | group_by(.) | map({event: .[0], runs: length})'
+    [{"event":"push","runs":49},{"event":"schedule","runs":1}]
+
+Forty-nine runs from the mainline pushes the repair bought and one from the
+weekly schedule, so both routes produce runs rather than only the one the repair
+added. That count moves with every push and the paste is one moment of it.
+
+A score exists as well, which is the half the paragraph above was really about:
+
+    curl -s https://api.securityscorecards.dev/projects/github.com/Flowfin/jellyfin-plugin-watchlist \
+      | jq -c '{date, commit: .repo.commit, score}'
+    {"date":"2026-08-16T21:46:29Z","commit":"b5e0bd75fd6cd29780af7346cd1b1918fa054f70","score":6.4}
+
+What that number says about this repository is not read here and no claim is
+made about it. What it settles is the sentence above it: the instrument that was
+declared and never ran now runs and publishes.
+
+The old owner path in the pasted command above still reaches this repository,
+because the transfer left a redirect, so it is left as it was read rather than
+rewritten into a command that was never run:
+
+    gh api repos/iderex/jellyfin-plugin-watchlist --jq .full_name
+    Flowfin/jellyfin-plugin-watchlist
 
 A required context is a different question and the answer is no. A ruleset
 requires a context to report on the head of a pull request, and this workflow
@@ -454,8 +507,10 @@ Nothing goes from here to #63. This row changes the day the workflow gains a
 route that reports on a pull request.
 
 The first run after the repair is recorded on #118 with the command that read
-it, because that run can only be produced by a push to `master` and this file
-lands on the branch that has not been merged yet.
+it, because that run could only be produced by a push to `master` and the change
+carrying the repair was still on a branch. The readings above are taken here
+rather than left there, since a push to `master` is no longer something this file
+is waiting for.
 
 ## What this file does not say
 
