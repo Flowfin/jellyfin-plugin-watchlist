@@ -440,20 +440,51 @@ does not have:
 
 The earlier reading here was that no run appeared in the last forty runs of the
 repository, and it said in the same breath that forty runs is a window and not
-the history. The count over the whole history is one API field away, and it is
-zero:
+the history. The count over the whole history was one API field away, and before
+the repair below it was zero:
 
     gh api repos/iderex/jellyfin-plugin-watchlist/actions/workflows/scorecard.yml/runs --jq .total_count
     0
 
-So the weekly schedule has not produced a run either, and the sentence that the
-check is "not dead" was a claim about a cron expression rather than a reading.
-The workflow has never run. Nothing on this board had been scored by it, and the
-score the badge would publish does not exist.
+So the weekly schedule had not produced a run either, and the sentence that the
+check was "not dead" was a claim about a cron expression rather than a reading.
+The workflow had never run, nothing on this board had been scored by it, and the
+score the badge would publish did not exist.
 
 The repair is the push trigger naming `master`. It is one line, and what it buys
 is that every push to the mainline re-scores, which is what makes the weekly
 schedule a floor rather than the only route.
+
+Those sentences stood in the present tense until the change carrying this
+paragraph, and the repair they describe had already made every one of them
+false. The same field answers differently now:
+
+    gh api repos/Flowfin/jellyfin-plugin-watchlist/actions/workflows/scorecard.yml/runs --jq .total_count
+    50
+    gh api "repos/Flowfin/jellyfin-plugin-watchlist/actions/workflows/scorecard.yml/runs?per_page=100" \
+      --jq '[.workflow_runs[].event] | group_by(.) | map({event: .[0], runs: length})'
+    [{"event":"push","runs":49},{"event":"schedule","runs":1}]
+
+Forty-nine runs from the mainline pushes the repair bought and one from the
+weekly schedule, so both routes produce runs rather than only the one the repair
+added. That count moves with every push and the paste is one moment of it.
+
+A score exists as well, which is the half the paragraph above was really about:
+
+    curl -s https://api.securityscorecards.dev/projects/github.com/Flowfin/jellyfin-plugin-watchlist \
+      | jq -c '{date, commit: .repo.commit, score}'
+    {"date":"2026-08-16T21:46:29Z","commit":"b5e0bd75fd6cd29780af7346cd1b1918fa054f70","score":6.4}
+
+What that number says about this repository is not read here and no claim is
+made about it. What it settles is the sentence above it: the instrument that was
+declared and never ran now runs and publishes.
+
+The old owner path in the pasted command above still reaches this repository,
+because the transfer left a redirect, so it is left as it was read rather than
+rewritten into a command that was never run:
+
+    gh api repos/iderex/jellyfin-plugin-watchlist --jq .full_name
+    Flowfin/jellyfin-plugin-watchlist
 
 A required context is a different question and the answer is no. A ruleset
 requires a context to report on the head of a pull request, and this workflow
@@ -476,8 +507,10 @@ Nothing goes from here to #63. This row changes the day the workflow gains a
 route that reports on a pull request.
 
 The first run after the repair is recorded on #118 with the command that read
-it, because that run can only be produced by a push to `master` and this file
-lands on the branch that has not been merged yet.
+it, because that run could only be produced by a push to `master` and the change
+carrying the repair was still on a branch. The readings above are taken here
+rather than left there, since a push to `master` is no longer something this file
+is waiting for.
 
 ## What this file does not say
 
