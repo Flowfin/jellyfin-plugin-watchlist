@@ -9,12 +9,13 @@ The other board runs a formatter over its non-code files. This tree's non-code
 surface is not the same surface.
 
     git ls-files | grep -oE '\.[a-z]+$' | sort | uniq -c | sort -rn
-         47 .cs
+         78 .cs
+         20 .md
+         15 .txt
          12 .json
          11 .yaml
-         11 .txt
-         11 .md
-          5 .yml
+          6 .yml
+          2 .png
           2 .csproj
           1 .sln
           1 .ruleset
@@ -22,6 +23,20 @@ surface is not the same surface.
           1 .html
           1 .gitignore
           1 .editorconfig
+
+Taken on `a8bf829`. This paragraph pasted a census with 47 sources, eleven
+markdown files and no image in it, and that reading was right on `c24b5b1`, the
+commit that wrote this file:
+
+    git ls-tree -r --name-only c24b5b1 | grep -oE '\.[a-z]+$' | sort | uniq -c | sort -rn | head -3
+         47 .cs
+         12 .json
+         11 .yaml
+
+The tree grew under it and nobody took the census again. What the refusal is read
+off is the composition rather than the totals, and the composition holds: the
+markdown is still argument, the JSON is still generated or fixture bytes, and the
+two image files that arrived in the meantime are not text a formatter touches.
 
 The markdown is argument rather than output. `docs/` holds the reasons decisions
 were taken, wrapped by hand at a width a person chose, and a formatter rewraps
@@ -36,14 +51,38 @@ under test, and one is the export sample a test reads. Reformatting a generated
 file makes a check about drift argue with the formatter instead, and reformatting
 a fixture edits the evidence.
 
-What is left is one HTML page of sixteen lines and the workflows, and a check
-that exists to hold sixteen lines and some YAML is a check whose failures are
-noise.
+What is left is one HTML page and the workflows, and a check that exists to hold
+a page and some YAML is a check whose failures are noise.
+
+That sentence said sixteen lines, twice, and the page is 104:
+
+    git grep -c '' c24b5b1 -- Jellyfin.Plugin.Watchlist/Configuration/configPage.html
+    c24b5b1:Jellyfin.Plugin.Watchlist/Configuration/configPage.html:16
+    git grep -c '' a8bf829 -- Jellyfin.Plugin.Watchlist/Configuration/configPage.html
+    a8bf829:Jellyfin.Plugin.Watchlist/Configuration/configPage.html:104
 
 What would change the answer: the configuration page growing a script or a
 stylesheet, which is #31, or a hand-edited JSON surface appearing that a reader
 has to diff. Either puts real formatted-by-hand output in the tree and the row
 in `docs/parity.md` says so.
+
+The first of those has happened, and the refusal above is left standing rather
+than reversed here. #31 landed and the page carries a script:
+
+    git grep -n '<script' a8bf829 -- Jellyfin.Plugin.Watchlist/Configuration/configPage.html
+    a8bf829:Jellyfin.Plugin.Watchlist/Configuration/configPage.html:66:        <script type="text/javascript">
+
+    gh issue view 31 --repo Flowfin/jellyfin-plugin-watchlist --json state --jq .state
+    CLOSED
+
+So the surface this section refused a formatter over is not the surface in the
+tree, and the sentence naming the condition sat next to a page that had already
+met it. Whether the answer changes now is the decision #60 took and #60 is
+closed, so nothing here retakes it. What this correction does is stop the section
+from reading as settled against a page it stopped describing.
+
+It was found by re-running the census command above and comparing what it prints
+with what the paragraph pasted.
 
 ## The invariant lint: adopted, in the shape this tree already has
 
