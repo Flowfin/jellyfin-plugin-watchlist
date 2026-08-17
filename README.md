@@ -114,8 +114,8 @@ notice, because until it exists the list is reachable over the API and appears
 on no client. The shared list the opening describes is not built either. That is
 why there is no release.
 
-This section is here so the description above is not read as a description of
-what the code does today. The tracker carries the rest.
+The description above says what the plugin is for, not what the code does today.
+The tracker carries the rest.
 
 ## Checking a release
 
