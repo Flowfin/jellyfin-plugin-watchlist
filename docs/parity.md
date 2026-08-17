@@ -416,12 +416,39 @@ Both were the same defect and neither was a deviation anybody decided on. One is
 repaired and the record of what it was stays, because a repair whose reason is
 deleted is a repair nobody can argue with later.
 
-`call / Analyze` was the CodeQL job, and it was skipped on every event:
+`call / Analyze` was the CodeQL job, and it was skipped on every event. Counted
+over the whole run history of the workflow path rather than over a window, so the
+runs of the job that replaced it come back in the same output and the two are
+told apart by the name each ran under:
+
+    gh api --paginate "repos/Flowfin/jellyfin-plugin-watchlist/actions/workflows/scan-codeql.yaml/runs?per_page=100" \
+      --jq '.workflow_runs[] | "\(.name) | \(.event) | \(.conclusion)"' | sort | uniq -c | sort -rn
+         52 Code scanning | pull_request | success
+         45 Code scanning | push | success
+         33 🔬 Run CodeQL | pull_request | skipped
+         31 🔬 Run CodeQL | push | skipped
+          2 Code scanning | push | cancelled
+          1 🔬 Run CodeQL | schedule | skipped
+          1 Code scanning | schedule | success
+
+Sixty-five runs under the old name, on all three events it triggered on, and not
+one of them anything but skipped. The rows under the new name move as it runs
+again; the rows under the old one cannot, because that workflow is gone.
+
+This paragraph pasted a window over the last forty runs of the repository until
+the change carrying these sentences, and that paste had stopped reproducing. The
+command returns nothing now, because forty runs of this repository no longer
+reach back past the replacement:
 
     gh run list --limit 40 --json workflowName,conclusion,event \
-      --jq '[.[] | .workflowName + " | " + .event + " | " + (.conclusion // "-")] | unique | .[]' | grep CodeQL
-    🔬 Run CodeQL | pull_request | skipped
-    🔬 Run CodeQL | push | skipped
+      --jq '[.[] | .workflowName + " | " + .event + " | " + (.conclusion // "-")] | unique | .[]' | grep CodeQL ; echo "rc=$?"
+    rc=1
+
+It is the same defect the `Scorecard analysis` paragraphs below record against
+themselves, where a count over the last forty runs was read as a history and the
+field carrying the whole history was one call away. That correction was made for
+that check and left its two neighbours in the shape it was correcting, which is
+why both are taken again here.
 
 The reusable workflow it called was guarded on the repository name, and this
 repository passed the template's name rather than its own:
@@ -448,9 +475,19 @@ That one is not a check and gates nothing, but it is the route a release draft
 and a version bump were supposed to arrive by, and its job is skipped the same
 way:
 
-    gh run list --limit 40 --json workflowName,conclusion,event \
-      --jq '[.[] | select(.workflowName | test("Release Draft")) | .workflowName + " | " + .event + " | " + (.conclusion // "-")] | unique | .[]'
-    📝 Create/Update Release Draft & Release Bump PR | push | skipped
+    gh api --paginate "repos/Flowfin/jellyfin-plugin-watchlist/actions/workflows/changelog.yaml/runs?per_page=100" \
+      --jq '.workflow_runs[] | "\(.name) | \(.event) | \(.conclusion)"' | sort | uniq -c | sort -rn
+         81 📝 Create/Update Release Draft & Release Bump PR | push | skipped
+
+Eighty-one runs, every one of them from a push and every one skipped, which is
+the whole history of that workflow rather than a slice of it.
+
+The window this replaced still reproduced on the day it was replaced, and it is
+taken again anyway. It is the same command shape as the one above it, over a
+route nothing has repaired, so what stands between it and the paste above is the
+number of runs it takes to push a workflow out of the last forty. Correcting one
+of the pair and leaving the other would leave the correction to be made a second
+time by whoever meets it next.
 
 The workflow triggers and the job inside it does not run, which is why the
 tracker shows the route as present. #72 owns the changelog and #74 owns the
