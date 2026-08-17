@@ -137,16 +137,21 @@ public sealed class ConfigurationSerialisationTests
     /// </summary>
     /// <param name="configuration">The configuration to write.</param>
     /// <returns>What reading the written bytes back produces.</returns>
+    /// <remarks>
+    /// The server disposes both writers rather than flushing either by hand, and disposal
+    /// is what moves the bytes: closing the <c>XmlTextWriter</c> pushes them into the
+    /// <c>StreamWriter</c>, whose own disposal pushes them into the <c>MemoryStream</c> and,
+    /// because it was built with <c>leaveOpen</c>, leaves that stream open for the read below.
+    /// </remarks>
     private static object RoundTrip(BasePluginConfiguration configuration)
     {
         var serialiser = new XmlSerializer(DeclaredConfigurationType);
 
         using var stream = new MemoryStream();
         using (var text = new StreamWriter(stream, leaveOpen: true))
+        using (var writer = new XmlTextWriter(text) { Formatting = Formatting.Indented })
         {
-            var writer = new XmlTextWriter(text) { Formatting = Formatting.Indented };
             serialiser.Serialize(writer, configuration);
-            writer.Flush();
         }
 
         stream.Position = 0;
