@@ -476,11 +476,22 @@ and a version bump were supposed to arrive by, and its job is skipped the same
 way:
 
     gh api --paginate "repos/Flowfin/jellyfin-plugin-watchlist/actions/workflows/changelog.yaml/runs?per_page=100" \
-      --jq '.workflow_runs[] | "\(.name) | \(.event) | \(.conclusion)"' | sort | uniq -c | sort -rn
-         81 📝 Create/Update Release Draft & Release Bump PR | push | skipped
+      --jq '.workflow_runs[] | "\(.name) | \(.event) | \(.conclusion)"' | sort -u
+    📝 Create/Update Release Draft & Release Bump PR | push | skipped
 
-Eighty-one runs, every one of them from a push and every one skipped, which is
-the whole history of that workflow rather than a slice of it.
+One line over the whole history of that workflow rather than over a slice of it.
+Every run of it came from a push and every one was skipped, and that output gains
+a second line the moment either half of that stops being true.
+
+How many runs that is comes out of the same command with `uniq -c` in place of
+`sort -u`, and this paragraph pasted that number until the change these sentences
+arrive in. It said eighty-one, and the count had already moved when the command
+was run again, because this workflow triggers on every push to the repository
+while the property the sentence rests on does not move at all. So the number was
+a reading that had to be taken again for a reason that had nothing to do with
+what it was quoted for. It is left out here rather than refreshed: a reader who
+wants the size runs the command with the count in it, and a reader who wants the
+claim reads a line that changes only when the claim does.
 
 The window this replaced still reproduced on the day it was replaced, and it is
 taken again anyway. It is the same command shape as the one above it, over a
