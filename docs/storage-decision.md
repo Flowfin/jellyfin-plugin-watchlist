@@ -1,9 +1,9 @@
 # Where the watchlist lives
 
 The plugin has one job: a watchlist held on the server that a client shows
-without being changed. Where the list lives decides everything else, so the
-options are measured here, the decision is taken here, and the reasons are
-written down so a later reader does not have to reconstruct them.
+without being changed. Where the list lives decides everything else. The options
+are measured below, and the decision follows from the measurement with its
+reasons beside it.
 
 The candidates are the surfaces a stock client already renders: a library, a
 collection, a playlist, the favourites flag, and anything the plugin stores

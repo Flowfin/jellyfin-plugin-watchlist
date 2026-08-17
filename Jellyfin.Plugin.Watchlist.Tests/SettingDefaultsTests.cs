@@ -79,8 +79,8 @@ public sealed class SettingDefaultsTests
     }
 
     /// <summary>
-    /// The rule this file exists for. What the document states is what a fresh
-    /// configuration holds, for every setting.
+    /// What docs/settings.md states is what a fresh configuration holds, for
+    /// every setting.
     /// </summary>
     [Fact]
     public void EveryStatedDefaultIsWhatAFreshConfigurationHolds()

@@ -49,10 +49,9 @@ is that list and only that list.
 
 A native watchlist has no client surface yet, per the paragraph above, so today
 there is nothing on a client for it to be confused with. What it will be called
-where a user meets it cannot be measured now, and this file states that rather
-than guessing a name. When a client ships support, this section is what gets
-rewritten, and the thing it has to answer is what each one is called and where
-each one appears.
+where a user meets it cannot be measured now, so no name is given for it. When a
+client ships support, the answer to write here is what each one is called and
+where each one appears.
 
 ## The name of the projected playlist
 

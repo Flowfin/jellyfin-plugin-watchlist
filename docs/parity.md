@@ -4,8 +4,8 @@ The gate of the SSO plugin board is the target this board's gate is measured
 against. This file is the comparison, check by check. Every row says one of three
 things: this board adopts the check, this board deliberately does without it, or
 this board carries something the other one does not. A gap with a reason next to
-it is a decision. A gap with nothing next to it is a defect, and that is what
-this file exists to make impossible to leave lying around.
+it is a decision. A gap with nothing next to it is a defect, and the row it sits
+in is where a reader finds it.
 
 What the mainline requires is printed rather than restated, because a set
 written into a document drifts against the live one without anybody noticing:
