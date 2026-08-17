@@ -323,8 +323,36 @@ different apps:
     Audit workflows (zizmor) :: app=github-actions :: success
 
     grep -n 'name:' .github/workflows/zizmor.yml | head -2
+    33:name: Workflow Security Analysis
+    64:    name: Audit workflows (zizmor)
+
+Read on `57b95e4`. The paste above said 21 and 41 until this sentence landed
+beside it, and those were the numbers the command printed on the commit that
+wrote this section:
+
+    git show 2c3f8ed:.github/workflows/zizmor.yml | grep -n 'name:' | head -2
     21:name: Workflow Security Analysis
     41:    name: Audit workflows (zizmor)
+
+Two later changes to the workflow moved them, and neither of them is about this
+file:
+
+    git log --oneline 2c3f8ed..57b95e4 -- .github/workflows/zizmor.yml
+    dd615dc Make the workflow audit's case from this tree's own release surface [#168]
+    3c5afc4 Point the workflow audit at the branch this repository has [#166]
+
+    git log --oneline --no-merges 2c3f8ed..57b95e4 -- docs/parity.md | wc -l
+    8
+
+Eight commits changed this file while the numbers stood, and the paste was
+written once and never taken again:
+
+    git log --oneline -S'    41:    name: Audit workflows (zizmor)' 57b95e4 -- docs/parity.md
+    2c3f8ed Write the check parity table against the SSO board's gate [#53]
+
+The sibling reading of `.github/workflows/scan-codeql.yaml` further down still
+reproduces, so what went wrong here is a paste that was correct when written
+rather than a section that was never right.
 
 `Audit workflows (zizmor)` is the job in this repository's own workflow. `zizmor`
 comes from the code scanning app rather than from the workflow, and the workflow
