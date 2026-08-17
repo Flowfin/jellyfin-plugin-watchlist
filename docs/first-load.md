@@ -25,8 +25,18 @@ server reads:
     grep -E '^(name|guid|version|targetAbi):' build.yaml
     name: "Watchlist"
     guid: "6e1631d7-aa49-494d-a23b-d5785853fc0a"
-    targetAbi: "10.9.0.0"
     version: "0.1.0.0"
+    targetAbi: "10.9.0.0"
+
+The four values are unchanged. What was wrong is the order: `grep` prints the
+file's order and the paste carried the order of the pattern, so the last two
+lines were the other way round. It was that way on `dd24325`, the commit that
+wrote this section, so the paste was arranged by hand rather than taken from the
+command:
+
+    git show dd24325:build.yaml | grep -nE '^(version|targetAbi):'
+    42:version: "0.1.0.0"
+    43:targetAbi: "10.9.0.0"
 
 The artifact was produced from the tree:
 
