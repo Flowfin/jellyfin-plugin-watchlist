@@ -52,6 +52,18 @@
           "Microsoft.TestPlatform.TestHost": "17.14.1"
         }
       },
+      "System.Text.Encodings.Web": {
+        "type": "Direct",
+        "requested": "[4.5.1, )",
+        "resolved": "4.5.1",
+        "contentHash": "8lfETN/1lu0QD+XQaDCxn6InX3KYJHCFO6Iqrm92zn9eOEeonTuyisKxW0nLZfse598LibhEItiRdPzVn8Beyg=="
+      },
+      "System.Text.Json": {
+        "type": "Direct",
+        "requested": "[8.0.5, )",
+        "resolved": "8.0.5",
+        "contentHash": "0f1B50Ss7rqxXiaBJyzUu9bWFOO2/zSlifZ/UNMdiIpDYe4cY4LQQicP4nirK1OS31I43rn062UIJ1Q9bpmHpg=="
+      },
       "xunit": {
         "type": "Direct",
         "requested": "[2.9.3, )",
@@ -340,19 +352,6 @@
           "Microsoft.NETCore.Targets": "1.1.0"
         }
       },
-      "System.Text.Encodings.Web": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "yev/k9GHAEGx2Rg3/tU6MQh4HGBXJs70y7j1LaM1i/ER9po+6nnQ6RRqTJn1E7Xu0fbIFK80Nh5EoODxrbxwBQ=="
-      },
-      "System.Text.Json": {
-        "type": "Transitive",
-        "resolved": "8.0.4",
-        "contentHash": "bAkhgDJ88XTsqczoxEMliSrpijKZHhbJQldhAmObj/RbrN3sU5dcokuXmWJWsdQAhiMJ9bTayWsL1C9fbbCRhw==",
-        "dependencies": {
-          "System.Text.Encodings.Web": "8.0.0"
-        }
-      },
       "System.Threading.Tasks.Dataflow": {
         "type": "Transitive",
         "resolved": "8.0.1",
@@ -402,7 +401,9 @@
         "type": "Project",
         "dependencies": {
           "Jellyfin.Controller": "[10.9.11, )",
-          "Jellyfin.Model": "[10.9.11, )"
+          "Jellyfin.Model": "[10.9.11, )",
+          "System.Text.Encodings.Web": "[4.5.1, )",
+          "System.Text.Json": "[8.0.5, )"
         }
       }
     }

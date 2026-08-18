@@ -10,6 +10,44 @@
         The scheme the number follows is written in build.yaml beside the number.
     -->
     <PropertyGroup>
+        <!-- The graph is watched, not just recorded. NuGet checks the restored graph
+             against the advisory database, direct and transitive, and NU1901 to NU1904
+             are listed as errors so a known-vulnerable package fails the restore. Left
+             as warnings they would be true and green, printed into a log nobody reads.
+
+             This board had packages.lock.json and no audit, which is the worse half of
+             the pair: the graph was held still and nothing looked at it. It carried
+             System.Text.Json 8.0.4 with GHSA-8g4q-xg66-9fp4 rated high, and the only
+             thing that said so was a Scorecard alert nobody had read.
+
+             AuditMode all, not direct: the package that was vulnerable here is not
+             referenced by any project file. It arrives through the Jellyfin packages,
+             and an audit that looks only at direct references would have missed it. -->
+        <NuGetAudit>true</NuGetAudit>
+        <NuGetAuditMode>all</NuGetAuditMode>
+        <NuGetAuditLevel>low</NuGetAuditLevel>
+        <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Forced above the version the Jellyfin packages ask for. 8.0.4 is subject to
+             GHSA-8g4q-xg66-9fp4 and 8.0.5 is the first fixed release; nothing here
+             references the package directly, so raising it is the only way to move it
+             without waiting for the upstream package to be rebuilt.
+
+             It comes back out when the Jellyfin packages resolve to 8.0.5 or later on
+             their own. The audit above is what will say so: with the entry removed the
+             restore either stays green, and it was no longer needed, or it fails and
+             names the advisory again. -->
+        <PackageReference Include="System.Text.Json" Version="8.0.5" />
+        <!-- The one the audit found the moment it was switched on, and the worse of the
+             two: 4.5.0 is subject to GHSA-ghhp-997w-qr28, rated critical, and 4.5.1 is
+             the first fixed release. Scorecard had reported only the high one above.
+             Also transitive, arriving under the same Jellyfin packages. -->
+        <PackageReference Include="System.Text.Encodings.Web" Version="4.5.1" />
+    </ItemGroup>
+
+    <PropertyGroup>
         <WatchlistManifestPath>$(MSBuildThisFileDirectory)build.yaml</WatchlistManifestPath>
         <WatchlistManifestText>$([System.IO.File]::ReadAllText($(WatchlistManifestPath)))</WatchlistManifestText>
         <WatchlistVersion>$([System.Text.RegularExpressions.Regex]::Match($(WatchlistManifestText), `(?m)(?&lt;=^version:[ \t]*")[^"]*(?="[ \t]*\r?$)`).Value)</WatchlistVersion>
