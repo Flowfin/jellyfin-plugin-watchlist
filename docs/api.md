@@ -9,6 +9,13 @@ set off the plugin assembly and fails when a route has no section here, and it
 fails the other way too, on a section describing a route the plugin does not
 have. A route added tomorrow reds the run until it is written down.
 
+The answer tables below are read the same way. Each one is compared with the
+status codes its own endpoint declares, so a code the endpoint gained and a row
+left behind by one it lost both red the run naming the route and both readings.
+What that comparison does not judge is whether a code is the right one for an
+outcome. That decision is written here and nowhere else, and it is what a caller
+reads this page for.
+
 ## Where the endpoints live
 
 The server scans a plugin's assembly for controllers and adds them to its own
