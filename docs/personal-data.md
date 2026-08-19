@@ -192,7 +192,10 @@ and the route set is written down and held to what the assembly actually exposes
 
     grep -n 'public void TheRoutesAreTheOnesWrittenDown' \
       Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs
-    55:    public void TheRoutesAreTheOnesWrittenDown()
+    41:    public void TheRoutesAreTheOnesWrittenDown()
+
+Read again on `7306873`. It said 55 until then, because the reader that test calls
+moved to a file of its own and the change that moved it did not carry this paste.
 
 What each route answers is in [docs/api.md](api.md).
 

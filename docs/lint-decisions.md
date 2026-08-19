@@ -121,20 +121,25 @@ which is already a required context, so nothing new goes to #63.
 
 Proven to fire, and on the real tree rather than only on a fixture. One method
 added to the exporter, of the kind somebody writes when the export needs a
-destination:
+destination. Both runs below were taken again on `7306873`, and that commit is
+named because the totals move whenever a test joins the class the filter selects:
 
     public static string ExportPath(string folder) => System.IO.Path.Combine(folder, "watchlist-export.json");
 
     dotnet test Jellyfin.Plugin.Watchlist.sln -c Release --filter "FullyQualifiedName~InvariantGuardTests"
        An invariant is broken in the plugin's own sources:
     Export/WatchlistExporter.cs:102 [store-filesystem] builds a file path outside the store (Path.Combine()
-    Failed!  - Failed:     1, Passed:     5, Skipped:     0, Total:     6
+    Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10
 
 and silent on the tree with that one method removed:
 
     git checkout -- Jellyfin.Plugin.Watchlist/Export/WatchlistExporter.cs
     dotnet test Jellyfin.Plugin.Watchlist.sln -c Release --filter "FullyQualifiedName~InvariantGuardTests"
-    Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6
+    Passed!  - Failed:     0, Passed:    10, Skipped:     0, Total:    10
+
+The totals said six until the rule for an outbound call landed beside this one and
+brought two tests with it. What the pair is quoted for is the one line naming the
+file, the rule and the line it refused, and that line is the same on both readings.
 
 What this lint cannot do. It reads tokens, so it refuses a call by its spelling
 and not by what it does. A path built by string concatenation, or a file opened
