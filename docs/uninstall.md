@@ -100,14 +100,24 @@ call four lines below it, so the folder carries no version suffix and one folder
 serves every version of the plugin. That is what makes an upgrade keep the lists
 rather than start again.
 
-The store takes its folder as a parameter rather than reading it from the plugin, so
-nothing in this repository wires the two together yet:
+The store takes its folder as a parameter rather than reading it from the plugin,
+and the registrator hands it the plugin's own data folder, so the two are wired
+together:
 
     git grep -n 'DataFolderPath' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:47:            Plugin.Instance!.DataFolderPath,
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:76:    public string DataFolderPath => _dataFolderPath;
 
-The path above is therefore where the documents are going to be and not where they
-have been observed. The file planted in the measurement stands in for one.
+This paragraph said nothing here wired the two together, and that was right on
+`dd24325`, the commit this file was written on. The line above it arrived with the
+read endpoint and nobody read this paragraph again:
+
+    git log --oneline -S'Plugin.Instance!.DataFolderPath' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs
+    7638627 Add the controller and the endpoint that reads the calling user's list [#25]
+
+What that does not change is how the path in the table was observed. The file in
+the measurement was planted rather than written by this plugin, and no reading here
+has watched a document of this plugin's own arrive at that path.
 
 ## Removing the rest by hand
 
