@@ -86,12 +86,19 @@ with what the paragraph pasted.
 
 ## The invariant lint: adopted, in the shape this tree already has
 
-Adopted, with one invariant, and it lives in the suite rather than in a workflow
-of its own.
+Adopted, and it lives in the suite rather than in a workflow of its own.
 
-The invariant: the store is the only part of this plugin that touches the file
-system. It is true of the tree today rather than an aspiration, and it is one
-grep to say so:
+What the table holds is read out of it rather than counted here, because a count
+written into a document is wrong the day somebody adds a rule and nothing says so:
+
+    grep -v '^#' Jellyfin.Plugin.Watchlist.Tests/Invariants.txt | grep -v '^$' | cut -d' ' -f1 | sort -u
+    api-refusal-body
+    plugin-network
+    store-filesystem
+
+The first invariant, and the one the argument below is written from: the store is
+the only part of this plugin that touches the file system. It is true of the tree
+today rather than an aspiration, and it is one grep to say so:
 
     git grep -lE '\bFile\s*\.\s*[A-Z]|\bDirectory\s*\.\s*[A-Z]|\bPath\s*\.\s*[A-Z]' -- Jellyfin.Plugin.Watchlist
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
@@ -135,7 +142,7 @@ through a helper this table does not name, passes it. That is the bound of every
 greppable invariant and it is why the rule table is data with a reason per line
 rather than a claim that the invariant is enforced.
 
-Only one invariant is in the table. The other one worth having, that nothing
-writes to a playlist outside the projection, has nothing to read yet: there is no
-projection in the tree. #82 carries a check of that class and it is written
+The one worth having that is not in the table, and the reason it is not: nothing
+writes to a playlist outside the projection has nothing to read yet, because there
+is no projection in the tree. #82 carries a check of that class and it is written
 against the adapter it comes with, so this table does not guess at it now.
