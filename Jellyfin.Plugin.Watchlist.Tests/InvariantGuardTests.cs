@@ -125,6 +125,38 @@ public class InvariantGuardTests
     }
 
     /// <summary>
+    /// The near-miss for the third invariant. A describer asking somewhere else what a
+    /// title looks like, written the way somebody writes it while making a client's row
+    /// look better, with the server's own client factory taken through the constructor
+    /// so the call is one line. What it sends is what a person means to watch.
+    /// </summary>
+    [Fact]
+    public void TheGuardRefusesAnOutboundCall()
+    {
+        var findings = ScanFixture("NearMissPluginNetwork.txt");
+
+        Assert.NotEmpty(findings);
+        Assert.All(findings, f => Assert.Equal("plugin-network", f.RuleId));
+    }
+
+    /// <summary>
+    /// The same describer with the artwork taken off the item the library already
+    /// handed over. Without this the test above would prove the fixture is unusual
+    /// rather than that the guard reads the call.
+    /// </summary>
+    [Fact]
+    public void TheOneChangeNeighbourOfTheOutboundCallPasses()
+    {
+        var findings = ScanFixture("NearMissPluginNetworkRepaired.txt");
+
+        Assert.True(
+            findings.Count == 0,
+            "The repaired fixture should trip nothing, and it tripped:"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, findings));
+    }
+
+    /// <summary>
     /// The register that ships. An entry in it that covers nothing reds this run, so
     /// the day the store stops touching the file system the entry has to go rather
     /// than sit there widening the rule for a file that no longer needs it.

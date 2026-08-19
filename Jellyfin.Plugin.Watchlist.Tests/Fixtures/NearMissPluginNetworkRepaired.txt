@@ -1,0 +1,42 @@
+// The one-change neighbour of NearMissPluginNetwork.txt.
+//
+// Same describer, same four fields, same artwork on the answer, taken off the item
+// the library already handed over instead of asked for somewhere else. Nothing about
+// what the plugin holds leaves the machine it runs on, and the client that draws the
+// row asks the server for the image the way it asks for every other one. This file
+// is a fixture and is never compiled.
+
+public sealed class LibraryItemDescriber : IWatchlistItemDescriber
+{
+    private readonly ILibraryManager _library;
+
+    public LibraryItemDescriber(ILibraryManager library)
+    {
+        _library = library;
+    }
+
+    public WatchlistItemDescription? Describe(Guid itemId, Guid userId)
+    {
+        var item = _library.GetItemById(itemId);
+
+        if (item is null)
+        {
+            return null;
+        }
+
+        return new WatchlistItemDescription
+        {
+            Kind = KindOf(item),
+            Name = item.Name,
+            Year = item.ProductionYear,
+            Artwork = ArtworkFor(item),
+        };
+    }
+
+    private static string? ArtworkFor(BaseItem item)
+    {
+        var tag = item.ImageInfos.Length == 0 ? null : item.ImageInfos[0].Path;
+
+        return tag;
+    }
+}

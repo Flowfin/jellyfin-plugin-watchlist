@@ -1,0 +1,50 @@
+// The near miss for plugin-network.
+//
+// Nobody adds an HTTP call in order to tell somebody else what a user intends to
+// watch. They add it because the list has titles a client would look nicer for, and
+// the server's own client factory is right there in the constructor, so the call
+// costs one line and reads as an improvement.
+//
+// What it actually does is send the identifiers on somebody's private list to a
+// third party, from a plugin whose statement to a user is that nothing leaves the
+// server. This file is a fixture and is never compiled.
+
+public sealed class LibraryItemDescriber : IWatchlistItemDescriber
+{
+    private readonly ILibraryManager _library;
+    private readonly IHttpClientFactory _clients;
+
+    public LibraryItemDescriber(ILibraryManager library, IHttpClientFactory clients)
+    {
+        _library = library;
+        _clients = clients;
+    }
+
+    public WatchlistItemDescription? Describe(Guid itemId, Guid userId)
+    {
+        var item = _library.GetItemById(itemId);
+
+        if (item is null)
+        {
+            return null;
+        }
+
+        return new WatchlistItemDescription
+        {
+            Kind = KindOf(item),
+            Name = item.Name,
+            Year = item.ProductionYear,
+            Artwork = ArtworkFor(item),
+        };
+    }
+
+    private string? ArtworkFor(BaseItem item)
+    {
+        var client = _clients.CreateClient("Watchlist");
+
+        var answer = client.GetStringAsync(
+            "https://artwork.example/lookup?title=" + item.Name).GetAwaiter().GetResult();
+
+        return answer.Length == 0 ? null : answer;
+    }
+}
