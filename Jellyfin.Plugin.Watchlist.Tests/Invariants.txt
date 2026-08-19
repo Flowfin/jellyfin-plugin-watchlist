@@ -40,3 +40,26 @@ api-refusal-body | \breturn\s+Forbid\s*\(\s*[^)] | refuses with a body a caller 
 api-refusal-body | \breturn\s+StatusCode\s*\(\s*[^,;()]*, | refuses with a status code and a body beside it
 api-refusal-body | \breturn\s+Problem\s*\( | refuses with a problem document, which carries a detail field
 api-refusal-body | \breturn\s+ValidationProblem\s*\( | refuses with a problem document, which carries a detail field
+
+# Nothing this plugin holds leaves the server it runs on. What it stores is the list
+# of titles a person means to watch, and a call to an address outside the machine is
+# how that becomes something somebody else knows. docs/personal-data.md states that
+# absence to a reader, and until this rule the statement was a reading of the sources
+# on one day rather than a property of them.
+#
+# The forms below are what such a call is written as: one client built by hand, one
+# taken from the server through its own factory, a socket, and the imports either
+# needs. System.Net.Mime is outside every one of them, which is the import the
+# controller carries today for the name of a media type.
+plugin-network | new\s+HttpClient\s*\( | builds an HTTP client inside the plugin
+plugin-network | new\s+HttpClientHandler\s*\( | builds an HTTP transport inside the plugin
+plugin-network | \bIHttpClientFactory\b | takes the server's HTTP client factory
+plugin-network | \bCreateClient\s*\( | asks a factory for an HTTP client
+plugin-network | new\s+Socket\s*\( | opens a socket
+plugin-network | new\s+TcpClient\s*\( | opens a socket
+plugin-network | new\s+UdpClient\s*\( | opens a socket
+plugin-network | new\s+TcpListener\s*\( | listens on a socket
+plugin-network | WebRequest\s*\.\s*Create\s*\( | makes a web request
+plugin-network | \bDns\s*\.\s*GetHost | resolves a name against the network
+plugin-network | using\s+System\.Net\.Http\b | imports the HTTP stack
+plugin-network | using\s+System\.Net\.Sockets\b | imports the socket stack

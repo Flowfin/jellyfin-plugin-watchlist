@@ -260,10 +260,17 @@ plugin's own. What updates the plugin is the server reading a manifest, which is
 server's request made on an administrator's instruction rather than something this
 plugin does.
 
-The bound on that paragraph, stated rather than left to be found: it is a reading of
-the sources at one commit and not a refusal. Nothing in the tree stops the next change
-adding an HTTP client, in the way the invariant above stops a refusal growing a body,
-and the register those rules live in is
-`Jellyfin.Plugin.Watchlist.Tests/Invariants.txt`. Until a rule sits there for this, the
-sentence at the top of this section is true and unenforced, and a reader should treat
-it as a reading somebody took rather than as something the suite will keep true.
+That paragraph was a reading of the sources at one commit until #69 put a rule under
+it. `plugin-network` in `Jellyfin.Plugin.Watchlist.Tests/Invariants.txt` refuses a
+client built by hand, one taken from the server through its own factory, a socket, a
+web request, a name resolved against the network, and the imports either of the first
+two needs. It is read by the same scan that already refuses a refusal carrying a body,
+so the next change adding an outbound call reds the run naming the file, the line and
+the rule rather than being found by whoever next reads this page.
+
+The bound on the rule, stated rather than left to be found. It matches text, line by
+line, in this plugin's own sources and nowhere else, so it reaches a call written in
+those files and not one made on this plugin's behalf by something it hands work to. A
+call split across lines is outside it in the same way every rule in that table is, and
+a name the rule does not carry is a name it does not refuse. What it makes impossible
+is the quiet arrival of the ordinary forms, which is how such a call actually arrives.
