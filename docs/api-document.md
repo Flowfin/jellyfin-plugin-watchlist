@@ -144,9 +144,13 @@ and the same on the other line.
 `WatchlistApiRouteTests` holds three strings, verb and template together:
 
     grep -nE '"(GET|POST|DELETE) Watchlist' Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs | head -3
-    46:        "DELETE Watchlist/Items/{itemId}",
-    47:        "GET Watchlist/Items",
-    48:        "POST Watchlist/Items/{itemId}",
+    32:        "DELETE Watchlist/Items/{itemId}",
+    33:        "GET Watchlist/Items",
+    34:        "POST Watchlist/Items/{itemId}",
+
+Read again on `7306873`. Those numbers were 46, 47 and 48, and they moved when the
+reader that class uses went to a file of its own, in a change that left this paste
+behind.
 
 The three operations above are those three with a leading slash the server adds.
 So the reflection pin, `docs/api.md` and the document a server generates all
