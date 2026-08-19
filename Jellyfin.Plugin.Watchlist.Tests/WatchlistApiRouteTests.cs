@@ -1,10 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.IO;
-using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Routing;
 using Xunit;
 
 namespace Jellyfin.Plugin.Watchlist.Tests;
@@ -31,16 +27,6 @@ public class WatchlistApiRouteTests
     /// The whole contract. Editing this list is how a route changes; a change reaching
     /// the controller and not this line reds the run instead.
     /// </summary>
-    /// <summary>
-    /// The verbs a heading in the document may open with. It is what tells a section
-    /// about a route from a section about anything else, so a page can carry prose
-    /// headings without either direction of the comparison reading them as routes.
-    /// </summary>
-    private static readonly string[] Verbs =
-    [
-        "DELETE ", "GET ", "HEAD ", "OPTIONS ", "PATCH ", "POST ", "PUT ",
-    ];
-
     private static readonly string[] TheRoutes =
     [
         "DELETE Watchlist/Items/{itemId}",
@@ -54,7 +40,7 @@ public class WatchlistApiRouteTests
     [Fact]
     public void TheRoutesAreTheOnesWrittenDown()
     {
-        Assert.Equal(TheRoutes, RoutesOf(Controllers()));
+        Assert.Equal(TheRoutes, ApiSurface.RoutesOf(ApiSurface.Controllers()));
     }
 
     /// <summary>
@@ -63,7 +49,7 @@ public class WatchlistApiRouteTests
     [Fact]
     public void ThereAreRoutesToRead()
     {
-        Assert.NotEmpty(RoutesOf(Controllers()));
+        Assert.NotEmpty(ApiSurface.RoutesOf(ApiSurface.Controllers()));
     }
 
     /// <summary>
@@ -77,7 +63,7 @@ public class WatchlistApiRouteTests
     {
         Assert.Equal(
             ["DELETE Somewhere/Items/{itemId}", "GET Somewhere/Items"],
-            RoutesOf([typeof(AControllerWithAPrefix)]));
+            ApiSurface.RoutesOf([typeof(AControllerWithAPrefix)]));
     }
 
     /// <summary>
@@ -90,7 +76,7 @@ public class WatchlistApiRouteTests
     {
         Assert.Equal(
             ["GET Elsewhere/Items"],
-            RoutesOf([typeof(AControllerWithAnAbsoluteTemplate)]));
+            ApiSurface.RoutesOf([typeof(AControllerWithAnAbsoluteTemplate)]));
     }
 
     /// <summary>
@@ -102,7 +88,7 @@ public class WatchlistApiRouteTests
     {
         Assert.Equal(
             ["POST Watchlist/Something"],
-            RoutesOf([typeof(AControllerWithNoPrefix)]));
+            ApiSurface.RoutesOf([typeof(AControllerWithNoPrefix)]));
     }
 
     /// <summary>
@@ -115,7 +101,7 @@ public class WatchlistApiRouteTests
     {
         Assert.Equal(
             ["DELETE Somewhere/Items", "GET Somewhere/Items"],
-            RoutesOf([typeof(AControllerWithTwoVerbsOnOneTemplate)]));
+            ApiSurface.RoutesOf([typeof(AControllerWithTwoVerbsOnOneTemplate)]));
     }
 
     /// <summary>
@@ -127,8 +113,8 @@ public class WatchlistApiRouteTests
     public void TheReadingMovesWhenOneRouteIsRenamed()
     {
         Assert.NotEqual(
-            RoutesOf([typeof(AControllerWithAPrefix)]),
-            RoutesOf([typeof(AControllerWithOneRouteRenamed)]));
+            ApiSurface.RoutesOf([typeof(AControllerWithAPrefix)]),
+            ApiSurface.RoutesOf([typeof(AControllerWithOneRouteRenamed)]));
     }
 
     /// <summary>
@@ -140,8 +126,8 @@ public class WatchlistApiRouteTests
     public void TheReadingHoldsStillWhenNothingAboutTheRoutesChanged()
     {
         Assert.Equal(
-            RoutesOf([typeof(AControllerWithAPrefix)]),
-            RoutesOf([typeof(TheSameControllerUnderAnotherName)]));
+            ApiSurface.RoutesOf([typeof(AControllerWithAPrefix)]),
+            ApiSurface.RoutesOf([typeof(TheSameControllerUnderAnotherName)]));
     }
 
     /// <summary>
@@ -152,7 +138,7 @@ public class WatchlistApiRouteTests
     [Fact]
     public void EveryRouteHasASectionInTheDocument()
     {
-        var document = Document();
+        var document = ApiSurface.Document();
 
         var undocumented = TheRoutes
             .Where(route => !document.Contains("## " + route, StringComparison.Ordinal))
@@ -170,13 +156,10 @@ public class WatchlistApiRouteTests
     [Fact]
     public void EverySectionInTheDocumentNamesARoute()
     {
-        var orphaned = Document()
-            .Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Split('\n')
-            .Where(line => line.StartsWith("## ", StringComparison.Ordinal))
-            .Select(line => line[3..].Trim())
-            .Where(heading => Verbs.Any(verb => heading.StartsWith(verb, StringComparison.Ordinal)))
+        var orphaned = ApiSurface.RouteSectionsIn(ApiSurface.Document())
+            .Keys
             .Where(heading => !TheRoutes.Contains(heading, StringComparer.Ordinal))
+            .OrderBy(heading => heading, StringComparer.Ordinal)
             .ToList();
 
         Assert.True(
@@ -194,94 +177,10 @@ public class WatchlistApiRouteTests
     [Fact]
     public void ASectionUnderTheWrongVerbIsNotASectionForTheRoute()
     {
-        var document = Document();
+        var document = ApiSurface.Document();
 
         Assert.Contains("## POST Watchlist/Items/{itemId}", document, StringComparison.Ordinal);
         Assert.DoesNotContain("## PUT Watchlist/Items/{itemId}", document, StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// The controllers a server scanning this assembly would add to its route table.
-    /// </summary>
-    /// <returns>One entry per controller.</returns>
-    private static IReadOnlyList<Type> Controllers() => PluginUnderTest.Assembly
-        .GetTypes()
-        .Where(t => t.IsPublic && !t.IsAbstract && typeof(ControllerBase).IsAssignableFrom(t))
-        .OrderBy(t => t.FullName, StringComparer.Ordinal)
-        .ToList();
-
-    /// <summary>
-    /// Every route these controllers claim, as the verb and the full template.
-    /// </summary>
-    /// <param name="controllers">The controllers to read.</param>
-    /// <returns>The routes, ordered so a failure reads the same twice.</returns>
-    private static IReadOnlyList<string> RoutesOf(IReadOnlyList<Type> controllers) => controllers
-        .SelectMany(controller => controller
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .SelectMany(method => method
-                .GetCustomAttributes(inherit: true)
-                .OfType<HttpMethodAttribute>()
-                .SelectMany(http => http.HttpMethods.Select(verb =>
-                    verb + " " + Joined(PrefixOf(controller), http.Template)))))
-        .Distinct(StringComparer.Ordinal)
-        .OrderBy(route => route, StringComparer.Ordinal)
-        .ToList();
-
-    /// <summary>
-    /// The route prefix a controller carries, or nothing when it carries none.
-    /// </summary>
-    /// <param name="controller">The controller to read.</param>
-    /// <returns>The prefix as written.</returns>
-    private static string PrefixOf(Type controller) => controller
-        .GetCustomAttributes(inherit: true)
-        .OfType<IRouteTemplateProvider>()
-        .Where(route => route is not HttpMethodAttribute)
-        .Select(route => route.Template ?? string.Empty)
-        .FirstOrDefault(string.Empty);
-
-    /// <summary>
-    /// The prefix and the template as one path, the way the framework joins them: a
-    /// template starting at the root replaces the prefix instead of hanging off it.
-    /// </summary>
-    /// <param name="prefix">What the controller carries.</param>
-    /// <param name="template">What the method carries.</param>
-    /// <returns>The path a client would call.</returns>
-    /// <summary>
-    /// The document, read out of the test assembly rather than off disk, so what is
-    /// compared is this tree's file and never a copy that happens to sit beside the
-    /// test host.
-    /// </summary>
-    /// <returns>The document text.</returns>
-    private static string Document()
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-        const string Resource = "api.md";
-
-        using var stream = assembly.GetManifestResourceStream(Resource)
-            ?? throw new InvalidOperationException(
-                Resource + " is not embedded in the test assembly. The assembly carries: "
-                + string.Join(", ", assembly.GetManifestResourceNames()));
-
-        using var reader = new StreamReader(stream);
-
-        return reader.ReadToEnd();
-    }
-
-    private static string Joined(string prefix, string? template)
-    {
-        var tail = template ?? string.Empty;
-
-        if (tail.StartsWith('/'))
-        {
-            return tail.TrimStart('/');
-        }
-
-        if (prefix.Length == 0)
-        {
-            return tail;
-        }
-
-        return tail.Length == 0 ? prefix : prefix.TrimEnd('/') + "/" + tail;
     }
 
     /// <summary>
