@@ -8,7 +8,7 @@ and one is adopted, and both answers are here with what would change them.
 The other board runs a formatter over its non-code files. This tree's non-code
 surface is not the same surface.
 
-    git ls-files | grep -oE '\.[a-z]+$' | sort | uniq -c | sort -rn
+    git ls-tree -r --name-only a8bf829 | grep -oE '\.[a-z]+$' | sort | uniq -c | sort -rn
          78 .cs
          20 .md
          15 .txt
@@ -24,7 +24,17 @@ surface is not the same surface.
           1 .gitignore
           1 .editorconfig
 
-Taken on `a8bf829`. This paragraph pasted a census with 47 sources, eleven
+Taken on `a8bf829`, which the command now names rather than leaving to this
+sentence. It read `git ls-files` before, and that reads whichever tree it is run
+in, so the totals a reader got moved away from the ones pasted under it while
+every number here stayed right for the commit it was taken at:
+
+    git ls-tree -r --name-only 3f8ce3d | grep -oE '\.[a-z]+$' | sort | uniq -c | sort -rn | head -3
+         80 .cs
+         20 .md
+         17 .txt
+
+The census is unchanged. This paragraph pasted a census with 47 sources, eleven
 markdown files and no image in it, and that reading was right on `c24b5b1`, the
 commit that wrote this file:
 
@@ -100,8 +110,28 @@ The first invariant, and the one the argument below is written from: the store i
 the only part of this plugin that touches the file system. It is true of the tree
 today rather than an aspiration, and it is one grep to say so:
 
-    git grep -lE '\bFile\s*\.\s*[A-Z]|\bDirectory\s*\.\s*[A-Z]|\bPath\s*\.\s*[A-Z]' -- Jellyfin.Plugin.Watchlist
+    git grep -lE '\bPath\s*\.\s*[A-Z][A-Za-z]*\s*\(|\bFile\s*\.\s*[A-Z][A-Za-z]*\s*\(|\bDirectory\s*\.\s*[A-Z][A-Za-z]*\s*\(|new\s+FileStream\s*\(' -- Jellyfin.Plugin.Watchlist
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
+
+That command matched the three names with nothing required after them until
+this change, so it had started printing two paths under a sentence naming one.
+What the second one is:
+
+    git grep -nE '\bDirectory\s*\.\s*[A-Z]' -- Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj
+    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:53:             rated critical, fixed in 4.5.1; the audit switched on in Directory.Build.props
+    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:56:             Declared here rather than in Directory.Build.props, although it applies to
+    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:60:             that comparison about Directory.Build.props is a change to a guard and
+
+    git log --oneline -S'the audit switched on in Directory.Build.props' -- Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj
+    8a405f1 Watch the dependency graph, do not only record it (#188)
+
+Three lines of comment naming a build file, in a file the guard never reads.
+The scan is handed the plugin's `.cs` sources by the wildcard in the test
+project and nothing else, and every pattern in the table ends at the call
+rather than at the name, which is the shape the command above now has. So the
+invariant held throughout and the evidence for it had stopped saying so. It was
+found by running the commands in this file and comparing what they print with
+what is pasted under them.
 
 What breaks when it stops being true is not hypothetical. The store writes a
 document by staging it and moving it into place, it resolves its folder once and
