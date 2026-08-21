@@ -7,9 +7,12 @@ takes, and the sign-off every commit carries.
 
 ## Run the gate before you push
 
-One command runs the three legs the mainline requires, in the order the ruleset
-lists them, and stops at the first failing leg. It is in `docs/parity.md`, under
-`## The local command`.
+One command runs the legs of the required set that a machine here can run, in
+the order the ruleset lists them, and stops at the first failing leg. It is in
+`docs/parity.md`, under `## The local command`. A green run of it is not the
+whole gate: that section names the required context the command does not reach
+and says why, and it is the authority for which legs those are rather than this
+paragraph.
 
 It is not copied here. A second copy of a command is the copy that goes stale,
 and the one in `docs/parity.md` sits beside the reading of the ruleset it

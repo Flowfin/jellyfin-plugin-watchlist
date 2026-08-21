@@ -69,9 +69,14 @@ private one.
 
 ## What refuses to happen
 
-An entry whose item has been removed from the library does not silently
-disappear from the list, and a library rescan does not empty a list. What such
-an entry does instead is written in
+An entry whose item stops resolving is kept rather than deleted, so nothing a
+rescan does removes it from the stored list, and a drive that comes back brings
+its entries back with it. What a user sees is a narrower statement than that:
+such an entry is skipped on every read while it does not resolve, and media that
+is removed and added again gets a new library identifier the old entry cannot
+follow, so a rebuilt library can leave a list that is full and shows nothing.
+Which of those two a rescan produces, and why reattaching by provider identifier
+is out of scope for the first release, are in
 [docs/unresolvable-entries.md](docs/unresolvable-entries.md).
 
 A document written by a newer version of the plugin is refused rather than read
