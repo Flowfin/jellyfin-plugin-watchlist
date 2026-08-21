@@ -595,9 +595,26 @@ board with one other board, and a check neither of them carries does not appear
 here at all.
 
 It has a row per check and not per workflow, so a workflow that reports no check
-and gates nothing has no row. `sync-labels.yaml` here is the one such file, and
-the reason it is named in this paragraph rather than given a row is that giving
-it one would say a decision was taken about it as a check, which is not true.
+and gates nothing has no row. `sync-labels.yaml` here is the one such file. It
+still has none, because it reports on nothing and gates nothing, and a row for
+it would say it is a check.
+
+A decision has been taken about that file, which is what this paragraph used to
+say had not happened, so it is recorded here rather than left to the workflow's
+own comment. The sync it called replaced this board's labels with a shared set
+and deleted every label that set does not name, which is nine of the twenty this
+board uses, the whole `area:` vocabulary among them. #196 measured that and this
+is the position taken: the shared set is still read, from its own URL at the
+moment of the run, and this repository's own labels are handed to the same run
+in `.github/labels.yaml` beside it. `delete-other-labels` is kept, because
+removing a label nobody declared is the job; what changed is that this board's
+labels are now declared. The shared set is not copied into this tree, so the two
+files cannot drift against each other.
+
+What that leaves undecided is deliberate. Whether this board should keep a
+vocabulary of its own or move onto the shared one is a question about the labels
+rather than about the workflow, #196 declines to settle it, and keeping both
+sets is the state the board was already in.
 
 It does not say that a green run of the adopted set means the change is right.
 Nothing in the required set reads a pull request for whether it does what its

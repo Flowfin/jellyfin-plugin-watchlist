@@ -1,0 +1,58 @@
+# The labels this repository defines for itself.
+#
+# `.github/workflows/sync-labels.yaml` hands this file to the label sync
+# alongside the shared plugin set, so the sync's `delete-other-labels` removes a
+# label neither file names and leaves these alone. Before that second file was
+# passed, every label below was one the sync would have deleted, which is #196.
+#
+# The shared set is NOT copied in here. It is read from its own URL at the
+# moment of the run, so this file holds only what this board added on top and
+# cannot drift against the set it is added to.
+#
+# The colours and descriptions are the ones these labels already carry, read off
+# the board rather than chosen again, so the first run that reads this file
+# renames nothing and recolours nothing:
+#
+#     gh label list --repo Flowfin/jellyfin-plugin-watchlist --limit 100 \
+#       --json name,color,description --jq '.[] | "\(.name)\t\(.color)\t\(.description)"'
+#
+# A label added to the board and not to this file is deleted on the next
+# scheduled run. Add it here in the same change that creates it.
+
+# Which part of the plugin an issue is about. The shared set has no vocabulary
+# for this, because it describes pull requests on any plugin rather than the
+# parts of one.
+- name: 'area: api'
+  color: 'c5def5'
+  description: HTTP endpoints and their auth model
+
+- name: 'area: ci'
+  color: '1d76db'
+  description: Workflows, gates and build tooling
+
+- name: 'area: config'
+  color: 'c5def5'
+  description: Settings, the admin page, and their validation
+
+- name: 'area: projection'
+  color: 'c5def5'
+  description: How the list is made visible to stock clients
+
+- name: 'area: release'
+  color: 'c5def5'
+  description: Packaging, manifest, and catalogue publication
+
+- name: 'area: store'
+  color: 'c5def5'
+  description: The per-user watchlist store and its persistence
+
+# What kind of work an issue is, where the shared set has no equivalent.
+- name: architecture
+  color: '5319e7'
+  description: A structural decision and the reasons behind it
+
+- name: planning
+  color: 'bfdadc'
+
+- name: security
+  color: 'b60205'
