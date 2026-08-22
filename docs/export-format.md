@@ -143,5 +143,19 @@ There is no title, no image and no path. All three are the server's, all three g
 stale the moment media is renamed or moved, and a reader that has the provider
 identifiers can look up better ones than this plugin could copy.
 
-There is no import side written against anybody's API. This is a file. Nothing in
-this repository assumes a reader for it exists.
+There is no import side written against anybody's API. This is a file, and nothing
+here waits on another product agreeing to read it.
+
+This repository does hold a reader for it, which it did not when this page was
+written. `WatchlistImporter` takes the entries as this format carries them and says
+what each one matches on the server it is being read against:
+
+    git log --oneline --format='%h %ad %s' --date=short origin/master -- Jellyfin.Plugin.Watchlist/Export/WatchlistImporter.cs
+    517315e 2026-08-08 Match an imported entry by provider identifier before the server's own [#40]
+
+    git grep -n 'IReadOnlyList<ExportedEntry> entries' origin/master -- Jellyfin.Plugin.Watchlist/Export/WatchlistImporter.cs
+    origin/master:Jellyfin.Plugin.Watchlist/Export/WatchlistImporter.cs:41:        IReadOnlyList<ExportedEntry> entries,
+
+That changes nothing above it. The promises on this page are made to a reader who is
+not this plugin, and a reader in this repository is held to them like any other
+rather than allowed to rely on what the exporter happens to write.
