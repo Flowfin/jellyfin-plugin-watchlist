@@ -1,4 +1,5 @@
-# Developer Certificate of Origin (DCO) sign-off gate (#746). A contributor
+# Developer Certificate of Origin (DCO) sign-off gate, adopted from
+# Flowfin/jellyfin-plugin-sso#746. A contributor
 # legal-authorization mechanism - OpenSSF Silver / OSPS-LE-01.01 - implemented as a
 # self-contained first-party check, no external DCO App or third-party action (the
 # same internal-only posture as the PR-hygiene gate). It verifies every non-merge
