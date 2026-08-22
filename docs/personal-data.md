@@ -38,8 +38,15 @@ from a record that exists:
     grep -n 'The pieces are passed in rather than read from a shared record' -A 2 \
       Jellyfin.Plugin.Watchlist/Export/WatchlistExporter.cs
     52:    /// The pieces are passed in rather than read from a shared record, because the
-    53:    /// record that holds a shared list is not built yet. Whoever builds it maps it
-    54:    /// onto this call, and the format does not move when they do.
+    53-    /// record that holds a shared list is not built yet. Whoever builds it maps it
+    54-    /// onto this call, and the format does not move when they do.
+
+Those two trailing lines carried a colon rather than a dash until this sentence
+landed beside them, which is what `grep` prints for a line that matched rather
+than for one it pulled in as context. The wording is identical either way, so the
+three lines were arranged by hand instead of taken from the command, and only the
+one line the pattern names is a match. Found by running every command pasted in
+this file and comparing it with what stands under it.
 
 A section for the shared list is owed before that list ships, and it is not written
 here in advance of the answer, because a published statement about who can see what has
