@@ -1,8 +1,15 @@
 name: unicode-guard
 
 on:
-  # Every branch and every PR: the guard is a cheap read-only scan and must cover
-  # any future release branch too, not just main (one code line since #954).
+  # Every branch and every PR: the guard is a cheap read-only scan, and a filter
+  # naming the default branch would leave a release branch unscanned the day one
+  # exists. This repository has one branch line and its default is `master`:
+  #
+  #     gh repo view --json defaultBranchRef --jq .defaultBranchRef.name
+  #     master
+  #
+  # so `["**"]` covers what is here today and whatever is added later, and this
+  # comment names no branch the repository does not have.
   push:
     branches: ["**"]
   pull_request:
