@@ -7,10 +7,21 @@ local time zone.
 
 This is a birth requirement rather than a cleanup. A suite that needs any of
 those runs on one machine and quietly stops running everywhere else, and the
-first time anyone notices is when a regression ships. The same class is visible
-on the board this one takes its gate from: a suite that requires administrator
-rights on one operating system is an open defect there
-(iderex/jellyfin-plugin-sso#1227). This board plans not to acquire it.
+first time anyone notices is when a regression ships. The class is not
+hypothetical. On the board this one takes its gate from, a suite that required
+administrator rights on one operating system was raised as a defect and then
+repaired, Flowfin/jellyfin-plugin-sso#1227:
+
+    gh api repos/Flowfin/jellyfin-plugin-sso/issues/1227 \
+      --jq '.title, "\(.state) \(.state_reason) \(.closed_at)"'
+    Test suite requires admin rights on Windows
+    closed completed 2026-08-06T06:31:42Z
+
+A defect somebody had to go back and remove is a stronger case for refusing the
+thing at birth than for cleaning it up afterwards, so the example stays now that
+the state it named has moved. This board plans not to acquire the same class.
+That is a plan rather than a report: nothing here has measured that none has been
+acquired.
 
 ## What is refused, and what replaces it
 
