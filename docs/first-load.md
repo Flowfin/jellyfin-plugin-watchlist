@@ -126,8 +126,12 @@ The page is also listed for the plugin:
     {"Name":"Watchlist","EnableInMainMenu":false,"DisplayName":"Watchlist",
      "PluginId":"6e1631d7aa49494da23bd5785853fc0a"}
 
-The page that came back is still the upstream template's demonstration page. Serving
-it proves the route works; #31 is what replaces its contents.
+The page that came back is the upstream template's demonstration page. Serving it
+proves the route works. Its contents have been replaced since this run, so the hash
+above is a reading of what that build served and not of what a run today would fetch:
+
+    gh issue view 31 --repo Flowfin/jellyfin-plugin-watchlist --json state,title --jq '"\(.state) \(.title)"'
+    CLOSED Replace the template configuration page with this plugin's own
 
 ## What this run did not cover
 
@@ -147,4 +151,14 @@ server's own install route, so the install path a user takes is not covered here
 either. The runbook in #67 is where that belongs.
 
 Nothing was exercised beyond loading. No list was created, no playlist was written
-and no endpoint of this plugin was called, because none of that is built yet.
+and no endpoint of this plugin was called. There was no endpoint to call: the build
+this run installed carried no API at all, and the plugin has one now.
+
+    git ls-tree -r --name-only d23a10f -- Jellyfin.Plugin.Watchlist/ | grep -c '/Api/'
+    0
+    git ls-tree -r --name-only origin/master -- Jellyfin.Plugin.Watchlist/ | grep -c '/Api/'
+    7
+
+So the bound stands as a reading of this run and it has grown rather than shrunk. A
+run taken today leaves more uncovered than this one did, and the endpoints are
+covered by the suite rather than by any reading here.
