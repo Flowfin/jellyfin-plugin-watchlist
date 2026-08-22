@@ -42,9 +42,9 @@ The other board's required set:
      "Analyze (csharp)","DCO sign-off","Deterministic PR-hygiene checks","Enforce greppable invariants",
      "Reject Trojan Source Unicode","Audit workflows (zizmor)","prettier","dependency-review"]
 
-What actually reported on that board's newest mainline commit, which is a
-different question from what is required and answers it for the checks that are
-not:
+What actually reported on that board's mainline commit `4da1c25`, which was its
+newest when this reading was taken and is not any more. That is a different
+question from what is required, and it answers it for the checks that are not:
 
     gh api "repos/iderex/jellyfin-plugin-sso/commits/4da1c25dd6090e8f43870a9fab01a70e2f6433d0/check-runs" \
       --jq '.check_runs[] | "\(.name) :: \(.conclusion)"' | sort -u
@@ -72,11 +72,12 @@ table below pairs it with the workflow it comes from:
     1:name: Publish failure alert
     50:    name: Report any workflow that concluded non-success on the default branch
 
-And what reported here, on the head of the last merged pull request rather than
-on `master`, because several of this board's checks run on a pull request and
-never on a push, so reading `master` would report them missing:
+And what reported here, on the head of a merged pull request rather than on
+`master`, because several of this board's checks run on a pull request and never
+on a push, so reading `master` would report them missing. The head is #117's,
+which was the newest merged pull request when this reading was taken:
 
-    gh pr list --state merged --limit 1 --json number,headRefOid --jq '.[] | "#\(.number) \(.headRefOid)"'
+    gh pr view 117 --json number,headRefOid --jq '"#\(.number) \(.headRefOid)"'
     #117 afb8cccf4dfe82ad1d2ff628c7605ca10639b5ff
     gh api "repos/iderex/jellyfin-plugin-watchlist/commits/afb8cccf4dfe82ad1d2ff628c7605ca10639b5ff/check-runs" \
       --jq '.check_runs[] | "\(.name) :: \(.conclusion)"' | sort -u
@@ -110,6 +111,39 @@ written here:
 Both readings are of one commit each and move when the head does. The commit is
 named in the command so a reader can see which one was read rather than trusting
 that it was the newest at the time.
+
+The pinning was done and the words around it were not. Three sentences in this
+file called a pinned commit the newest or the last merged, and the board has moved
+past all three: `4da1c25` above, `afb8ccc` in this section, and `385ae24` under
+`Two instruments, each reporting under two names`. All three commits still answer
+exactly what is pasted under them, which is what naming them bought. What stopped
+being true is the word saying each was the freshest reading available, and each
+of the three now names the pull request or the commit and says it was the newest
+when the reading was taken.
+
+The paragraph above this section also pasted a command that selects rather than
+pins, `gh pr list --state merged --limit 1`, with `#117` under it. That output is
+one merge old the moment anything lands, and the distance it had accumulated when
+this was read is what a reader would have had to notice for themselves:
+
+    gh pr list --state merged --limit 300 --json number,mergedAt \
+      --jq '[.[] | select(.mergedAt > "2026-08-06T08:40:25Z")] | length'
+    71
+
+The command in that paragraph is a pull request view of #117 now, which prints the
+same head for as long as that pull request exists.
+
+No guard is offered for this and none is claimed. All four readings go over the
+network, and the suite is refused the network by name:
+
+    grep -c '^network' Jellyfin.Plugin.Watchlist.Tests/HeadlessRules.txt
+    8
+
+so there is nothing here that could run these commands and compare them with the
+sentences over them. What found it was running each command in this file and
+reading the paragraph above it against what the command printed. Comparing the
+pasted output alone would have found none of the three, because all three outputs
+are still correct.
 
 ## The local command
 
@@ -380,7 +414,8 @@ is then absent on such a run, rather than red, is not measured here, and
 requiring the workflow's name is what keeps a merge from waiting on the answer.
 
 The code scan has the same shape, and this file described it as though one name
-reported. Both contexts are on the head of the newest merged pull request:
+reported. Both contexts are on the head of #150, which was the newest merged pull
+request when this reading was taken:
 
     gh api "repos/Flowfin/jellyfin-plugin-watchlist/commits/385ae24/check-runs?per_page=100" \
       --jq '.check_runs[] | select(.name=="CodeQL" or .name=="Code scanning (csharp)") | "\(.name) :: app=\(.app.slug) :: \(.conclusion)"' | sort -u
