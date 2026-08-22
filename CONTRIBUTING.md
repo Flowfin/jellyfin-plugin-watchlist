@@ -85,12 +85,17 @@ closes nothing. A body or a commit message carrying `close`, `fixes` or
 `resolves` in front of a reference closes that issue the moment the change
 merges, and the pair is read wherever it appears in the text, so a sentence
 written to say a change does not close an issue closes it. That has happened
-here. #56 closed as completed on the merge of #199, whose body and commit
-message both carried the line saying it did not, and it was reopened by hand:
+twice here. #29 closed on the merge of #145 and #56 closed on the merge of
+#199, and in both cases the body carried a sentence saying the change did not
+finish the issue. Both were reopened by hand. The second one is the reason
+this paragraph exists: the first was written into the pull request that caused
+it and nowhere a later contributor would read it.
 
-    gh api "repos/Flowfin/jellyfin-plugin-watchlist/issues/56/timeline?per_page=100" \
-      --jq '[.[] | select(.event=="closed" or .event=="reopened") | {event, at: .created_at}]'
-    [{"at":"2026-08-22T01:38:03Z","event":"closed"},{"at":"2026-08-22T01:39:59Z","event":"reopened"}]
+    for n in 29 56; do echo -n "#$n "; gh api \
+      "repos/Flowfin/jellyfin-plugin-watchlist/issues/$n/timeline?per_page=100" \
+      --jq '[.[] | select(.event=="closed" or .event=="reopened") | .event] | join(",")'; done
+    #29 closed,reopened
+    #56 closed,reopened
 
 Nothing refuses it. `Deterministic PR-hygiene checks` reads the keyword form
 as one acceptable way to link and judges no other thing about it, so a change
