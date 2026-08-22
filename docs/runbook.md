@@ -384,11 +384,28 @@ source with the version properties overridden on the command line, so the upgrad
 section proves that the server replaces one installed version with another and keeps
 the data, and not that any published upgrade behaves that way.
 
-**The list itself.** Nothing in this plugin writes a list document yet, so the
-document used throughout was placed by hand in the form the store reads. It stands in
-for a real one. What the readings show is that the file at that path is carried
-through an upgrade, a line change, a disable and a restore untouched, which is a
-property of the paths rather than of the contents.
+**The list itself.** The document used throughout was placed by hand in the form the
+store reads, and it stands in for a real one. The route that would have written a real
+one was in the assemblies this run installed, so it is a route the run did not take
+rather than one that does not exist:
+
+    git grep -n 'HttpPost("Items/{itemId}")' b6fda94 -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    b6fda94:Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:132:    [HttpPost("Items/{itemId}")]
+
+Nothing writes one unprompted, and that is the narrower absence. That endpoint and its
+removal counterpart are the only callers of the store's write path, with no event
+handler and no scheduled task behind them, so a document appears where somebody asks
+for one through the API and nowhere else:
+
+    git grep -n '_store.Add(\|_store.Remove(' b6fda94 -- Jellyfin.Plugin.Watchlist/
+    b6fda94:Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:224:        var result = _store.Add(userId, entry, _configuration.MaxEntriesPerUser);
+    b6fda94:Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:251:        var result = _store.Remove(userId, itemId);
+    git grep -c 'IScheduledTask\|UserDataSaved\|IEventConsumer' b6fda94 -- Jellyfin.Plugin.Watchlist/ ; echo "exit=$?"
+    exit=1
+
+So no reading here is of a document this plugin wrote. What the readings show is that
+the file at that path is carried through an upgrade, a line change, a disable and a
+restore untouched, which is a property of the paths rather than of the contents.
 
 **What a user sees.** Every reading above is an administrator's reading, taken from
 the plugin list endpoint the dashboard is built from. No client was opened and no
