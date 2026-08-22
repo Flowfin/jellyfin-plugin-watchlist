@@ -79,6 +79,26 @@ arriving from elsewhere has no way to know which issue number their change
 belongs to before one exists. The linkage is wanted either way, and on an
 outside contribution it is supplied by whoever picks it up.
 
+Linking a change to an issue and closing that issue are two different things,
+and only one of them is a keyword. A bracketed `[#12]` in a subject links and
+closes nothing. A body or a commit message carrying `close`, `fixes` or
+`resolves` in front of a reference closes that issue the moment the change
+merges, and the pair is read wherever it appears in the text, so a sentence
+written to say a change does not close an issue closes it. That has happened
+here. #56 closed as completed on the merge of #199, whose body and commit
+message both carried the line saying it did not, and it was reopened by hand:
+
+    gh api "repos/Flowfin/jellyfin-plugin-watchlist/issues/56/timeline?per_page=100" \
+      --jq '[.[] | select(.event=="closed" or .event=="reopened") | {event, at: .created_at}]'
+    [{"at":"2026-08-22T01:38:03Z","event":"closed"},{"at":"2026-08-22T01:39:59Z","event":"reopened"}]
+
+Nothing refuses it. `Deterministic PR-hygiene checks` reads the keyword form
+as one acceptable way to link and judges no other thing about it, so a change
+that finishes part of an issue and says so is green while the issue closes
+under it. Write the outstanding part without the keyword: `Refs #12` and a
+sentence naming the condition that is not met says the same thing and closes
+nothing.
+
 ## Sign your work
 
 Every non-merge commit in a pull request carries a `Signed-off-by` trailer whose
