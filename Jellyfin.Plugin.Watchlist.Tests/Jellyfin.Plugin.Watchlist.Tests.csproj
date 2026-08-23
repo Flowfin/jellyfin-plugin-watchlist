@@ -109,8 +109,8 @@
     one place holds them.
   -->
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.9.11" />
-    <PackageReference Include="Jellyfin.Model" Version="10.9.11" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.11" />
+    <PackageReference Include="Jellyfin.Model" Version="10.11.11" />
   </ItemGroup>
 
   <!--
@@ -218,29 +218,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Jellyfin.Plugin.Watchlist\Jellyfin.Plugin.Watchlist.csproj" />
   </ItemGroup>
-
-    <ItemGroup>
-        <!-- Forced above the version the Jellyfin packages ask for, because neither is
-             referenced directly and that is the only way to move a transitive package
-             without waiting for the upstream package to be rebuilt.
-
-             System.Text.Json 8.0.4 is subject to GHSA-8g4q-xg66-9fp4, rated high, fixed
-             in 8.0.5. System.Text.Encodings.Web 4.5.0 is subject to GHSA-ghhp-997w-qr28,
-             rated critical, fixed in 4.5.1; the audit switched on in Directory.Build.props
-             found that one the moment it was enabled, and Scorecard had not reported it.
-
-             Declared here rather than in Directory.Build.props, although it applies to
-             both projects: PackageLockTests compares the lock file against the csproj
-             beside it and does not read the props file, so a pin declared there records
-             a Direct entry that no project claims. The duplicate is deliberate. Teaching
-             that comparison about Directory.Build.props is a change to a guard and
-             belongs in its own issue, not in the change that trips it.
-
-             Both come back out when the Jellyfin packages resolve to these versions on
-             their own. The audit is what will say so: remove the entry, and the restore
-             either stays green or names the advisory again. -->
-        <PackageReference Include="System.Text.Json" Version="8.0.5" />
-        <PackageReference Include="System.Text.Encodings.Web" Version="4.5.1" />
-    </ItemGroup>
 
 </Project>

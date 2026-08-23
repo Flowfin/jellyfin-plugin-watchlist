@@ -26,20 +26,26 @@ public class ServerLineTests
     }
 
     /// <summary>
-    /// The near miss, and it is the one #4 will make: the package set moves to the line
-    /// this plugin is meant to support and the manifest keeps the ABI the template
-    /// shipped. Two values in one file changed, none in the other.
+    /// The near miss: the package set moves to another line and the manifest keeps the
+    /// ABI it had. Two values in one file changed, none in the other.
     /// </summary>
+    /// <remarks>
+    /// The move it probes is the next one this tree will make, from the line it builds
+    /// against today to the one the second half of #4 adds. It is a version inside a
+    /// fixture string and never a reference anything restores, so it names the line and
+    /// not a package: which 12.0 version this repository would pin is question 5 on #1
+    /// and nothing here answers it.
+    /// </remarks>
     [Fact]
     public void APackageSetMovedWithoutTheAbiIsRefused()
     {
         var moved = PackageLock.Plugin.ProjectText
-            .Replace("Version=\"10.9.11\"", "Version=\"10.11.11\"", StringComparison.Ordinal);
+            .Replace("Version=\"10.11.11\"", "Version=\"12.0.0\"", StringComparison.Ordinal);
 
         var disagreements = ServerLine.Disagreements(BuildManifest.Text, moved);
 
         Assert.Equal(2, disagreements.Count);
-        Assert.All(disagreements, d => Assert.Contains("10.11", d, StringComparison.Ordinal));
+        Assert.All(disagreements, d => Assert.Contains("12.0", d, StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -50,8 +56,8 @@ public class ServerLineTests
     public void APackageSetAndAnAbiThatMovedTogetherAreAccepted()
     {
         var moved = PackageLock.Plugin.ProjectText
-            .Replace("Version=\"10.9.11\"", "Version=\"10.11.11\"", StringComparison.Ordinal);
-        var manifest = BuildManifest.WithTargetAbi(BuildManifest.Text, "10.11.0.0");
+            .Replace("Version=\"10.11.11\"", "Version=\"12.0.0\"", StringComparison.Ordinal);
+        var manifest = BuildManifest.WithTargetAbi(BuildManifest.Text, "12.0.0.0");
 
         Assert.Empty(ServerLine.Disagreements(manifest, moved));
     }
@@ -66,8 +72,8 @@ public class ServerLineTests
     {
         var half = PackageLock.Plugin.ProjectText
             .Replace(
-                "<PackageReference Include=\"Jellyfin.Controller\" Version=\"10.9.11\"",
                 "<PackageReference Include=\"Jellyfin.Controller\" Version=\"10.11.11\"",
+                "<PackageReference Include=\"Jellyfin.Controller\" Version=\"12.0.0\"",
                 StringComparison.Ordinal);
 
         var disagreements = ServerLine.Disagreements(BuildManifest.Text, half);

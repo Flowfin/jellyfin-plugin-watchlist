@@ -92,7 +92,7 @@ jobs:
         env:
           # Space separated list of branches a release may be cut from.
           RELEASE_REFS: "master"
-          EXPECTED_FRAMEWORK: "net8.0"
+          EXPECTED_FRAMEWORK: "net9.0"
         run: |
           set -euo pipefail
 
@@ -243,11 +243,11 @@ jobs:
         # run must never be able to reach the bytes that get released.
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "9.0.x"
 
       - name: Check the project is built for the target in the manifest
         env:
-          EXPECTED_FRAMEWORK: "net8.0"
+          EXPECTED_FRAMEWORK: "net9.0"
         # Asked of MSBuild rather than read out of the project file, because the target
         # frameworks are often set in Directory.Build.props or behind a property. The
         # packaging step runs `dotnet publish -f <target>`, and a target the project
@@ -297,7 +297,7 @@ jobs:
       - name: Check the assembly version matches the manifest
         env:
           MANIFEST_VERSION: ${{ needs.gate.outputs.version }}
-          EXPECTED_FRAMEWORK: "net8.0"
+          EXPECTED_FRAMEWORK: "net9.0"
         # The gate proved the tag and the manifest agree. Nothing so far has looked at
         # the number that ends up inside the DLL, and a project that sets AssemblyVersion
         # by hand can ship a plugin whose assembly says one thing while the catalog entry
@@ -460,7 +460,7 @@ jobs:
         # gate job has already proven that value equals the tag.
         uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
         with:
-          dotnet-target: "net8.0"
+          dotnet-target: "net9.0"
 
       - name: Check both release inputs exist
         env:
@@ -483,7 +483,7 @@ jobs:
         env:
           ARTIFACT: ${{ steps.jprm.outputs.artifact }}
           MANIFEST_VERSION: ${{ needs.gate.outputs.version }}
-          EXPECTED_FRAMEWORK: "net8.0"
+          EXPECTED_FRAMEWORK: "net9.0"
           # The generator, pinned by version. A NuGet package carries no digest a
           # workflow can pin the way the actions here are pinned by commit, so the
           # version is the whole pin and it is worth knowing that it is weaker.

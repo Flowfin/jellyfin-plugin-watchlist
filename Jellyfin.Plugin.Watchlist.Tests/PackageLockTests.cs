@@ -64,14 +64,14 @@ public class PackageLockTests
         var moved = PackageLock.WithReferenceVersion(
             PackageLock.Plugin.ProjectText,
             "Jellyfin.Controller",
-            "10.9.12");
+            "10.11.12");
 
         var disagreements = PackageLock.Disagreements(moved, PackageLock.Plugin.LockText);
 
         Assert.Contains(
             disagreements,
             d => d.Contains("Jellyfin.Controller", System.StringComparison.Ordinal)
-                && d.Contains("10.9.12", System.StringComparison.Ordinal));
+                && d.Contains("10.11.12", System.StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -82,8 +82,8 @@ public class PackageLockTests
     public void AReferenceRemovedFromTheProjectWithoutItsLockFileIsRefused()
     {
         var withoutModel = PackageLock.Plugin.ProjectText.Replace(
-            @"<PackageReference Include=""Jellyfin.Model"" Version=""10.9.11"">",
-            @"<PackageReference Include=""Removed.Placeholder"" Version=""10.9.11"">",
+            @"<PackageReference Include=""Jellyfin.Model"" Version=""10.11.11"">",
+            @"<PackageReference Include=""Removed.Placeholder"" Version=""10.11.11"">",
             System.StringComparison.Ordinal);
 
         var disagreements = PackageLock.Disagreements(withoutModel, PackageLock.Plugin.LockText);

@@ -41,8 +41,27 @@ imageUrl: "https://raw.githubusercontent.com/Flowfin/jellyfin-plugin-watchlist/m
 # built, so a 1 in the first position would be a claim rather than a number. 1.0.0.0
 # is what the first release takes when those milestones close.
 version: "0.1.0.0"
-targetAbi: "10.9.0.0"
-framework: "net8.0"
+# The server line this artifact is built for, and it is a floor rather than a range.
+# A server compares its own version against this value and offers the plugin when it
+# is at least that, with no upper bound on either supported line:
+#
+#     git show v10.11.11:Emby.Server.Implementations/Plugins/PluginManager.cs | grep -n 'appVersion >= targetAbi'
+#     702:                    return new LocalPlugin(dir, _appVersion >= targetAbi, manifest);
+#
+# So the value has to name the line the assembly was compiled against, and nothing on
+# the server side will catch it if it does not. What holds it here is the suite:
+# ServerLineTests reads this key and every Jellyfin package reference in the project
+# file and reds when the two name different lines.
+#
+# 10.11, because that is the package set the project references. The 12.0 artifact is
+# the other half of #4 and waits on question 5 on #1; when it arrives it is a second
+# manifest with its own ABI and its own framework, because one entry cannot claim two
+# lines.
+targetAbi: "10.11.0.0"
+# The framework that line runs, taken from the package rather than chosen: the
+# Jellyfin.Controller 10.11.11 nuspec declares a net9.0 dependency group, and the
+# project targets net9.0. Nothing in the suite reads this key today.
+framework: "net9.0"
 overview: "A private per-user watchlist kept on the server and shown by clients that were never changed."
 description: >
   Adds a watchlist to Jellyfin. Each user gets a private list, held on the

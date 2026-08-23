@@ -115,14 +115,16 @@ today rather than an aspiration, and it is one grep to say so:
 
 That command matched the three names with nothing required after them until
 this change, so it had started printing two paths under a sentence naming one.
-What the second one is:
+What the second one was, read at `40d29ad` because the comment block it found
+came out of the project file when #4 moved the package set and the forced
+transitive pins it explained were no longer needed:
 
-    git grep -nE '\bDirectory\s*\.\s*[A-Z]' -- Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj
-    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:53:             rated critical, fixed in 4.5.1; the audit switched on in Directory.Build.props
-    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:56:             Declared here rather than in Directory.Build.props, although it applies to
-    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:60:             that comparison about Directory.Build.props is a change to a guard and
+    git grep -nE '\bDirectory\s*\.\s*[A-Z]' 40d29ad -- Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj
+    40d29ad:Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:53:             rated critical, fixed in 4.5.1; the audit switched on in Directory.Build.props
+    40d29ad:Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:56:             Declared here rather than in Directory.Build.props, although it applies to
+    40d29ad:Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:60:             that comparison about Directory.Build.props is a change to a guard and
 
-    git log --oneline -S'the audit switched on in Directory.Build.props' -- Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj
+    git log --oneline -S'the audit switched on in Directory.Build.props' 40d29ad -- Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj
     8a405f1 Watch the dependency graph, do not only record it (#188)
 
 Three lines of comment naming a build file, in a file the guard never reads.

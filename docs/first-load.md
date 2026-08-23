@@ -19,10 +19,13 @@ containers and the readings are their log output and their HTTP API.
 | Artifact | Jellyfin.Plugin.Watchlist.dll |
 | Artifact sha256 | 73562b4be936f0c5f8343bbdafa0afd30fffa0d881e79446f57e75bc8addbee5 |
 
-The version and the identifier are the ones `build.yaml` declares, which is what a
-server reads:
+The version and the identifier are the ones `build.yaml` declared at the commit this
+run was built from, which is what a server reads. The command names that commit
+rather than the working tree, because this is a record of one run and the file has
+moved since: #4 raised `targetAbi` to the line the project actually compiles
+against, so an unpinned read of it prints a value this run never carried.
 
-    grep -E '^(name|guid|version|targetAbi):' build.yaml
+    git show d23a10f7af512da264284bf77a5ac36f7b90bbaf:build.yaml | grep -E '^(name|guid|version|targetAbi):'
     name: "Watchlist"
     guid: "6e1631d7-aa49-494d-a23b-d5785853fc0a"
     version: "0.1.0.0"
