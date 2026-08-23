@@ -30,6 +30,10 @@ Two server lines, 10.11 and 12.0. They do not share a runtime and they do not
 share the playlist interface this plugin leans on, so a release carries one
 artifact per line and you install the one that matches your server.
 
+That is what a release carries. Which of the two the code in this repository is
+built for today is a narrower answer, and it is under `What is built so far`
+below rather than repeated here.
+
 ## Installing
 
 Installation is from a plugin manifest published by this repository, rather than
@@ -118,6 +122,12 @@ The projection into a playlist is not built, and it is the part a user would
 notice, because until it exists the list is reachable over the API and appears
 on no client. The shared list the opening describes is not built either. That is
 why there is no release.
+
+One of the two server lines above is not built either. The plugin compiles
+against the 10.11 package set, on the framework that line runs, and the packaging
+metadata declares the same line, so the one artifact this tree can produce is the
+10.11 one. Nothing here builds against the 12.0 package set, so a server on that
+line has no artifact waiting for it even once a release exists.
 
 The description above says what the plugin is for, not what the code does today.
 The tracker carries the rest.
