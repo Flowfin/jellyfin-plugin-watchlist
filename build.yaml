@@ -60,7 +60,14 @@ version: "0.1.0.0"
 targetAbi: "10.11.0.0"
 # The framework that line runs, taken from the package rather than chosen: the
 # Jellyfin.Controller 10.11.11 nuspec declares a net9.0 dependency group, and the
-# project targets net9.0. Nothing in the suite reads this key today.
+# project targets net9.0.
+#
+# What holds the two together is PackageFrameworkTests, which reads this key and the
+# TargetFramework of the project file and reds when they name different frameworks.
+# Until it landed, the only reading of this pair was in the release route, against a
+# constant written there, and that reading is taken once per tag. This value decides
+# which directory the packaging tool takes the assembly out of, so a disagreement is a
+# release that packages nothing or packages what an earlier build left behind.
 framework: "net9.0"
 overview: "A private per-user watchlist kept on the server and shown by clients that were never changed."
 description: >
