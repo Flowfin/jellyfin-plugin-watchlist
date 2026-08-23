@@ -14,11 +14,36 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <!--
+    The server package set, and the line it belongs to is recorded here rather than
+    left to be read off the number.
+
+    10.11.11 is the newest build of the 10.11 line, which is the current stable server
+    line and the one this artifact declares in build.yaml. The line is the first two
+    positions; the third moves whenever upstream ships a fix and the plugin is pinned
+    at whichever build was newest on the day. The package says which framework that
+    line runs on rather than this file guessing it:
+
+        curl -s https://api.nuget.org/v3-flatcontainer/jellyfin.controller/10.11.11/jellyfin.controller.nuspec
+          targetFramework="net9.0"
+
+    which is the TargetFramework above.
+
+    The second supported line, 12.0, is not referenced here. Its packages are release
+    candidates and nothing else, and whether this repository pins one is question 5 on
+    #1, which is open. #4 is where the second reference and the second framework
+    arrive, and it stays unstarted on that half until the question is answered.
+
+    ExcludeAssets runtime on both, because a plugin is loaded beside a server that
+    already carries these assemblies. The test project references the same two with
+    their runtime assets kept, at the same versions, and the pair is held together by
+    a suite reading both project files rather than by memory.
+  -->
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.9.11" >
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.11" >
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="Jellyfin.Model" Version="10.9.11">
+    <PackageReference Include="Jellyfin.Model" Version="10.11.11">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
   </ItemGroup>
@@ -42,29 +67,5 @@
     <None Remove="Configuration\configPage.html" />
     <EmbeddedResource Include="Configuration\configPage.html" />
   </ItemGroup>
-
-    <ItemGroup>
-        <!-- Forced above the version the Jellyfin packages ask for, because neither is
-             referenced directly and that is the only way to move a transitive package
-             without waiting for the upstream package to be rebuilt.
-
-             System.Text.Json 8.0.4 is subject to GHSA-8g4q-xg66-9fp4, rated high, fixed
-             in 8.0.5. System.Text.Encodings.Web 4.5.0 is subject to GHSA-ghhp-997w-qr28,
-             rated critical, fixed in 4.5.1; the audit switched on in Directory.Build.props
-             found that one the moment it was enabled, and Scorecard had not reported it.
-
-             Declared here rather than in Directory.Build.props, although it applies to
-             both projects: PackageLockTests compares the lock file against the csproj
-             beside it and does not read the props file, so a pin declared there records
-             a Direct entry that no project claims. The duplicate is deliberate. Teaching
-             that comparison about Directory.Build.props is a change to a guard and
-             belongs in its own issue, not in the change that trips it.
-
-             Both come back out when the Jellyfin packages resolve to these versions on
-             their own. The audit is what will say so: remove the entry, and the restore
-             either stays green or names the advisory again. -->
-        <PackageReference Include="System.Text.Json" Version="8.0.5" />
-        <PackageReference Include="System.Text.Encodings.Web" Version="4.5.1" />
-    </ItemGroup>
 
 </Project>

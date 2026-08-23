@@ -207,6 +207,8 @@ repository. `docs/first-load.md` records the same two departures for the same
 reason.
 
 The assembly read here was built on `net9.0` against the 10.9.11 package set,
-which is the pair the tree still declares and is neither of the two supported
-lines. #4 is where those three values are brought into agreement, and a run
-after that lands is the one whose artifact is the artifact a user installs.
+which is not what the tree declares any more. #4 moved the references to 10.11.11
+and the manifest to the 10.11 line, so the pair this run compiled is one line
+behind the pair a build produces today, and the 12.0 half of that issue is still
+open. A run whose artifact is the artifact a user installs is one taken after
+both halves land and after something publishes.
