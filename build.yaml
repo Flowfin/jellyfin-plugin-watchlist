@@ -78,6 +78,17 @@ description: >
   forked or installed alongside it.
 category: "General"
 owner: "Flowfin"
+# The files the packaging tool takes out of the build output and puts in the archive.
+# A name no build wrote is not a smaller package, it is a packaging step that finds
+# nothing where it was told to look, and it finds nothing at the moment a tag is spent.
+#
+# What holds it here is PackageArtifactsTests, which reads this sequence and the name
+# the compiled plugin assembly gives itself and reds when they name different files.
+# The name comes off the assembly rather than off the project file, so an AssemblyName
+# set anywhere reaches the comparison.
+#
+# One entry, because one project builds one assembly. The second server line gets a
+# manifest of its own, for the reason written at targetAbi above.
 artifacts:
 - "Jellyfin.Plugin.Watchlist.dll"
 # The text a server shows for this version is written in CHANGELOG.md and nowhere

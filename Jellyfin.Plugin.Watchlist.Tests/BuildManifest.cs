@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
@@ -56,6 +58,22 @@ internal static class BuildManifest
     private static readonly Regex FrameworkEntry = new(
         @"^framework:[ \t]*""(?<framework>[^""]*)""[ \t]*\r?$",
         RegexOptions.Multiline | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// The key that opens the artifact sequence, on a line of its own with nothing after
+    /// it. Anchored per line for the same reason as the readers above: the word appears in
+    /// the prose this manifest carries and prose is not what the packaging tool reads.
+    /// </summary>
+    private static readonly Regex ArtifactsKey = new(
+        @"^artifacts:[ \t]*\r?$",
+        RegexOptions.Multiline | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// One entry of that sequence: a dash at column zero and a quoted file name.
+    /// </summary>
+    private static readonly Regex ArtifactEntry = new(
+        @"^-[ \t]*""(?<artifact>[^""]*)""[ \t]*\r?$",
+        RegexOptions.CultureInvariant);
 
     /// <summary>
     /// Gets the manifest text embedded at build time from the build.yaml beside the solution.
@@ -273,6 +291,91 @@ internal static class BuildManifest
     /// <returns>The rewritten manifest.</returns>
     public static string WithoutFramework(string manifestText) =>
         FrameworkEntry.Replace(manifestText, string.Empty, 1);
+
+    /// <summary>
+    /// Reads the files a manifest says the package is built out of.
+    /// </summary>
+    /// <param name="manifestText">The manifest to read.</param>
+    /// <returns>The declared file names, in the order they are written.</returns>
+    /// <remarks>
+    /// The reading stops at the first line after the key that is not an entry, so a
+    /// comment written between two entries ends it and the entries under that comment are
+    /// not returned. That direction is deliberate: a shorter list is a disagreement the
+    /// comparison reports, where a reading that skipped past unknown lines would quietly
+    /// accept a sequence it had not understood. A missing key throws instead of answering
+    /// an empty list, because the packaging tool reads this key without a default.
+    /// </remarks>
+    public static IReadOnlyList<string> ReadArtifacts(string manifestText)
+    {
+        ArgumentNullException.ThrowIfNull(manifestText);
+
+        var key = ArtifactsKey.Match(manifestText);
+        if (!key.Success)
+        {
+            throw new InvalidOperationException("The manifest declares no top-level artifacts key.");
+        }
+
+        var artifacts = new List<string>();
+
+        foreach (var line in manifestText[(key.Index + key.Length)..].Split('\n').Skip(1))
+        {
+            var entry = ArtifactEntry.Match(line);
+            if (!entry.Success)
+            {
+                break;
+            }
+
+            artifacts.Add(entry.Groups["artifact"].Value);
+        }
+
+        return artifacts;
+    }
+
+    /// <summary>
+    /// Returns the manifest with a different first artifact in it, leaving every other byte
+    /// alone. Used to build the near miss: one manifest, one changed file name.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <param name="replacement">The file name to put in it.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithArtifact(string manifestText, string replacement)
+    {
+        var first = ReadArtifacts(manifestText).FirstOrDefault()
+            ?? throw new InvalidOperationException("The manifest declares no artifact to replace.");
+
+        return manifestText.Replace(
+            "- \"" + first + "\"",
+            "- \"" + replacement + "\"",
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Returns the manifest with a second artifact beside the first, leaving every other
+    /// byte alone. Used to build the near miss where a file joins the package and nothing
+    /// downstream says what it is.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <param name="addition">The file name to add.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithExtraArtifact(string manifestText, string addition)
+    {
+        var first = ReadArtifacts(manifestText).FirstOrDefault()
+            ?? throw new InvalidOperationException("The manifest declares no artifact to add beside.");
+
+        return manifestText.Replace(
+            "- \"" + first + "\"",
+            "- \"" + first + "\"\n- \"" + addition + "\"",
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Returns the manifest with no artifacts key at all. Used to prove the reading refuses
+    /// a manifest that has lost the key rather than passing everything compared against it.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithoutArtifacts(string manifestText) =>
+        ArtifactsKey.Replace(manifestText, "removed:", 1);
 
     private static string ReadEmbeddedManifest()
     {
