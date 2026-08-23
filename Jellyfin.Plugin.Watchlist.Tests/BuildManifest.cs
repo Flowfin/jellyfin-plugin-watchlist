@@ -49,6 +49,15 @@ internal static class BuildManifest
         RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
     /// <summary>
+    /// A top-level quoted framework entry, anchored per line for the same reason as the
+    /// four above. The word appears in the prose this manifest carries around the key,
+    /// and prose is not what the packaging tool reads.
+    /// </summary>
+    private static readonly Regex FrameworkEntry = new(
+        @"^framework:[ \t]*""(?<framework>[^""]*)""[ \t]*\r?$",
+        RegexOptions.Multiline | RegexOptions.CultureInvariant);
+
+    /// <summary>
     /// Gets the manifest text embedded at build time from the build.yaml beside the solution.
     /// </summary>
     public static string Text { get; } = ReadEmbeddedManifest();
@@ -219,6 +228,51 @@ internal static class BuildManifest
     /// <returns>The rewritten manifest.</returns>
     public static string WithoutTargetAbi(string manifestText) =>
         TargetAbiEntry.Replace(manifestText, string.Empty, 1);
+
+    /// <summary>
+    /// Reads the target framework a manifest declares.
+    /// </summary>
+    /// <param name="manifestText">The manifest to read.</param>
+    /// <returns>The declared framework moniker, as text.</returns>
+    /// <remarks>
+    /// Returned as text and compared as text, because the packaging tool joins this value
+    /// into the path it takes the built assembly from rather than parsing it. A missing
+    /// entry throws instead of answering, because a key dropped from the manifest would
+    /// otherwise leave every comparison against it quietly true.
+    /// </remarks>
+    public static string ReadFramework(string manifestText)
+    {
+        var match = FrameworkEntry.Match(manifestText);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException("The manifest declares no top-level quoted framework entry.");
+        }
+
+        return match.Groups["framework"].Value;
+    }
+
+    /// <summary>
+    /// Returns the manifest with a different framework in it, leaving every other byte
+    /// alone. Used to build the near miss: one manifest, one changed framework.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <param name="replacement">The framework to put in it.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithFramework(string manifestText, string replacement) =>
+        FrameworkEntry.Replace(
+            manifestText,
+            m => m.Value.Replace(m.Groups["framework"].Value, replacement, StringComparison.Ordinal),
+            1);
+
+    /// <summary>
+    /// Returns the manifest with no framework entry at all. Used to prove the reading
+    /// refuses a manifest that has lost the value rather than passing everything compared
+    /// against it.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithoutFramework(string manifestText) =>
+        FrameworkEntry.Replace(manifestText, string.Empty, 1);
 
     private static string ReadEmbeddedManifest()
     {
