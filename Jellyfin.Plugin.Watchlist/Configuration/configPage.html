@@ -20,6 +20,11 @@
     whose first copy is Plugin.PluginId. The template shipped a page whose copy was
     the template's identifier, which loads nothing and saves nothing while looking
     exactly like a page with no settings, so the pair is pinned by a test.
+
+    Every setting the configuration class declares has a control here and no control
+    here names a setting the class does not declare. That pair is pinned by a test
+    too, in both directions, because a field bound to a name the server drops looks
+    exactly like one that saved.
 -->
 <html lang="en">
 <head>
@@ -27,7 +32,7 @@
     <title>Watchlist</title>
 </head>
 <body>
-    <div id="WatchlistConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button">
+    <div id="WatchlistConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
                 <form id="WatchlistConfigForm">
@@ -41,10 +46,39 @@
                     <p>
                         Nothing appears in a client today. What is built is the store the lists are
                         kept in; the playlist projection and the endpoints are not, which is why no
-                        release is published. This paragraph is the answer to the first question an
-                        administrator asks after installing this, and it changes when the projection
-                        lands rather than before.
+                        release is published. The settings below are the whole set this plugin will
+                        have, saved and kept from now on, and the ones that drive the projection are
+                        read by nothing until it lands. This paragraph is the answer to the first
+                        question an administrator asks after installing this, and it changes when
+                        the projection lands rather than before.
                     </p>
+                    <p>
+                        No value here is refused yet. A number outside its range or an empty name is
+                        stored as typed, and refusing it at save time is a change still to come.
+                    </p>
+
+                    <h3>The private list</h3>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="ProjectionEnabled" name="ProjectionEnabled" type="checkbox" is="emby-checkbox" />
+                            <span>Show each user's list in their clients</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            On by default. The projection is this plugin's whole client surface, so
+                            turning it off leaves the lists held on the server and shown nowhere.
+                            Nothing stored is deleted by turning it off.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ProjectedListName">Name of each user's projected list</label>
+                        <input id="ProjectedListName" name="ProjectedListName" type="text" is="emby-input" required />
+                        <div class="fieldDescription">
+                            The name of the playlist a user sees. It is deliberately not the bare
+                            word "Watchlist": a server may grow a watchlist of its own, and two
+                            lists under one name in one client is a thing a user cannot resolve by
+                            looking, because a playlist does not say what created it.
+                        </div>
+                    </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="MaxEntriesPerUser">Greatest number of entries one user's list may hold</label>
                         <input id="MaxEntriesPerUser" name="MaxEntriesPerUser" type="number" is="emby-input" min="1" step="1" required />
@@ -55,6 +89,60 @@
                             which sits far above any list somebody curates by hand.
                         </div>
                     </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="RemoveWhenWatched" name="RemoveWhenWatched" type="checkbox" is="emby-checkbox" />
+                            <span>Take an entry off a user's list once they have watched it</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Off by default. A list somebody curated losing entries without being
+                            asked is a surprise, and nothing records what was taken off, so there is
+                            no undo. It never touches the shared list.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ReconciliationIntervalHours">Hours between reconciliation runs</label>
+                        <input id="ReconciliationIntervalHours" name="ReconciliationIntervalHours" type="number" is="emby-input" min="1" step="1" required />
+                        <div class="fieldDescription">
+                            The scheduled pass exists to converge what the server's own events
+                            missed, not to be how lists are kept current, so six hours is the
+                            default. A pass over lists that are already correct writes nothing.
+                        </div>
+                    </div>
+
+                    <h3>The shared list</h3>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="SharedListEnabled" name="SharedListEnabled" type="checkbox" is="emby-checkbox" />
+                            <span>Offer one shared list every user can see</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Off by default. Every user on this server can read it and add to it, and
+                            an entry shows who put it there, so what somebody adds is attributable
+                            to them in front of everybody. There is one such list, not several.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="SharedListName">Name of the shared list</label>
+                        <input id="SharedListName" name="SharedListName" type="text" is="emby-input" required />
+                        <div class="fieldDescription">
+                            The same naming rule as the private list, and it matters more here:
+                            one name is met by everybody on the server rather than by one person.
+                            The name is kept when the list is switched off, so switching it back on
+                            does not lose it.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="MaxEntriesInSharedList">Greatest number of entries the shared list may hold</label>
+                        <input id="MaxEntriesInSharedList" name="MaxEntriesInSharedList" type="number" is="emby-input" min="1" step="1" required />
+                        <div class="fieldDescription">
+                            Bounded separately from a private list because everybody writes to it,
+                            so the number of people who can grow it is the number of people on this
+                            server. It behaves the same way at the bound: an add past it is refused
+                            and nothing is written.
+                        </div>
+                    </div>
+
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
                             <span>Save</span>
@@ -73,6 +161,13 @@
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(WatchlistConfig.pluginUniqueId).then(function (config) {
                         document.querySelector('#MaxEntriesPerUser').value = config.MaxEntriesPerUser;
+                        document.querySelector('#ProjectionEnabled').checked = config.ProjectionEnabled;
+                        document.querySelector('#ProjectedListName').value = config.ProjectedListName;
+                        document.querySelector('#RemoveWhenWatched').checked = config.RemoveWhenWatched;
+                        document.querySelector('#ReconciliationIntervalHours').value = config.ReconciliationIntervalHours;
+                        document.querySelector('#SharedListEnabled').checked = config.SharedListEnabled;
+                        document.querySelector('#SharedListName').value = config.SharedListName;
+                        document.querySelector('#MaxEntriesInSharedList').value = config.MaxEntriesInSharedList;
                         Dashboard.hideLoadingMsg();
                     });
                 });
@@ -86,10 +181,23 @@
                         // Read as a number rather than as the string the field hands back. The
                         // template's page assigned the raw value, so an integer setting travelled
                         // as text and arrived as whatever the server's binder made of it. The
-                        // field is a required number with a floor, so the browser refuses a submit
+                        // fields are required numbers with a floor, so the browser refuses a submit
                         // this parse could fail on; what the server does with a value that reaches
                         // it anyway is its own to refuse, on #34.
                         config.MaxEntriesPerUser = parseInt(document.querySelector('#MaxEntriesPerUser').value, 10);
+                        config.ReconciliationIntervalHours = parseInt(document.querySelector('#ReconciliationIntervalHours').value, 10);
+                        config.MaxEntriesInSharedList = parseInt(document.querySelector('#MaxEntriesInSharedList').value, 10);
+
+                        // A checkbox hands back its checked state rather than a value, and the
+                        // value attribute of an unchecked box is not sent at all by a form post.
+                        // Nothing here posts a form, so the state is read directly and travels as
+                        // a boolean.
+                        config.ProjectionEnabled = document.querySelector('#ProjectionEnabled').checked;
+                        config.RemoveWhenWatched = document.querySelector('#RemoveWhenWatched').checked;
+                        config.SharedListEnabled = document.querySelector('#SharedListEnabled').checked;
+
+                        config.ProjectedListName = document.querySelector('#ProjectedListName').value;
+                        config.SharedListName = document.querySelector('#SharedListName').value;
 
                         ApiClient.updatePluginConfiguration(WatchlistConfig.pluginUniqueId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);
