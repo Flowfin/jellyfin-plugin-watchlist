@@ -18,6 +18,35 @@ on:
 # Nothing at workflow level; the job below asks for what it needs and no more.
 permissions: {}
 
+# What this leg packages, set against what the release route packages, so the
+# comparison is on the page rather than left to whoever needs the answer.
+#
+# The two agree on almost everything. Both jobs run on ubuntu-latest, both take
+# actions/setup-dotnet at a98b56852c35b8e3190ac28c8c2271da59106c68 and the
+# packager at 9497a0a499416cc572ed2e07a391d9f943a37b4d, both end at the 9.0.x SDK
+# and a net9.0 target, and neither hands the packager a version, so both read it
+# out of build.yaml. The call below passes no inputs at all, and the two the
+# shared workflow declares default to 9.0.x and net9.0, which is why the two
+# routes ask for one server line without this file naming it.
+#
+# What differs is the restore. .github/workflows/publish.yaml runs
+# `dotnet restore --locked-mode` against the committed packages.lock.json before
+# its packaging step, and the shared workflow this leg calls runs no restore of
+# its own, so here the packager's own restore decides the graph. The archive this
+# leg uploads is not built from the graph packages.lock.json records. The release
+# archive is.
+#
+# It is not repaired from this file, because the repair is not available here.
+# The shared workflow is a checkout, a setup and a packaging step with nothing
+# between them, so a leg that restores in locked mode is a leg that has stopped
+# calling it. What the difference costs is bounded by where the two archives go:
+# this one is an upload with a retention period that nothing installs from, and
+# the release one is what a user receives.
+#
+# Nothing refuses this going stale. Half of the comparison is a workflow in
+# another repository, and the suite here is refused the network by name, so a
+# restore step appearing there would leave this paragraph wrong and no run would
+# say so. Read it against the pin below rather than trusting it.
 jobs:
   call:
     # jellyfin/jellyfin-meta-plugins has no tags, so the pin carries the date of
