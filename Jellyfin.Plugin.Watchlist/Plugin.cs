@@ -6,6 +6,7 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Watchlist;
 
@@ -19,9 +20,21 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// </summary>
     /// <param name="applicationPaths">Instance of the <see cref="IApplicationPaths"/> interface.</param>
     /// <param name="xmlSerializer">Instance of the <see cref="IXmlSerializer"/> interface.</param>
-    public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer)
+    /// <param name="logger">Instance of the <see cref="ILogger{TCategoryName}"/> interface.</param>
+    /// <remarks>
+    /// The server resolves these three from its own container rather than calling a
+    /// fixed signature: <c>PluginManager.CreatePluginInstance</c> activates the type
+    /// with <c>ActivatorUtilities.CreateInstance(_appHost.ServiceProvider, type)</c>,
+    /// on both supported lines, and the provider it passes is the generic host's, which
+    /// registers <see cref="ILogger{TCategoryName}"/>. An in-tree plugin on the 12.0
+    /// line already takes this exact parameter. The commands behind all three readings
+    /// are in the body of the change that added the parameter.
+    /// </remarks>
+    public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, ILogger<Plugin> logger)
         : base(applicationPaths, xmlSerializer)
     {
+        ArgumentNullException.ThrowIfNull(logger);
+
         Instance = this;
 
         // The configuration file can be edited by hand, and nothing on that path
@@ -33,6 +46,17 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         // constructor has run, and nothing in this plugin does.
         Configuration = ConfigurationValidation.Repaired(Configuration, out var repairs);
         ConfigurationRepairsOnLoad = repairs;
+
+        // One line for the whole read rather than one per setting. The repair is a
+        // property of the file that was found, not of each value in it, and an
+        // administrator meeting five lines in a server log reads them as five events.
+        if (repairs.Count > 0)
+        {
+            logger.LogWarning(
+                "The stored configuration held {Count} value(s) this plugin will not act on, and each was replaced by its default. {Repairs}",
+                repairs.Count,
+                string.Join(" ", repairs));
+        }
     }
 
     /// <inheritdoc />
@@ -59,13 +83,9 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// sentence per setting, empty where the file was fine.
     /// </summary>
     /// <remarks>
-    /// #34 asks that a repaired value produce one log line rather than a throw on
-    /// every pass. There is no line yet and this property is not one: writing it needs
-    /// a logger, and the only way to get one here is a third constructor parameter the
-    /// server would have to resolve when it creates this type, which nothing in this
-    /// repository can exercise. The repair happens either way and what it did is
-    /// readable rather than silent, which is the half that can be built without a
-    /// server to try it against.
+    /// The line #34 asks for is written by the constructor. This property is what a
+    /// caller inside the process can read afterwards, and it is the value the suite
+    /// asserts the line was composed from, so the two cannot say different things.
     /// </remarks>
     public IReadOnlyList<string> ConfigurationRepairsOnLoad { get; } = [];
 
