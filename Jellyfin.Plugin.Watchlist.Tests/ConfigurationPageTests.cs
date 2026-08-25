@@ -142,9 +142,12 @@ public class ConfigurationPageTests
     [Fact]
     public void TheComparisonRefusesAPageBoundToASettingTheConfigurationDoesNotHave()
     {
-        var name = Assert.Single(SettingNames());
+        var name = SettingNames()[0];
         var page = Page.Replace("config." + name, "config." + name + "s", StringComparison.Ordinal);
 
+        Assert.NotEqual(Page, page);
+        Assert.DoesNotContain(name, TouchedSettings(page), StringComparer.Ordinal);
+        Assert.Contains(name + "s", TouchedSettings(page), StringComparer.Ordinal);
         Assert.NotEqual(SettingNames(), TouchedSettings(page));
     }
 
@@ -156,10 +159,11 @@ public class ConfigurationPageTests
     [Fact]
     public void TheComparisonRefusesASettingThePageNeverTouches()
     {
-        var name = Assert.Single(SettingNames());
+        var name = SettingNames()[0];
         var page = Page.Replace("config." + name, "config", StringComparison.Ordinal);
 
-        Assert.Empty(TouchedSettings(page));
+        Assert.NotEqual(Page, page);
+        Assert.DoesNotContain(name, TouchedSettings(page), StringComparer.Ordinal);
         Assert.NotEqual(SettingNames(), TouchedSettings(page));
     }
 

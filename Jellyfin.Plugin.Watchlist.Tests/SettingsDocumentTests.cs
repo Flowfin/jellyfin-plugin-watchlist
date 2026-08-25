@@ -47,11 +47,7 @@ public class SettingsDocumentTests
     [Fact]
     public void EverySettingHasASectionInTheDocument()
     {
-        var document = Document();
-
-        var undocumented = SettingNames()
-            .Where(name => !document.Contains("### " + name, StringComparison.Ordinal))
-            .ToList();
+        var undocumented = Undocumented(Document());
 
         Assert.True(
             undocumented.Count == 0,
@@ -60,16 +56,38 @@ public class SettingsDocumentTests
     }
 
     /// <summary>
-    /// The near miss, and the reason this test is worth having: a setting added to the
-    /// class and not to the document. The name is one nobody has written, so a pass
-    /// here would mean the check reads a list rather than the class.
+    /// The near miss, and the reason this test is worth having: a setting the class
+    /// carries and the document does not describe. The mutation runs on the document
+    /// rather than on the class, because a test cannot add a property to the type it
+    /// was compiled against, and it produces the same state from the same side: a name
+    /// in the class with no heading anywhere in the file.
     /// </summary>
+    /// <remarks>
+    /// This was an assertion that the document did not contain the string
+    /// <c>### ReconciliationIntervalHours</c>, on the reasoning that the name was one
+    /// nobody had written. #32 wrote it. A near miss built from a name somebody is
+    /// going to write stops being a near miss the day they write it, and the repair is
+    /// a mutation of the committed document rather than a second unwritten name that
+    /// would go the same way.
+    /// </remarks>
     [Fact]
     public void ASettingWithNoSectionIsRefused()
     {
-        var document = Document();
+        var name = SettingNames()[0];
+        var dropped = Document().Replace("### " + name, "### Something else", StringComparison.Ordinal);
 
-        Assert.DoesNotContain("### ReconciliationIntervalHours", document, StringComparison.Ordinal);
+        Assert.Equal(new[] { name }, Undocumented(dropped));
+    }
+
+    /// <summary>
+    /// The one-change neighbour of the mutation above is the document as it is
+    /// committed, and it trips nothing. Without this the test above would prove the
+    /// mutation is unusual rather than that the rule reads it.
+    /// </summary>
+    [Fact]
+    public void TheCommittedDocumentDescribesEverySetting()
+    {
+        Assert.Empty(Undocumented(Document()));
     }
 
     /// <summary>
@@ -98,6 +116,15 @@ public class SettingsDocumentTests
             "docs/settings.md describes these, and the configuration class has no such setting: "
                 + string.Join(", ", orphaned));
     }
+
+    /// <summary>
+    /// The settings the given document gives no heading of its own.
+    /// </summary>
+    /// <param name="document">The settings document to read.</param>
+    /// <returns>The names, ordered as the settings are.</returns>
+    private static IReadOnlyList<string> Undocumented(string document) => SettingNames()
+        .Where(name => !document.Contains("### " + name, StringComparison.Ordinal))
+        .ToList();
 
     private static string Document()
     {
