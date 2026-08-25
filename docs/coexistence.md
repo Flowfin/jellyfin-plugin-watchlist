@@ -62,13 +62,30 @@ against, and it is a failure a user cannot resolve by looking, because a playlis
 does not say what created it.
 
 The rule belongs next to the setting that carries the name, so that somebody
-changing the name meets the reason at the moment they change it. That setting is
-not in the tree yet. It is one of the server-wide settings, and it arrives with
-the configuration surface. Until it does, this file is the only place the rule
-exists, and a person who lands that setting without carrying the rule to it
-breaks nothing that a machine would notice.
+changing the name meets the reason at the moment they change it. It is there.
+`ProjectedListName` and `SharedListName` arrived with the server-wide set on #32,
+and the rule is written at the default each of them takes:
 
-That gap is stated rather than closed here, and #42 stays open on it.
+    git grep -n 'THE RULE' -- Jellyfin.Plugin.Watchlist/Configuration/PluginConfiguration.cs
+    Jellyfin.Plugin.Watchlist/Configuration/PluginConfiguration.cs:62:    /// THE RULE, and it is the reason this is not the word "Watchlist" on its own. The
+
+Both defaults follow it rather than claiming the generic word, and neither is a
+name a server's own list would take:
+
+    git grep -n 'DefaultProjectedListName = \|DefaultSharedListName = ' -- Jellyfin.Plugin.Watchlist/Configuration/PluginConfiguration.cs
+    Jellyfin.Plugin.Watchlist/Configuration/PluginConfiguration.cs:78:    public const string DefaultProjectedListName = "Watchlist (plugin)";
+    Jellyfin.Plugin.Watchlist/Configuration/PluginConfiguration.cs:88:    public const string DefaultSharedListName = "Shared Watchlist (plugin)";
+
+What is refused is the one value that breaks the rule, and nothing narrower.
+`SettingSetTests.NeitherProjectedNameClaimsTheGenericWord` refuses either default
+being the bare word, ignoring case. It cannot judge whether some other name an
+administrator types collides with what a server ends up calling its own list,
+because what that will be is not measurable today, and nothing here claims it can.
+This paragraph is the whole of that disclosure.
+
+The shared list is the harder case of the same rule and is why the second default
+exists. One shared list is seen by everybody on the server, so a collision there
+is met by every user rather than by one.
 
 ## The route out
 
