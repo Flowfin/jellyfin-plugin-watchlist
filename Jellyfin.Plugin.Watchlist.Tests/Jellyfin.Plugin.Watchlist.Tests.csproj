@@ -64,14 +64,19 @@
 
   <!--
     What the floor does not cover, one entry with its reason. The list is meant to
-    stay short; today it has one line.
+    stay short.
 
-    Plugin.cs is the plugin's entry point over the server's own BasePlugin. Reaching
-    the code in it means constructing that base, which takes the server's application
-    paths and its XML serialiser and writes a configuration file where the server
-    keeps them, so it cannot be exercised without a server. What the file holds beyond
-    that is a name, an identifier and a page list, and PluginIdentityTests and
-    PluginDiscoveryTests already read all three off the type without constructing one.
+    Plugin.cs was on this list and is not any more, which is #34. The reason it carried
+    was that reaching a line of it means constructing the server's BasePlugin, which
+    takes the server's application paths and its XML serialiser and writes a
+    configuration file where the server keeps them, so it could not be exercised
+    without a server. The last clause is what was wrong: the base writes wherever
+    IApplicationPaths points and parses with whatever IXmlSerializer is handed it, and
+    both of those are interfaces. ServerPathsInATemporaryDirectory answers the first
+    out of a directory the test owns, PluginConfigurationFile answers the second over
+    the framework serialiser, and PluginConfigurationWiringTests constructs the plugin
+    on top of the pair. So the save refusal and the load repair are executed rather
+    than argued, which is what #34 recorded as proven by nothing.
   -->
   <!--
     The two files that reach the server rather than an interface, added on #25.
@@ -88,7 +93,7 @@
     application host, and running it means having both.
   -->
   <PropertyGroup>
-    <ExcludeByFile>$(ExcludeByFile)**/Plugin.cs,**/LibraryItemDescriber.cs,**/PluginServiceRegistrator.cs</ExcludeByFile>
+    <ExcludeByFile>$(ExcludeByFile)**/LibraryItemDescriber.cs,**/PluginServiceRegistrator.cs</ExcludeByFile>
   </PropertyGroup>
 
   <!--
