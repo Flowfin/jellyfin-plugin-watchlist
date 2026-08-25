@@ -14,7 +14,7 @@ can see. That list has a different answer to every question below, and the one t
 decides its character is whether an entry records who put it there: a list of titles
 and a record of what named people wanted to watch are two different statements to make
 to a reader. That question is open on #1, and there is no shared record in the tree to
-describe either. The store is thirteen files and none of them is one:
+describe either. The store is fourteen files and none of them is one:
 
     git ls-files 'Jellyfin.Plugin.Watchlist/Store/*'
     Jellyfin.Plugin.Watchlist/Store/IWatchlistItemResolver.cs
@@ -29,6 +29,7 @@ describe either. The store is thirteen files and none of them is one:
     Jellyfin.Plugin.Watchlist/Store/WatchlistItemKind.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistReadResult.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistRemoveResult.cs
+    Jellyfin.Plugin.Watchlist/Store/WatchlistUserPreferences.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistVisibility.cs
 
 The export format already carries the kind, so a reader of an exported file can tell
@@ -83,15 +84,34 @@ written out in words.
 Three values around those entries, per user:
 
     grep -n 'public required' Jellyfin.Plugin.Watchlist/Store/WatchlistDocument.cs
-    20:    public required int SchemaVersion { get; init; }
-    27:    public required Guid UserId { get; init; }
-    32:    public required IReadOnlyList<WatchlistEntry> Entries { get; init; }
+    21:    public required int SchemaVersion { get; init; }
+    28:    public required Guid UserId { get; init; }
+    33:    public required IReadOnlyList<WatchlistEntry> Entries { get; init; }
 
-The whole of it on disk, as the suite's own fixture holds it:
+And one more that is there only for a user who asked for it. A user may answer two
+settings for themselves, and their answer is kept in their own document:
 
-    cat Jellyfin.Plugin.Watchlist.Tests/Fixtures/watchlist-document-v1.json
+    grep -n 'public bool?' Jellyfin.Plugin.Watchlist/Store/WatchlistUserPreferences.cs
+    36:    public bool? ProjectionEnabled { get; init; }
+    43:    public bool? RemoveWhenWatched { get; init; }
+
+Two booleans and nothing else. A user who has answered neither has no such block in
+their document at all, which is a property of the bytes rather than of a reader:
+
+    grep -n 'NoBlockOnDisk' Jellyfin.Plugin.Watchlist.Tests/PerUserSettingTests.cs
+    143:    public void AUserWhoNeverSetAnythingHasNoBlockOnDisk()
+    186:    public void WithdrawingTheLastAnswerLeavesNoBlockOnDisk(bool withAnEmptyBlock)
+
+What that block tells a reader about the person is what they chose for those two
+settings, and it is readable by whoever can read the file, exactly as the entries
+are. Nothing in it is derived from the library or from what they watched.
+
+The whole of it on disk for a user who answered nothing, as the suite's own fixture
+holds it:
+
+    cat Jellyfin.Plugin.Watchlist.Tests/Fixtures/watchlist-document-v2.json
     {
-      "SchemaVersion": 1,
+      "SchemaVersion": 2,
       "UserId": "11111111-1111-1111-1111-111111111111",
       "Entries": [
         {

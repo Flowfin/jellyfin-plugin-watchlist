@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Jellyfin.Plugin.Watchlist.Configuration;
+using Jellyfin.Plugin.Watchlist.Store;
 using Xunit;
 
 namespace Jellyfin.Plugin.Watchlist.Tests;
@@ -115,6 +116,106 @@ public class SettingsDocumentTests
             orphaned.Count == 0,
             "docs/settings.md describes these, and the configuration class has no such setting: "
                 + string.Join(", ", orphaned));
+    }
+
+    /// <summary>
+    /// The same rule one level down. A per-user answer is a setting a person sets, so
+    /// it owes a description as much as a server-wide one does, and the section it owes
+    /// it in is the one the document keeps for them.
+    /// </summary>
+    /// <remarks>
+    /// The names are read off <see cref="WatchlistUserPreferences"/> rather than listed,
+    /// so a preference added later is covered on the day it is added. It is a separate
+    /// test from the one above because the two sets live on two types and land in two
+    /// parts of the file, and a single test over both would pass a preference described
+    /// under the server-wide headings.
+    /// </remarks>
+    [Fact]
+    public void EveryPerUserSettingIsNamedInThePerUserSection()
+    {
+        var undescribed = NotInThePerUserSection(Document());
+
+        Assert.True(
+            undescribed.Count == 0,
+            "These per-user settings are not named under Per-user settings in docs/settings.md: "
+                + string.Join(", ", undescribed));
+    }
+
+    /// <summary>
+    /// The near miss, and it is the one somebody makes: the preference is named in the
+    /// file, under the server-wide heading it shares a name with, and nowhere in the
+    /// section that says a user can answer it. Cutting the section's mention alone is
+    /// the one-character version of forgetting to write it.
+    /// </summary>
+    [Fact]
+    public void APerUserSettingNamedOnlyAmongTheServerWideOnesIsRefused()
+    {
+        var name = PreferenceNames()[0];
+        var document = Document().Replace("\r\n", "\n", StringComparison.Ordinal);
+        var section = PerUserSection(document);
+        var dropped = document.Replace(
+            section,
+            section.Replace(name, "SomethingElse", StringComparison.Ordinal),
+            StringComparison.Ordinal);
+
+        // Still in the file, under the server-wide heading of the same name, which is
+        // what makes this the mistake somebody makes rather than an obvious deletion.
+        Assert.Contains("### " + name, dropped, StringComparison.Ordinal);
+        Assert.Equal(new[] { name }, NotInThePerUserSection(dropped));
+    }
+
+    /// <summary>
+    /// The one-change neighbour: the committed document names all of them.
+    /// </summary>
+    [Fact]
+    public void TheCommittedDocumentNamesEveryPerUserSetting()
+    {
+        Assert.Empty(NotInThePerUserSection(Document()));
+    }
+
+    /// <summary>
+    /// The settings a user can answer for themselves.
+    /// </summary>
+    /// <returns>The names, ordered.</returns>
+    private static IReadOnlyList<string> PreferenceNames() => typeof(WatchlistUserPreferences)
+        .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        .Where(p => p.CanRead && p.CanWrite)
+        .Select(p => p.Name)
+        .OrderBy(name => name, StringComparer.Ordinal)
+        .ToList();
+
+    /// <summary>
+    /// The part of the document that is about a user's own answers, from its heading to
+    /// the next one at the same level.
+    /// </summary>
+    /// <param name="document">The settings document to read.</param>
+    /// <returns>The section text.</returns>
+    private static string PerUserSection(string document)
+    {
+        const string Heading = "## Per-user settings";
+
+        var start = document.IndexOf(Heading, StringComparison.Ordinal);
+
+        Assert.True(start >= 0, "docs/settings.md carries no " + Heading + " section.");
+
+        var rest = document[(start + Heading.Length)..].Replace("\r\n", "\n", StringComparison.Ordinal);
+        var end = rest.IndexOf("\n## ", StringComparison.Ordinal);
+
+        return end < 0 ? rest : rest[..end];
+    }
+
+    /// <summary>
+    /// The per-user settings the given document does not name in that section.
+    /// </summary>
+    /// <param name="document">The settings document to read.</param>
+    /// <returns>The names, ordered as the preferences are.</returns>
+    private static IReadOnlyList<string> NotInThePerUserSection(string document)
+    {
+        var section = PerUserSection(document);
+
+        return PreferenceNames()
+            .Where(name => !section.Contains(name, StringComparison.Ordinal))
+            .ToList();
     }
 
     /// <summary>

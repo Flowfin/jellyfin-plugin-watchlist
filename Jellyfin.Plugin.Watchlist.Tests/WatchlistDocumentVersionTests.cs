@@ -31,17 +31,24 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
     }
 
     /// <summary>
-    /// The three fixtures are one document at three versions. If they ever differ in
-    /// anything else, every other test in this file is proving something other than
-    /// what it says.
+    /// The fixtures are one document at four versions. If they ever differ in anything
+    /// else, every other test in this file is proving something other than what it
+    /// says.
     /// </summary>
+    /// <remarks>
+    /// Version 2 added the per-user preferences block and these fixtures still differ
+    /// in the number alone, which is the point rather than an oversight: the block is
+    /// written only for a user who answered something, so the version 2 shape of a
+    /// user who answered nothing is byte for byte the version 1 shape.
+    /// </remarks>
     [Fact]
-    public void TheThreeFixturesDifferOnlyInTheVersionNumber()
+    public void TheFixturesDifferOnlyInTheVersionNumber()
     {
-        var current = Fixture("watchlist-document-v1.json");
+        var current = Fixture("watchlist-document-v2.json");
 
-        Assert.Equal(current, Fixture("watchlist-document-from-the-future.json").Replace("\"SchemaVersion\": 2", "\"SchemaVersion\": 1", StringComparison.Ordinal));
-        Assert.Equal(current, Fixture("watchlist-document-v0.json").Replace("\"SchemaVersion\": 0", "\"SchemaVersion\": 1", StringComparison.Ordinal));
+        Assert.Equal(current, Fixture("watchlist-document-from-the-future.json").Replace("\"SchemaVersion\": 3", "\"SchemaVersion\": 2", StringComparison.Ordinal));
+        Assert.Equal(current, Fixture("watchlist-document-v1.json").Replace("\"SchemaVersion\": 1", "\"SchemaVersion\": 2", StringComparison.Ordinal));
+        Assert.Equal(current, Fixture("watchlist-document-v0.json").Replace("\"SchemaVersion\": 0", "\"SchemaVersion\": 2", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -60,7 +67,7 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
 
         Assert.False(result.IsAvailable);
         Assert.Null(result.Document);
-        Assert.Equal(2, result.StoredSchemaVersion);
+        Assert.Equal(3, result.StoredSchemaVersion);
         Assert.Equal(before, File.ReadAllBytes(path));
     }
 
@@ -79,8 +86,8 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
 
         var line = Assert.Single(log.Lines);
         Assert.Contains(path, line, StringComparison.Ordinal);
+        Assert.Contains("version 3", line, StringComparison.Ordinal);
         Assert.Contains("version 2", line, StringComparison.Ordinal);
-        Assert.Contains("version 1", line, StringComparison.Ordinal);
         Assert.StartsWith("Error", line, StringComparison.Ordinal);
     }
 
@@ -93,13 +100,13 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
     public void TheSameDocumentAtTheCurrentVersionIsRead()
     {
         var store = new WatchlistDocumentStore(DataFolder, new RecordingLogger());
-        Place("watchlist-document-v1.json");
+        Place("watchlist-document-v2.json");
 
         var result = store.Read(AUser);
 
         Assert.True(result.IsAvailable);
         Assert.Equal(3, result.Document!.Entries.Count);
-        Assert.Equal(1, result.Document.SchemaVersion);
+        Assert.Equal(2, result.Document.SchemaVersion);
     }
 
     /// <summary>
@@ -130,6 +137,7 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
     [Theory]
     [InlineData("watchlist-document-v0.json")]
     [InlineData("watchlist-document-v1.json")]
+    [InlineData("watchlist-document-v2.json")]
     [InlineData("watchlist-document-from-the-future.json")]
     public void AReadNeverRewritesTheFile(string fixture)
     {

@@ -17,14 +17,14 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// </summary>
 public class WatchlistDocumentFormatTests
 {
-    private const string SampleResource = "fixture/watchlist-document-v1.json";
+    private const string SampleResource = "fixture/watchlist-document-v2.json";
 
     /// <summary>
     /// Gets the document the committed sample describes, built in code.
     /// </summary>
     private static WatchlistDocument Sample => new()
     {
-        SchemaVersion = 1,
+        SchemaVersion = 2,
         UserId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
         Entries =
         [
@@ -77,7 +77,7 @@ public class WatchlistDocumentFormatTests
         // equality compares the entry list by reference, so a whole-document assertion
         // would fail on two equal lists and prove nothing about the fields.
         Assert.Equal(Sample.Entries, document.Entries);
-        Assert.Equal(1, document.SchemaVersion);
+        Assert.Equal(2, document.SchemaVersion);
         Assert.Equal(Guid.Parse("11111111-1111-1111-1111-111111111111"), document.UserId);
         Assert.Equal(3, document.Entries.Count);
         Assert.Equal(WatchlistItemKind.Series, document.Entries[1].Kind);

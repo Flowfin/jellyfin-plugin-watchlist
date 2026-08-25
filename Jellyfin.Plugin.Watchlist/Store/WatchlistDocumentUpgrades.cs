@@ -38,6 +38,7 @@ public static class WatchlistDocumentUpgrades
         new Dictionary<int, Func<JsonObject, JsonObject>>
         {
             [0] = FromVersionZeroToVersionOne,
+            [1] = FromVersionOneToVersionTwo,
         };
 
     /// <summary>
@@ -163,4 +164,19 @@ public static class WatchlistDocumentUpgrades
     /// with no step is refused.
     /// </remarks>
     private static JsonObject FromVersionZeroToVersionOne(JsonObject document) => document;
+
+    /// <summary>
+    /// Version 1 to version 2, which adds no member to a stored document.
+    /// </summary>
+    /// <param name="document">The document at version 1.</param>
+    /// <returns>The same members, which are already the version 2 shape.</returns>
+    /// <remarks>
+    /// Version 2 added the per-user preferences block, and the block is written only
+    /// for a user who answered something. A version 1 document was written before any
+    /// user could answer, so every one of them is a user who answered nothing, and the
+    /// version 2 shape of that is the block being absent. Writing an empty block here
+    /// would put a block on disk for a user who never set anything, which is the state
+    /// the member is suppressed to avoid.
+    /// </remarks>
+    private static JsonObject FromVersionOneToVersionTwo(JsonObject document) => document;
 }

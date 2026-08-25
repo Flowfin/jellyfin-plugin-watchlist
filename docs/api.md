@@ -155,12 +155,16 @@ Separating the two would be a way of reading a list by writing to it.
 
 ## Setting a per-user preference
 
-There is no endpoint for one, and there is no place on the configuration page
-for one either. A per-user preference belongs with that user's own document
-rather than in the plugin configuration, which is #33, and until that lands
-there is nothing per user to set through any surface. When it does land, this
-API is where it will be set, because the configuration page is the server's and
-it is one page for the whole server.
+There is no endpoint for one yet, and there is no place on the configuration page
+for one either. What there is now is somewhere for the answer to live: a per-user
+preference belongs with that user's own document rather than in the plugin
+configuration, and the two settings a user may answer, with the rule saying which
+value wins, are in [settings.md](settings.md).
+
+So the storage exists and the surface does not, which is a state worth reading
+exactly: nothing today can set a per-user preference, because no route into it has
+shipped. This API is where it will be set when one does, because the configuration
+page is the server's and it is one page for the whole server.
 
 Everything the configuration page does carry is server-wide and is described in
 [settings.md](settings.md).

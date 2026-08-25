@@ -223,14 +223,39 @@ Where it is stored: the plugin's configuration, one value for the whole server.
 
 ## Per-user settings
 
-None yet.
+Two of the settings above are a user's own as well as the server's, because they
+say what that person wants rather than what the server allows. A user may answer
+either of them for themselves, and their answer is kept with their own document
+rather than in the plugin configuration, which is one document for the whole
+server and is rewritten wholesale whenever the page is saved.
 
-A per-user preference belongs with that user's document rather than in the plugin
-configuration, which is what #33 lands, and until it does there is nothing on this
-side to describe. The precedence question that comes with it, which value wins
-when a user's answer and the server's answer differ, is decided there and stated
-here in one line once it exists. That is the one part of #68 this file does not
-answer, and it is written as an absence rather than left blank.
+- `ProjectionEnabled` - whether this user gets a projected list at all.
+- `RemoveWhenWatched` - whether a watched item leaves this user's list.
+
+**The precedence rule.** A per-user answer wins wherever it is present. Where it
+is absent the server-wide value applies. There is no third source and no
+per-setting exception, and this is the only place the rule is written in prose;
+in the code it is written once as well.
+
+Present means the answer is in that user's document. An answer that happens to
+equal the server-wide value today is present and still wins. Collapsing it into an
+absence for being equal would move that person's setting the next time an
+administrator saves the page, without either of them touching it, so absent means
+nobody answered and never it happened to match.
+
+Where it is stored: that user's own document, beside their entries, under the same
+atomic write and the same schema version. A user who has answered nothing has no
+block in their document at all, and a user who answered one of the two carries
+that one and not the other. Withdrawing the last answer takes the block back out.
+
+How a user sets one: through this plugin's own API, and only there for version 1.
+The configuration page belongs to the server and is one page for the whole server,
+so it is the wrong surface for an answer that belongs to one person.
+[The API document](api.md) says the same thing from the caller's side.
+
+Not read by anything today. Both settings above are read by nothing, so an answer
+is stored and kept and changes no behaviour yet, exactly as the server-wide values
+are.
 
 ## What is not here
 

@@ -317,6 +317,46 @@ public sealed class WatchlistDocumentStore
     }
 
     /// <summary>
+    /// Writes one user's own answers into their document, beside their entries.
+    /// </summary>
+    /// <param name="userId">The user.</param>
+    /// <param name="preferences">
+    /// What the user answered, or null where they have withdrawn every answer. A block
+    /// holding no answer is stored as no block, so withdrawing the last one leaves the
+    /// document in the state it was in before the first.
+    /// </param>
+    /// <returns>
+    /// False when the document could not be read at all, which is a document from a
+    /// newer plugin or one no upgrade step reaches. Nothing is written in that case,
+    /// for the same reason a read of it returns no list: the file is left alone rather
+    /// than replaced by a shape this build understands.
+    /// </returns>
+    /// <remarks>
+    /// The read and the write are one change under the same gate as every other
+    /// writer here, so a preference saved while an entry is being added does not lose
+    /// either of them, and the bytes reach disk through the same staged write.
+    /// </remarks>
+    public bool SetPreferences(Guid userId, WatchlistUserPreferences? preferences)
+    {
+        lock (GateFor(userId))
+        {
+            var read = ReadInsideTheGate(userId);
+
+            if (!read.IsAvailable)
+            {
+                return false;
+            }
+
+            Commit(Stage(read.Document! with
+            {
+                Preferences = preferences is null || preferences.IsEmpty ? null : preferences,
+            }));
+
+            return true;
+        }
+    }
+
+    /// <summary>
     /// An empty document for a user, which is what a read of a file that is not there
     /// returns.
     /// </summary>
