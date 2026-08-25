@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.Watchlist.Store;
 
@@ -12,7 +13,7 @@ public sealed record WatchlistDocument
     /// The version this plugin writes. A document carrying a higher number was
     /// written by a newer plugin than the one reading it.
     /// </summary>
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     /// <summary>
     /// Gets the schema version the document was written with.
@@ -30,4 +31,18 @@ public sealed record WatchlistDocument
     /// Gets the entries, in the order they were written.
     /// </summary>
     public required IReadOnlyList<WatchlistEntry> Entries { get; init; }
+
+    /// <summary>
+    /// Gets this user's own answers to the settings that are theirs rather than the
+    /// server's, or null where they have answered none.
+    /// </summary>
+    /// <remarks>
+    /// Not required, and suppressed when it is null, so a user who never set anything
+    /// has no block on disk at all rather than an explicit null in every document this
+    /// plugin writes. The member is optional in the other direction as well: a version
+    /// 2 document that carries no block reads as a user who answered nothing, which is
+    /// exactly what every document upgraded from version 1 is.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public WatchlistUserPreferences? Preferences { get; init; }
 }
