@@ -12,7 +12,9 @@ it is.
 Each user gets their own list. It is held on the server, so it is the same list
 on every device that user signs in from, and it is not visible to anyone else.
 There is a shared list as well, one the whole server can see, kept separately
-from the private ones.
+from the private ones. A server has it only if an administrator turns it on:
+`SharedListEnabled` is off until somebody sets it, so nothing on this server
+becomes readable by everybody without being asked for.
 
 ## Where the list appears
 
@@ -27,12 +29,20 @@ it takes it off, so the list can be worked from the same place it is read.
 ## Which servers it supports
 
 Two server lines, 10.11 and 12.0. They do not share a runtime and they do not
-share the playlist interface this plugin leans on, so a release carries one
-artifact per line and you install the one that matches your server.
+share the playlist interface this plugin leans on, so an artifact is built per
+line and you install the one that matches your server.
 
-That is what a release carries. Which of the two the code in this repository is
-built for today is a narrower answer, and it is under `What is built so far`
-below rather than repeated here.
+Version 1.0 carries the 10.11 artifact and no other. The 12.0 line has no stable
+package for a plugin to compile against - every 12.0 version of the server
+packages is a release candidate - and an artifact published against a moving
+target can stop loading on a server released the month after. So the 12.0
+artifact follows a stable 12.0 release rather than shipping with 1.0, and a
+server on that line has nothing to install until then. That is a decision taken
+on the tracker, on 2026-08-24, rather than a state of the code.
+
+Which of the two the code in this repository is built for today is a narrower
+answer again, and it is under `What is built so far` below rather than repeated
+here.
 
 ## Installing
 
@@ -111,8 +121,12 @@ resolved.
 
 The HTTP endpoints are built. There are three, one to read a user's list and one
 each to put an item on it and take an item off, and what they answer is in
-[docs/api.md](docs/api.md). The configuration page is built and carries the one
-setting that exists so far, described in [docs/settings.md](docs/settings.md).
+[docs/api.md](docs/api.md). The configuration page is built and carries the whole
+set of server-wide settings, each described in
+[docs/settings.md](docs/settings.md). Seven of the eight are saved and read by
+nothing yet, because the things they steer are the ones named below as not built;
+that file says which is which rather than leaving an administrator to set a value
+and watch for an effect.
 The format a list leaves in is fixed, in
 [docs/export-format.md](docs/export-format.md), together with the code that
 writes it and the rule that matches an imported entry onto this server's items;
@@ -127,7 +141,9 @@ One of the two server lines above is not built either. The plugin compiles
 against the 10.11 package set, on the framework that line runs, and the packaging
 metadata declares the same line, so the one artifact this tree can produce is the
 10.11 one. Nothing here builds against the 12.0 package set, so a server on that
-line has no artifact waiting for it even once a release exists.
+line has no artifact waiting for it even once a release exists. For 1.0 that is
+also what was decided rather than only what is built, which the support section
+above states.
 
 The description above says what the plugin is for, not what the code does today.
 The tracker carries the rest.
