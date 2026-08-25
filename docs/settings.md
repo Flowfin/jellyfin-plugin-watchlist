@@ -25,10 +25,18 @@ user can see is a thing a server should not gain without being asked, and
 can undo. Everything else is set so that a fresh install works with no visit to
 this page at all.
 
-No value here is refused yet. Validating a setting on save and repairing one that
-was hand-edited into the configuration file is #34, and the bounds that issue
-enforces are the ones stated in the rows below rather than a second set invented
-there.
+Every value is judged, and the two directions answer differently on purpose. A
+save is refused, so what the server holds does not move and the person who typed
+the value is the one who fixes it. A configuration file that was edited by hand is
+repaired to the defaults when the plugin loads, one setting at a time, because at
+that moment there is nobody to tell and the alternative is a plugin that throws on
+every pass. Each row below states the bound its setting is judged against.
+
+What an administrator sees is narrower than what the refusal says. The controls on
+the page carry the same bounds, so a browser refuses a bad value before it is
+posted; the plugin's own refusal is the line behind that, for anything reaching the
+server another way, and the server's endpoint has no route for a plugin's message,
+so the setting is named in the server log rather than on the page.
 
 ### ProjectionEnabled
 
@@ -70,6 +78,12 @@ risk knowingly.
 
 When it takes effect: on the next reconciliation.
 
+Bounds: at least one character, at most 128, with no leading or trailing space. An
+untrimmed name is refused rather than trimmed, because a name with a trailing
+space looks identical in the field and a silent trim tells you your value was
+taken when it was changed. The length is a display bound - the name is what a
+client renders in a list row - and no database or filesystem limit was measured.
+
 Where it is stored: the plugin's configuration, one value for the whole server.
 Every user's list carries the same name, because it is one name for the server
 rather than a per-user preference.
@@ -88,6 +102,11 @@ nothing. That list stops growing and says why.
 
 When it takes effect: on the next add. There is no pass over existing lists, so
 nothing happens to a stored document at the moment the value is saved.
+
+Bounds: 0 to 1000000. Zero and one are legal and mean what they say, because
+nothing removes entries when the cap falls under an existing list. A negative
+number is refused, and so is anything above the ceiling, which exists so that one
+extra digit does not turn the cap back into no cap.
 
 Where it is stored: the plugin's configuration, which the server holds outside a
 user's document, because it is one value for the whole server rather than one per
@@ -131,6 +150,11 @@ Neither changes what a pass does when it runs.
 
 When it takes effect: on the next reconciliation, when the trigger is next read.
 
+Bounds: 1 to 168 hours. Below an hour the converging pass is being asked to do the
+job of the events it converges behind; above a week it stops being a convergence.
+Somebody who wants it rarer than that wants the projection switched off, which is
+its own setting.
+
 Where it is stored: the plugin's configuration, one value for the whole server.
 
 Not read by anything today. The scheduled task is #24 and is not built.
@@ -171,6 +195,8 @@ does not lose the name an administrator chose.
 
 When it takes effect: on the next reconciliation.
 
+Bounds: the same as `ProjectedListName`.
+
 Where it is stored: the plugin's configuration, one value for the whole server.
 
 ### MaxEntriesInSharedList
@@ -190,6 +216,8 @@ server, which is why it is bounded on its own rather than sharing the per-user
 number.
 
 When it takes effect: on the next add to the shared list.
+
+Bounds: 0 to 1000000, the same as the per-user cap and for the same reasons.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 

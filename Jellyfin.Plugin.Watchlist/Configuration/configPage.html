@@ -53,8 +53,13 @@
                         the projection lands rather than before.
                     </p>
                     <p>
-                        No value here is refused yet. A number outside its range or an empty name is
-                        stored as typed, and refusing it at save time is a change still to come.
+                        Every field below carries the bounds the plugin enforces, so your browser
+                        refuses a value before it is posted. The plugin refuses it again on the way
+                        in, for anything that reaches the server another way; what you see then is a
+                        save that failed, with the setting named in the server log rather than on
+                        this page. A configuration file edited by hand is repaired to the defaults
+                        when the plugin loads instead of being refused, because there is nobody to
+                        tell at that moment.
                     </p>
 
                     <h3>The private list</h3>
@@ -71,7 +76,7 @@
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="ProjectedListName">Name of each user's projected list</label>
-                        <input id="ProjectedListName" name="ProjectedListName" type="text" is="emby-input" required />
+                        <input id="ProjectedListName" name="ProjectedListName" type="text" is="emby-input" maxlength="128" required />
                         <div class="fieldDescription">
                             The name of the playlist a user sees. It is deliberately not the bare
                             word "Watchlist": a server may grow a watchlist of its own, and two
@@ -81,7 +86,7 @@
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="MaxEntriesPerUser">Greatest number of entries one user's list may hold</label>
-                        <input id="MaxEntriesPerUser" name="MaxEntriesPerUser" type="number" is="emby-input" min="1" step="1" required />
+                        <input id="MaxEntriesPerUser" name="MaxEntriesPerUser" type="number" is="emby-input" min="0" max="1000000" step="1" required />
                         <div class="fieldDescription">
                             An add that would take a list past this is refused and nothing is
                             written. Lowering it under a list that is already larger removes
@@ -102,7 +107,7 @@
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="ReconciliationIntervalHours">Hours between reconciliation runs</label>
-                        <input id="ReconciliationIntervalHours" name="ReconciliationIntervalHours" type="number" is="emby-input" min="1" step="1" required />
+                        <input id="ReconciliationIntervalHours" name="ReconciliationIntervalHours" type="number" is="emby-input" min="1" max="168" step="1" required />
                         <div class="fieldDescription">
                             The scheduled pass exists to converge what the server's own events
                             missed, not to be how lists are kept current, so six hours is the
@@ -124,7 +129,7 @@
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="SharedListName">Name of the shared list</label>
-                        <input id="SharedListName" name="SharedListName" type="text" is="emby-input" required />
+                        <input id="SharedListName" name="SharedListName" type="text" is="emby-input" maxlength="128" required />
                         <div class="fieldDescription">
                             The same naming rule as the private list, and it matters more here:
                             one name is met by everybody on the server rather than by one person.
@@ -134,7 +139,7 @@
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="MaxEntriesInSharedList">Greatest number of entries the shared list may hold</label>
-                        <input id="MaxEntriesInSharedList" name="MaxEntriesInSharedList" type="number" is="emby-input" min="1" step="1" required />
+                        <input id="MaxEntriesInSharedList" name="MaxEntriesInSharedList" type="number" is="emby-input" min="0" max="1000000" step="1" required />
                         <div class="fieldDescription">
                             Bounded separately from a private list because everybody writes to it,
                             so the number of people who can grow it is the number of people on this
