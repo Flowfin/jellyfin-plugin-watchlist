@@ -79,21 +79,51 @@
     than argued, which is what #34 recorded as proven by nothing.
   -->
   <!--
-    The two files that reach the server rather than an interface, added on #25.
+    What is left, one entry with its reason and with what would retire it. Both
+    entries here were added on #25 and both were re-read on #221.
 
-    LibraryItemDescriber.cs is the one place in the plugin that knows there is a
-    library. Reaching a line of it means constructing the server's library manager and
-    its user manager, which is a server. Everything above it takes the interface it
-    implements, so the endpoint, the visibility rule and their tests never touch a
-    server type, and what this file holds is three lookups and a projection with no
-    branch of its own that is not a null check on one of them.
+    PluginServiceRegistrator.cs was on this list and is not any more, which is #221.
+    The reason it carried was that it is the server's own registration hook, called
+    with the server's service collection and its application host, so running it meant
+    having both. Neither half held. IServiceCollection is satisfied by ServiceCollection,
+    which this project already references, and the application host parameter is never
+    read in the body, so nothing stands in for it. The two factories are the part a
+    call alone does not reach, because registering a lambda does not run it; they read
+    Plugin.Instance, which is constructible from a test since #34, so
+    PluginServiceRegistratorTests builds the provider and resolves both.
 
-    PluginServiceRegistrator.cs is the same argument one layer out: it is the server's
-    own registration hook, it is called with the server's service collection and its
-    application host, and running it means having both.
+    LibraryItemDescriber.cs stays, and NEITHER OF THE TWO REASONS IT CARRIED IS THE
+    ONE THAT HOLDS. Both are withdrawn here and replaced by one that was measured.
+
+    The first said that reaching a line of it means constructing the server's library
+    manager and its user manager, which is a server. That is the same mistake #221
+    found on the registrator: ILibraryManager and IUserManager are interfaces. They
+    are wide - 84 and 22 member declarations at v10.11.11 - so a hand-written pair is
+    a cost, but width is not unreachability and the entry did not claim width.
+
+    The second said the file holds three lookups and a projection with no branch of
+    its own that is not a null check. KindOf is a four-arm switch over the item type,
+    which is a branch and is not a null check, so that sentence is wrong as written.
+
+    WHAT DOES HOLD is one call, and it is not reached through either parameter. The
+    visibility arm calls IsVisible on the BaseItem the library returned, and that path
+    reads a process-wide static the server assigns at start-up rather than anything
+    handed in: IsVisible goes to IsParentalAllowed, which goes to IsVisibleViaTags,
+    which calls GetInheritedTags, whose body calls LibraryManager.GetCollectionFolders
+    on the STATIC BaseItem.LibraryManager. Unassigned, that is a null reference before
+    any rule of this plugin runs, and the same path reads the static BaseItem.Logger
+    on an item with no rating. Faking the two constructor interfaces does not reach
+    either static.
+
+    WHAT RETIRES THIS ENTRY: a test that assigns those statics for the length of one
+    call and hands the describer a BaseItem and a User, or a seam in this plugin that
+    puts the visibility question behind an interface of its own. The statics are
+    process-wide, so the first route needs the serialisation PluginInstanceCollection
+    already carries for Plugin.Instance. Either way the entry comes off with the test
+    that reaches the file rather than with an argument.
   -->
   <PropertyGroup>
-    <ExcludeByFile>$(ExcludeByFile)**/LibraryItemDescriber.cs,**/PluginServiceRegistrator.cs</ExcludeByFile>
+    <ExcludeByFile>$(ExcludeByFile)**/LibraryItemDescriber.cs</ExcludeByFile>
   </PropertyGroup>
 
   <!--

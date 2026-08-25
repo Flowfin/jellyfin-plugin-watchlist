@@ -27,6 +27,7 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// temporary directory, which is the headless rule in HEADLESS.md.
 /// </para>
 /// </remarks>
+[Collection(PluginInstanceCollection.Name)]
 public class PluginConfigurationWiringTests
 {
     /// <summary>
