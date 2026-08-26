@@ -4,7 +4,9 @@ using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Export;
 using Jellyfin.Plugin.Watchlist.Store;
+using Jellyfin.Plugin.Watchlist.Watched;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
@@ -44,13 +46,100 @@ public class PluginServiceRegistratorTests
 
         new PluginServiceRegistrator().RegisterServices(services, null!);
 
-        Assert.Equal(6, services.Count);
+        Assert.Equal(9, services.Count);
         Assert.Contains(services, d => d.ServiceType == typeof(IWatchlistItemDescriber));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdSource));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdIndex));
         Assert.Contains(services, d => d.ServiceType == typeof(TimeProvider));
         Assert.Contains(services, d => d.ServiceType == typeof(PluginConfiguration));
         Assert.Contains(services, d => d.ServiceType == typeof(WatchlistDocumentStore));
+        Assert.Contains(services, d => d.ServiceType == typeof(ISeriesCompletion));
+        Assert.Contains(services, d => d.ServiceType == typeof(WatchedRemovalHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(IHostedService));
+    }
+
+    /// <summary>
+    /// The subscription is registered as something the server starts and stops rather
+    /// than as a service somebody has to remember to resolve. Nothing else in this
+    /// plugin is hosted, so the one hosted registration is asserted by its
+    /// implementation as well as by its count.
+    /// </summary>
+    [Fact]
+    public void TheWatchedSubscriptionIsRegisteredAsSomethingTheServerRuns()
+    {
+        var services = new ServiceCollection();
+
+        new PluginServiceRegistrator().RegisterServices(services, null!);
+
+        var hosted = services.Where(d => d.ServiceType == typeof(IHostedService)).ToList();
+
+        Assert.Single(hosted);
+        Assert.Equal(typeof(UserDataWatchedSubscription), hosted[0].ImplementationType);
+    }
+
+    /// <summary>
+    /// The handler's factory is a lambda, so registering it runs nothing. This resolves
+    /// it, which is what says the three things it is built from are reachable from the
+    /// server's container rather than only from a test that hands them over.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The library and the user directory are the server's own registrations rather
+    /// than this plugin's, so they are put into the collection here exactly as the
+    /// server would have them there already.
+    /// </para>
+    /// <para>
+    /// The handler is then driven once, because the configuration inside the factory is
+    /// a second lambda and resolving the handler does not run it. What that line
+    /// decides is which configuration object the handler reads, and it is the line that
+    /// makes the setting the administrator saved the one in force rather than the one
+    /// the server started with.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void TheHandlerFactoryBuildsSomethingTheServersContainerCanResolve()
+    {
+        using var paths = new ServerPathsInATemporaryDirectory();
+        var plugin = new Plugin(paths, new PluginConfigurationFile(), new RecordingPluginLogger());
+        var services = new ServiceCollection();
+
+        new PluginServiceRegistrator().RegisterServices(services, null!);
+        services.AddSingleton<ILogger<WatchlistDocumentStore>>(new RecordingLogger());
+        services.AddSingleton<ILogger<WatchedRemovalHandler>>(new RecordingWatchedLogger());
+        services.AddSingleton<MediaBrowser.Controller.Library.ILibraryManager>(new ALibraryOf());
+        services.AddSingleton<MediaBrowser.Controller.Library.IUserManager>(new AUserDirectoryOf());
+
+        using var provider = services.BuildServiceProvider();
+
+        var handler = provider.GetRequiredService<WatchedRemovalHandler>();
+        var store = provider.GetRequiredService<WatchlistDocumentStore>();
+
+        Assert.IsType<LibrarySeriesCompletion>(provider.GetRequiredService<ISeriesCompletion>());
+
+        var viewer = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        var film = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
+        var played = new WatchedItem { ItemId = film, Kind = WatchlistItemKind.Movie };
+
+        store.Add(
+            viewer,
+            new WatchlistEntry
+            {
+                ItemId = film,
+                Kind = WatchlistItemKind.Movie,
+                AddedAt = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero),
+                Source = WatchlistEntrySource.Api,
+            },
+            maxEntriesPerUser: 10);
+
+        plugin.UpdateConfiguration(new PluginConfiguration { RemoveWhenWatched = false });
+        handler.Handle(viewer, played);
+
+        Assert.Single(store.Read(viewer).Document!.Entries);
+
+        plugin.UpdateConfiguration(new PluginConfiguration { RemoveWhenWatched = true });
+        handler.Handle(viewer, played);
+
+        Assert.Empty(store.Read(viewer).Document!.Entries);
     }
 
     /// <summary>

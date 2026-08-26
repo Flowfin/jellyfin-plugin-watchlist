@@ -121,17 +121,33 @@ surprise rather than a feature, and it is not one they can undo, because nothing
 records what was taken off.
 
 What changes when it moves: turned on, a watched entry is removed from the private
-list it is on, series-aware, which is the rule in #21. It never touches the shared
-list: by answer 9 on #1 that list is pruned by nobody but a person, because
-watched is individual and taking an entry off would take from one person something
-another still wants to see.
+list it is on, series-aware, which is the rule in #21. A film marked played leaves
+the list. An episode marked played takes the episode entry off, and takes the
+series entry off only once every episode of that series has been played, so
+finishing one episode of a series somebody is halfway through leaves the series
+where it is. Marking something unplayed again puts nothing back. It never touches
+the shared list: by answer 9 on #1 that list is pruned by nobody but a person,
+because watched is individual and taking an entry off would take from one person
+something another still wants to see.
 
-When it takes effect: on the next reconciliation. Turning it on does not sweep
-what was already watched before it was turned on.
+When it takes effect: the next time the server records that this user played
+something. Turning it on does not sweep what was already watched before it was
+turned on, because nothing goes looking; the rule runs on the event and on nothing
+else.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
-Not read by anything today. The rule is #21 and the pass that would run it is M3.
+What reads it: the watched rule, which the plugin subscribes to the server's user
+data event to hear. The third line is the handler the other two attach and detach:
+
+    git grep -n 'UserDataSaved' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/Watched/UserDataWatchedSubscription.cs:47:        _userData.UserDataSaved += OnUserDataSaved;
+    Jellyfin.Plugin.Watchlist/Watched/UserDataWatchedSubscription.cs:55:        _userData.UserDataSaved -= OnUserDataSaved;
+    Jellyfin.Plugin.Watchlist/Watched/UserDataWatchedSubscription.cs:101:    private void OnUserDataSaved(object? sender, UserDataSaveEventArgs args)
+
+That paragraph said the value was read by nothing and named the pass that would run
+it as M3 work. It is read now, and by an event handler rather than by a pass: a
+scheduled reconciliation is #24 and is a different thing from this.
 
 ### ReconciliationIntervalHours
 

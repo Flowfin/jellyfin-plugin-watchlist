@@ -24,14 +24,17 @@ using MediaBrowser.Model.Querying;
 namespace Jellyfin.Plugin.Watchlist.Tests;
 
 /// <summary>
-/// A library that answers the two questions <see cref="Jellyfin.Plugin.Watchlist.Api.LibraryProviderIds"/>
-/// asks it, out of a table, and refuses every other one loudly.
+/// A library that answers the questions this plugin asks it, out of a table, and
+/// refuses every other one loudly.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The interface is wide and this plugin uses two members of it. Every other member
-/// throws rather than returning a default, so a call this fake was never meant to
-/// answer fails the test that made it instead of passing on an invented value.
+/// The interface is wide and this plugin uses three members of it: the two
+/// <see cref="Jellyfin.Plugin.Watchlist.Api.LibraryProviderIds"/> asks, and the count
+/// <see cref="Jellyfin.Plugin.Watchlist.Watched.LibrarySeriesCompletion"/> asks. Every
+/// other member throws rather than returning a default, so a call this fake was never
+/// meant to answer fails the test that made it instead of passing on an invented
+/// value.
 /// </para>
 /// <para>
 /// It exists because width is not unreachability. The adapter it stands under holds no
@@ -43,6 +46,8 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 internal sealed class ALibraryOf : ILibraryManager
 {
     private readonly Dictionary<Guid, BaseItem> _items = [];
+
+    private readonly List<(Guid SeriesId, bool Played)> _episodes = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ALibraryOf"/> class.
@@ -91,6 +96,57 @@ internal sealed class ALibraryOf : ILibraryManager
         MediaBrowser.Controller.Entities.TV.Episode => BaseItemKind.Episode,
         _ => null,
     };
+
+    /// <summary>
+    /// Records one episode of a series and whether this library's user has played it.
+    /// </summary>
+    /// <remarks>
+    /// The played state of an episode is not on the item this fake stores, it is user
+    /// data the server keeps beside it, and the adapter under test never sees either:
+    /// it asks the library for a count and the library answers. So the table is what a
+    /// counted query reads rather than a second set of items.
+    /// </remarks>
+    /// <param name="seriesId">The series the episode belongs to.</param>
+    /// <param name="played">Whether it has been played.</param>
+    /// <returns>This library, so a test can state several episodes in one expression.</returns>
+    public ALibraryOf WithEpisode(Guid seriesId, bool played)
+    {
+        _episodes.Add((seriesId, played));
+
+        return this;
+    }
+
+    /// <summary>
+    /// How many episodes of one series this query matches.
+    /// </summary>
+    /// <param name="query">The query.</param>
+    /// <returns>The count.</returns>
+    /// <remarks>
+    /// Every part of the query the adapter sets is read rather than assumed, so a
+    /// query that stopped naming a user, stopped bounding itself to episodes or
+    /// stopped being recursive is refused here instead of being answered as though it
+    /// had. That is what makes the count a reading of the query rather than of the
+    /// table alone.
+    /// </remarks>
+    public int GetCount(InternalItemsQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        if (query.User is null
+            || !query.Recursive
+            || query.AncestorIds.Length != 1
+            || query.IncludeItemTypes.Length != 1
+            || query.IncludeItemTypes[0] != BaseItemKind.Episode)
+        {
+            throw Unasked();
+        }
+
+        var series = query.AncestorIds[0];
+
+        return _episodes.Count(episode =>
+            episode.SeriesId == series
+            && (query.IsPlayed is null || episode.Played == query.IsPlayed.Value));
+    }
 
     private static NotSupportedException Unasked() =>
         new("This plugin asks a library two questions and this is not one of them.");
@@ -272,8 +328,6 @@ internal sealed class ALibraryOf : ILibraryManager
     public QueryResult<(BaseItem Item, ItemCounts ItemCounts)> GetAlbumArtists(InternalItemsQuery query) => throw Unasked();
 
     public QueryResult<(BaseItem Item, ItemCounts ItemCounts)> GetAllArtists(InternalItemsQuery query) => throw Unasked();
-
-    public int GetCount(InternalItemsQuery query) => throw Unasked();
 
     public ItemCounts GetItemCounts(InternalItemsQuery query) => throw Unasked();
 
