@@ -106,7 +106,12 @@ together:
 
     git grep -n 'DataFolderPath' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:47:            Plugin.Instance!.DataFolderPath,
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:76:    public string DataFolderPath => _dataFolderPath;
+    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:90:    public string DataFolderPath => _dataFolderPath;
+
+Read again at `b893ea9`. The second line said 76 and the member has not moved for
+any reason this file is about: the shared list's own path and the constant naming
+its file went in above it, so what changed is how far down the file it sits. Both
+members are the same two members, which is what this paragraph rests on.
 
 This paragraph said nothing here wired the two together, and that was right on
 `dd24325`, the commit this file was written on. The line above it arrived with the
