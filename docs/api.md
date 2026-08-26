@@ -255,6 +255,81 @@ that is still there would report a removal that did not happen.
 
 Removed and never-there stay one answer, as on a private list.
 
+## GET Watchlist/Export
+
+Writes the calling user's list out in the exchange format, so it can be carried to
+another server running this plugin. The format is fixed in
+[export-format.md](export-format.md) and this endpoint hands back exactly what that
+document describes.
+
+No parameters. There is no spelling of this request that names somebody else, so a
+caller can move their own list and nobody else's.
+
+Nothing is left out. An entry whose media has since been deleted from this library
+leaves in the export with no provider identifiers at all, which is what tells a
+reader on the other server that the entry was there and could not be described.
+Dropping it would make an entry that could not be described indistinguishable from
+an entry that was never on the list.
+
+    curl -H 'Authorization: MediaBrowser Token="<token>"' \
+      https://jellyfin.example/Watchlist/Export
+
+| response | what it means |
+| --- | --- |
+| 200 | The export. A user with nothing on their list gets a list with no entries, which is a valid export of nothing. |
+| 401 | The request carried no user identity this plugin could read. |
+| 503 | The list exists and this plugin will not read it. |
+
+The shared list is not in it. Reading the shared list is its own route, and putting
+it in a per-user export would make what one caller gets depend on what their
+libraries hold, so an export taken by two people on one server would carry two
+different shared lists under one name.
+
+## POST Watchlist/Import
+
+Reads an exported file against this server and puts what it matched on the calling
+user's list.
+
+The body is an export document, and its `FormatVersion` has to be one this plugin
+knows. A version it does not know is refused rather than read as far as it goes,
+because a partial import is the outcome the format's version field exists to
+prevent.
+
+The list the file names is not the list this writes. An export made on another
+server carries that server's identifier for its owner, and the person importing it
+is somebody else there, so what an import writes is always the caller's own list.
+That is what makes this the calling user's own operation.
+
+Entries are matched by provider identifier first and by the exporting server's own
+identifier second, and never the other way round; [export-format.md](export-format.md)
+carries the reason. An entry is matched only where this caller may see the item and
+a watchlist would take it, so an entry pointing at a library this caller has no
+access to comes back the same way as an entry pointing at nothing.
+
+Nothing is dropped in silence. Every entry of every list this endpoint read comes
+back in the report, including the ones nothing here answered to, and a list it did
+not read is counted along with how many entries sat in it.
+
+    curl -X POST -H 'Authorization: MediaBrowser Token="<token>"' \
+      -H 'Content-Type: application/json' \
+      --data-binary @watchlist-export.json \
+      https://jellyfin.example/Watchlist/Import
+
+| response | what it means |
+| --- | --- |
+| 200 | The report. Entries that matched nothing here are in it too, and so are the counts for lists this endpoint did not read. |
+| 400 | The body is not an export this plugin can read, or it declares a format version this plugin does not know. |
+| 401 | The request carried no user identity this plugin could read. |
+| 503 | The list exists and this plugin will not write to it. |
+
+A shared list in the file is counted and left alone. Writing the shared list is a
+write to a list other people read, which is an administrative operation rather than
+this one, and a list whose kind the file did not declare is left alone for the same
+reason: the kind is a claim about who may see the list, and nobody made it.
+
+Importing the same file twice leaves one entry per item and reports the second run
+as `AlreadyOnTheList`, exactly as calling the add endpoint twice does.
+
 ## Setting a per-user preference
 
 There is no endpoint for one yet, and there is no place on the configuration page

@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
+using Jellyfin.Plugin.Watchlist.Export;
 using Jellyfin.Plugin.Watchlist.Store;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -32,21 +34,42 @@ public class PluginServiceRegistratorTests
 {
     /// <summary>
     /// What the server's container is given. The count is asserted alongside the
-    /// service types so that a fifth registration added tomorrow is a failing test
-    /// rather than a silent addition to what the server resolves.
+    /// service types so that a registration added tomorrow is a failing test rather
+    /// than a silent addition to what the server resolves.
     /// </summary>
     [Fact]
-    public void TheHookRegistersTheFourServicesTheControllerIsBuiltFrom()
+    public void TheHookRegistersTheServicesTheControllersAreBuiltFrom()
     {
         var services = new ServiceCollection();
 
         new PluginServiceRegistrator().RegisterServices(services, null!);
 
-        Assert.Equal(4, services.Count);
+        Assert.Equal(6, services.Count);
         Assert.Contains(services, d => d.ServiceType == typeof(IWatchlistItemDescriber));
+        Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdSource));
+        Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdIndex));
         Assert.Contains(services, d => d.ServiceType == typeof(TimeProvider));
         Assert.Contains(services, d => d.ServiceType == typeof(PluginConfiguration));
         Assert.Contains(services, d => d.ServiceType == typeof(WatchlistDocumentStore));
+    }
+
+    /// <summary>
+    /// Both provider questions are answered by the one class that knows a library can
+    /// be searched, so an export and an import on one server read the same library.
+    /// The implementation type is asserted rather than an instance, because resolving
+    /// either one needs the server's library manager.
+    /// </summary>
+    [Fact]
+    public void BothProviderQuestionsAreAnsweredByTheOneLibraryAdapter()
+    {
+        var services = new ServiceCollection();
+
+        new PluginServiceRegistrator().RegisterServices(services, null!);
+
+        Assert.All(
+            services.Where(d => d.ServiceType == typeof(IProviderIdSource)
+                || d.ServiceType == typeof(IProviderIdIndex)),
+            d => Assert.Equal(typeof(LibraryProviderIds), d.ImplementationType));
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using System;
 using Jellyfin.Plugin.Watchlist.Api;
+using Jellyfin.Plugin.Watchlist.Export;
 using Jellyfin.Plugin.Watchlist.Store;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -31,6 +32,14 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         serviceCollection.AddSingleton<IWatchlistItemDescriber, LibraryItemDescriber>();
+
+        // The two provider questions, both answered by the one class that knows a
+        // library can be searched. It is registered by type under each interface
+        // rather than once behind a factory: it holds nothing but the library the
+        // server hands it, so two instances of it cannot disagree, and a factory
+        // here would be a line only a server can execute.
+        serviceCollection.AddSingleton<IProviderIdSource, LibraryProviderIds>();
+        serviceCollection.AddSingleton<IProviderIdIndex, LibraryProviderIds>();
 
         // The system clock, as a dependency rather than a call inside the controller.
         // An entry carries the instant it was added, and the suite is not allowed to

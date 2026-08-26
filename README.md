@@ -129,8 +129,11 @@ that file says which is which rather than leaving an administrator to set a valu
 and watch for an effect.
 The format a list leaves in is fixed, in
 [docs/export-format.md](docs/export-format.md), together with the code that
-writes it and the rule that matches an imported entry onto this server's items;
-no endpoint hands a file out or takes one in yet.
+writes it and the rule that matches an imported entry onto this server's items,
+and two endpoints carry it: one hands your own list out in that format and one
+reads such a file back onto your own list. A shared list inside such a file is
+counted and left alone, because writing the list everybody reads is an
+administrative operation and there is no administrative surface yet.
 
 The projection into a playlist is not built, and it is the part a user would
 notice, because until it exists the list is reachable over the API and appears
