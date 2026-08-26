@@ -93,6 +93,12 @@ Which of those two a rescan produces, and why reattaching by provider identifier
 is out of scope for the first release, are in
 [docs/unresolvable-entries.md](docs/unresolvable-entries.md).
 
+Nothing takes an entry off a list because time has passed, because a scan ran, or
+because somebody else did something. There is one automatic removal and it is a list
+losing what its own owner has watched, which is off until an administrator turns it
+on. What it does when it is on is under `What is built so far` below and in
+[docs/settings.md](docs/settings.md), rather than a second time here.
+
 A document written by a newer version of the plugin is refused rather than read
 with a guess, so downgrading a server does not corrupt a list.
 
@@ -126,10 +132,19 @@ count in this file goes stale while the routes move: [docs/api.md](docs/api.md) 
 the list, and the suite compares it against the endpoints on every run.
 
 The configuration page is built and carries the whole set of server-wide settings,
-each described in [docs/settings.md](docs/settings.md). Seven of the eight are saved
-and read by nothing yet, because the things they steer are the ones named below as
-not built; that file says which is which rather than leaving an administrator to set
-a value and watch for an effect.
+each described in [docs/settings.md](docs/settings.md). Most of them are saved and
+read by nothing yet, because the things they steer are the ones named below as not
+built. No count is written here, because a count in this file goes stale each time
+one of those things lands: that file says which setting is read today and which is
+not, rather than leaving an administrator to set a value and watch for an effect.
+
+Taking a watched entry off a list is built, and it is the first thing this plugin
+does on its own rather than when somebody calls it. It is off until an administrator
+turns it on. Turned on, a film leaves that user's list once it is played and a series
+leaves it once every episode of that series is played, so finishing one episode of a
+show somebody is halfway through leaves the show where it is. It never touches the
+shared list. The rule, the setting that decides it and the moment it runs are in
+[docs/settings.md](docs/settings.md).
 
 The format a list leaves in is fixed, in
 [docs/export-format.md](docs/export-format.md), together with the code that
