@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using Jellyfin.Plugin.Watchlist.Store;
 
 namespace Jellyfin.Plugin.Watchlist.Api;
@@ -59,4 +60,21 @@ public sealed record WatchlistEntryView
     /// Gets the episode number of an episode, where the item is one.
     /// </summary>
     public int? EpisodeNumber { get; init; }
+
+    /// <summary>
+    /// Gets the user who put the entry on the list, on the shared list only.
+    /// </summary>
+    /// <remarks>
+    /// It is returned rather than kept, which is the answer to question 8 on #1: a
+    /// shared list is written by everybody, and a list that shows who asked for a
+    /// title is what makes it a conversation rather than an anonymous pile. It is also
+    /// what a caller needs in order to know which entries they may take off again.
+    ///
+    /// A private list has one writer and no attribution to hand out, so nothing sets
+    /// this on one and it is left out of the answer entirely rather than returned as
+    /// an empty value. The private list's answer therefore has exactly the members it
+    /// had before the shared list existed.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? AddedBy { get; init; }
 }

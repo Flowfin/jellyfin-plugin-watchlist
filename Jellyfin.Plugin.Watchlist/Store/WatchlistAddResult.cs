@@ -95,6 +95,14 @@ public sealed record WatchlistAddResult
         new(WatchlistAddOutcome.RefusedListUnavailable, 0, 0);
 
     /// <summary>
+    /// There is no shared list on this server, so nothing can be added to it. Making
+    /// one is a decision somebody takes, and an add is not the place it gets taken.
+    /// </summary>
+    /// <returns>The result.</returns>
+    public static WatchlistAddResult RefusedNoSharedList() =>
+        new(WatchlistAddOutcome.RefusedNoSharedList, 0, 0);
+
+    /// <summary>
     /// A sentence an operator can read, naming the numbers.
     /// </summary>
     /// <returns>The description.</returns>
@@ -115,6 +123,8 @@ public sealed record WatchlistAddResult
             "Refused: the list holds {0} entries and the maximum is {1}. Nothing was added and nothing was removed.",
             EntryCount,
             Cap),
+        WatchlistAddOutcome.RefusedNoSharedList =>
+            "Refused: this server has no shared list, so nothing was added to one.",
         _ => "Refused: this user's list could not be read, so nothing was added to it.",
     };
 }
