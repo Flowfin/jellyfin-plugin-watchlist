@@ -31,8 +31,10 @@ public class WatchlistApiRouteTests
     [
         "DELETE Watchlist/Items/{itemId}",
         "DELETE Watchlist/Shared/Items/{itemId}",
+        "GET Watchlist/Export",
         "GET Watchlist/Items",
         "GET Watchlist/Shared/Items",
+        "POST Watchlist/Import",
         "POST Watchlist/Items/{itemId}",
         "POST Watchlist/Shared/Items/{itemId}",
     ];
