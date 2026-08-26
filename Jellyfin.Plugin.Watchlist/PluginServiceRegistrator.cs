@@ -2,6 +2,7 @@ using System;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Export;
 using Jellyfin.Plugin.Watchlist.Store;
+using Jellyfin.Plugin.Watchlist.Watched;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,5 +56,22 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton(provider => new WatchlistDocumentStore(
             Plugin.Instance!.DataFolderPath,
             provider.GetRequiredService<ILogger<WatchlistDocumentStore>>()));
+
+        // The watched rule and what it listens to. The completion answer is the only
+        // half of it that asks the server anything, and it is registered under its
+        // interface so nothing above it names a library.
+        serviceCollection.AddSingleton<ISeriesCompletion, LibrarySeriesCompletion>();
+
+        // The configuration reaches the handler as a question rather than as a value.
+        // The handler lives as long as the server does and the server replaces the
+        // configuration object whenever the page is saved, so a value captured here
+        // would be the one that was in force at start-up.
+        serviceCollection.AddSingleton(provider => new WatchedRemovalHandler(
+            provider.GetRequiredService<WatchlistDocumentStore>(),
+            () => Plugin.Instance!.Configuration,
+            provider.GetRequiredService<ISeriesCompletion>(),
+            provider.GetRequiredService<ILogger<WatchedRemovalHandler>>()));
+
+        serviceCollection.AddHostedService<UserDataWatchedSubscription>();
     }
 }

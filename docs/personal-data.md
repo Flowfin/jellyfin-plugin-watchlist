@@ -387,15 +387,25 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Fifteen places log at all, and the count said seven before the shared list's
-record and then its endpoints arrived:
+library. Twenty-one places log at all, over four files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:9
+    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:6
+    Jellyfin.Plugin.Watchlist/Watched/WatchedRemovalHandler.cs:1
 
-and what they name is the calling user's identifier, an item identifier, the kind the
+THAT PASTE HAD ALREADY STOPPED REPRODUCING BEFORE THIS CHANGE, AND ONLY ONE OF ITS
+TWO NEW LINES IS MINE. It showed two files and a count of fifteen. The transfer
+controller's five lines arrived with the export and import endpoints and the paste
+was not taken again, so a reader running the command met four files under a sentence
+naming two. The watched handler's one line is the change that made this section have
+to be re-read, and re-reading it is what found the older half.
+
+What they name is the calling user's identifier, an item identifier, the kind the
 library holds an item as, an entry count, a configured maximum, and a schema version.
+The watched handler's line names a count of entries and two identifiers, the user the
+event named and the item that was played, and nothing out of the entries it removed.
 The pass that drops entries whose item can no longer be resolved reports one line with
 a count, and nothing out of the entries themselves:
 
