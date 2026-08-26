@@ -79,6 +79,11 @@ Two paths and three operations, because adding and removing an item share one
 template and differ by verb. That is the reason the pin in the suite holds the
 verb and the template together rather than the template alone.
 
+Three is what this run found and is no longer what the plugin declares. The shared
+list's endpoints landed on #85 after the assembly above was built, so the count here
+belongs to the run rather than to the tree, and the section that pins the routes says
+what moved and what is therefore unmeasured.
+
 ## What the document carries
 
 The document is authenticated nowhere in this reading: `GET /api-docs/openapi.json`
@@ -141,20 +146,45 @@ and the same on the other line.
 
 ## The set is the set the suite pins
 
-`WatchlistApiRouteTests` holds three strings, verb and template together:
+`WatchlistApiRouteTests` holds six strings, verb and template together:
 
-    grep -nE '"(GET|POST|DELETE) Watchlist' Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs | head -3
+    grep -nE '"(GET|POST|DELETE) Watchlist' Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs
     32:        "DELETE Watchlist/Items/{itemId}",
-    33:        "GET Watchlist/Items",
-    34:        "POST Watchlist/Items/{itemId}",
+    33:        "DELETE Watchlist/Shared/Items/{itemId}",
+    34:        "GET Watchlist/Items",
+    35:        "GET Watchlist/Shared/Items",
+    36:        "POST Watchlist/Items/{itemId}",
+    37:        "POST Watchlist/Shared/Items/{itemId}",
+    93:            ["POST Watchlist/Something"],
 
-Read again on `7306873`. Those numbers were 46, 47 and 48, and they moved when the
-reader that class uses went to a file of its own, in a change that left this paste
-behind.
+The last of those is not a route. It is the near-miss the pin is proven with, and
+the command is shown unfiltered so a reader who runs it meets it here rather than
+wondering which of seven lines is the extra one.
 
-The three operations above are those three with a leading slash the server adds.
-So the reflection pin, `docs/api.md` and the document a server generates all
-describe one set, and the pin is what a later run is compared against.
+**THE PIN HAS GROWN SINCE THE RUN RECORDED ABOVE, AND THIS SECTION SAID IT HELD
+THREE.** It held three, and the paste under this command showed lines 32, 33 and 34
+as the three private routes. The shared list's three endpoints landed on #85 and
+joined the pinned set, which moved what the third line is and made the count wrong,
+and that change did not carry this paste. Read again at `b893ea9`.
+
+Read again on `7306873` before that. Those numbers were 46, 47 and 48, and they
+moved when the reader that class uses went to a file of its own, in a change that
+also left this paste behind. Twice now, which is the argument for a mechanism rather
+than for a third careful reader.
+
+**SO THE RUN BELOW COVERS LESS THAN THE PIN DOES**, and that is the part to read
+carefully rather than the line numbers. Everything measured in this file was
+measured against a server carrying the assembly built from
+`0e4a8978948c5feefa1475622cbedd4af2c3bb2f`, which predates the shared endpoints, so
+the two paths and three operations it found are the three private routes and nothing
+was asked about the other three. Whether the shared endpoints reach a generated
+document is unmeasured, not measured and found working. The same holds for the
+`WatchlistEntryView` block above: the view has since gained the member that names
+who added an entry, and no run here has seen it.
+
+For the three it did cover, the reflection pin, `docs/api.md` and the document a
+server generates describe one set, and the pin is what a later run is compared
+against. A run that covers the other three is one taken after somebody takes it.
 
 ## What this run did not cover
 
