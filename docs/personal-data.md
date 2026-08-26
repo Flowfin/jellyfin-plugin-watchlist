@@ -5,100 +5,34 @@ server other people may administer, so it is written down here rather than left 
 worked out from the source: what is kept, where it is kept, how long it stays, who can
 read it, and what leaves the machine.
 
-Every reading below was taken on `8edffa9`, except the four that moved when the
-shared list got a record of its own. Those four were re-taken on `6930c4a` and say so
-where they stand; every other command in this file was re-run at that commit and still
-prints what is pasted under it.
+Every command in this file was re-run against `b893ea9`, the commit that added the
+shared list's endpoints, and each one still prints what is pasted under it. That is
+the whole file rather than the sections this change touched, because the change that
+landed those endpoints moved line numbers in files this page reads:
 
-## The two things this file does not describe
+    git grep -c '^    \(git\|grep\|sed\|awk\|curl\|gh\) ' docs/personal-data.md
+    docs/personal-data.md:32
 
-**The shared list.** The plugin is planned with a second list, one the whole server
-can see. That list has a different answer to every question below, and the one that
-decides its character is whether an entry records who put it there: a list of titles
-and a record of what named people wanted to watch are two different statements to make
-to a reader.
+Thirty-one were checked. The thirty-second is that line counting them, which counts
+itself and was written after the pass rather than checked by it, and saying so is
+cheaper than a count that quietly excludes the one command a reader can see.
 
-THIS PARAGRAPH SAID THAT QUESTION WAS OPEN AND THAT NO SHARED RECORD WAS IN THE TREE.
-Both halves have moved and they moved in opposite directions for a reader, so neither
-is dropped in silence. The question is answered on #1 - one shared list per server, and
-an entry that records who put it there, visible to everyone who can see the list - and
-the record now exists. Re-taken on `6930c4a`, where the store is sixteen files and two
-of them are it:
+Older readings name the commit they were taken on where they stand, and those
+sentences are kept. What they say is when a reading last MOVED, not when it was last
+checked; the checking is this paragraph and it covers the file.
 
-    git ls-files 'Jellyfin.Plugin.Watchlist/Store/*'
-    Jellyfin.Plugin.Watchlist/Store/IWatchlistItemResolver.cs
-    Jellyfin.Plugin.Watchlist/Store/SharedWatchlistDocument.cs
-    Jellyfin.Plugin.Watchlist/Store/SharedWatchlistReadResult.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistAddOutcome.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistAddResult.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocument.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentFormat.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentUpgrades.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistEntry.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistEntrySource.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistItemKind.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistReadResult.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistRemoveResult.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistUserPreferences.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistVisibility.cs
+## The one thing this file does not describe
 
-WHAT NO SERVER HOLDS IS THE POINT TO READ CAREFULLY, and this is a negative statement
-rather than a softened positive one. A record existing in the source and a list
-existing on somebody's machine are different things.
+**The shared list is described now**, in [its own section below](#the-shared-list),
+and it used to be named here as an absence. It is a different list with a different
+answer to every question on this page, so it gets a section rather than a sentence
+inside the private list's.
 
-There are endpoints over that record now, and they are described in
-[api.md](api.md). They read the shared list, add to it and take entries off it, and
-none of them makes one. Nothing else in this plugin makes one either: no setting
-creates it, no scheduled pass creates it, and there is no route that would. Creating
-it is #87 and it has not been built.
-
-So on a server running this plugin today there is no shared list, and every one of
-those three endpoints answers that there is none. Nothing about any user sits in a
-shared list, and everything the rest of this page says about who can read what is
-unaffected by the record and its endpoints having arrived.
-
-That is checkable rather than asserted. The two members that read and write the
-record are named by the store that declares them and by the controller that calls
-them, and by nothing that could create one:
-
-    git grep -lE 'WriteShared|ReadShared' -- Jellyfin.Plugin.Watchlist
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentFormat.cs
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
-
-    git grep -c 'WriteShared' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs ; echo "exit=$?"
-    exit=1
-
-The controller reads the shared list and asks the store to change one; it never
-writes a document, which is what a creation would be.
-
-The section this page still owes is the one that describes that list to a reader: who
-sees it, what they learn about other people from it, and that an entry names the person
-who added it. It is #69, and it is written before the list ships rather than after.
-What is now decided rather than open, and belongs in it when it is written: everybody
-on the server may read the shared list and add to it, every entry names the user who
-added it and that name is returned to every reader, and a removal is allowed to that
-user and to an administrator. Those are the answers to questions 7 and 8 on #1 as the
-endpoints implement them, and stating them in a sentence here would be the section
-rather than a note before it.
-
-The export format already carries the kind, so a reader of an exported file can tell
-the two apart, and the shared half of it is fed values by a caller rather than read
-from the record. Re-taken on `6930c4a`; the three lines said the record was not built
-yet, and the change that built it corrected them where they stand:
-
-    grep -n 'The pieces are passed in rather than read from a shared record' -A 2 \
-      Jellyfin.Plugin.Watchlist/Export/WatchlistExporter.cs
-    52:    /// The pieces are passed in rather than read from a shared record. That said the
-    53-    /// record was not built yet, and it is: what has not been written is the caller
-    54-    /// that maps one onto this call, and the format does not move when it is.
-
-Those two trailing lines carry a dash rather than a colon, which is what `grep` prints
-for a line it pulled in as context rather than one that matched. Only the line the
-pattern names is a match, and the three were once arranged by hand instead of taken
-from the command, which is what an earlier reading of this file found by running every
-command pasted in it and comparing it with what stands under it.
+What that section keeps from the paragraph it replaces is the negative statement,
+because that is the part a reader is most likely to lose in a rewrite: no server
+running this plugin has a shared list, nothing about any user sits in one, and
+everything else on this page is unaffected by the record and its endpoints existing.
+The section says it at greater length and with what it is read from.
 
 **The projected playlists.** The way a list is meant to become visible on a client is
 a playlist owned by that user. Nothing projects one yet:
@@ -110,7 +44,7 @@ So everything below is about a document on the server and this plugin's own endp
 A playlist is a second surface with its own answer to who can see it, and that answer
 belongs here when there is a playlist to describe.
 
-Both absences are stated so this file is not read as covering them.
+That absence is stated so this file is not read as covering it.
 
 ## What is stored
 
@@ -296,6 +230,136 @@ Read again on `7306873`. It said 55 until then, because the reader that test cal
 moved to a file of its own and the change that moved it did not carry this paste.
 
 What each route answers is in [docs/api.md](api.md).
+
+## The shared list
+
+Everything above this heading is a user's own list. This section is the other list
+kind, and it answers the same questions differently because it is a different thing:
+one list for the whole server, written by everybody who can reach it.
+
+**No server has one.** This is where the negative statement belongs and it is stated
+before anything else, because every sentence after it describes a list that does not
+exist on anybody's machine yet. The record exists and the endpoints exist; nothing
+creates a list. No setting creates one, no scheduled pass creates one, and there is no
+route that would. Creating it is #87 and it has not been built, so all three endpoints
+answer that there is none, and nothing about any user sits in a shared list today.
+
+That is checkable rather than asserted. The controller reads the shared record and
+asks the store to change one, and it never writes a document, which is what a creation
+would be:
+
+    git grep -lE 'WriteShared|ReadShared' -- Jellyfin.Plugin.Watchlist
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentFormat.cs
+    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
+
+    git grep -c 'WriteShared' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs ; echo "exit=$?"
+    exit=1
+
+So what follows is what a reader will be able to see once somebody builds the surface
+that makes one, written before that ships rather than after, because a published
+statement about who can see what has already been read by the time it is corrected.
+
+### Who can read it
+
+**Every user of the server.** Not a set an administrator picks: the list is one object
+and the read endpoint is bound to nothing narrower than being somebody this server
+knows. There are three shared routes and none of them takes a user identifier, exactly
+as the private ones do not:
+
+    git grep -n 'HttpGet("Shared\|HttpPost("Shared\|HttpDelete("Shared' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:214:    [HttpGet("Shared/Items")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:248:    [HttpPost("Shared/Items/{itemId}")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:287:    [HttpDelete("Shared/Items/{itemId}")]
+
+**Anybody with file access to the server**, for the same reason a private list is
+readable that way. It is one plain file under the same folder, and its name is not one
+any user identifier can produce, so it cannot be mistaken for somebody's document:
+
+    grep -n 'SharedListFileName =' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
+    47:    internal const string SharedListFileName = "shared-list.json";
+
+**Two readers can get different answers.** An entry whose library item a caller cannot
+see is left out of that caller's reading, so the shared list cannot be used to learn
+what sits in a library they have no access to. The entry stays on the list for
+everybody else, and the caller is not told it was left out:
+
+    grep -n 'public void AnEntryTheCallerCannotSeeIsLeftOutAndStaysOnTheList' \
+      Jellyfin.Plugin.Watchlist.Tests/SharedWatchlistApiTests.cs
+    355:    public void AnEntryTheCallerCannotSeeIsLeftOutAndStaysOnTheList()
+
+### Who can change it
+
+**Anybody who may use the server may add.** There is no curator and no approval step.
+
+**A removal is allowed to two people**: whoever put the entry there, and an
+administrator. Whether a caller is an administrator is the server's own answer, asked
+through the server's elevation policy rather than decided by a rule kept in this
+plugin. A removal by anybody else is refused and changes nothing.
+
+This is the answer to question 7 on #1, taken on 2026-08-24, and the endpoints
+implement it rather than restating it. What each request answers is in
+[api.md](api.md).
+
+### What a reader learns about other people
+
+**Who put each title on the list.** This is the sentence that decides the privacy
+character of this list, so it is stated plainly rather than left to be inferred: every
+entry on the shared list carries the identifier of the user who added it, and that
+identifier is returned to every reader of the list.
+
+    grep -n 'public Guid? AddedBy' Jellyfin.Plugin.Watchlist/Api/WatchlistEntryView.cs
+    79:    public Guid? AddedBy { get; init; }
+
+So a shared list is not a list of titles. It is a record of which named people on this
+server wanted to watch which things, readable by everyone else on it. That is the
+answer to question 8 on #1, taken deliberately on 2026-08-24 over the alternative of
+storing the name and never returning it: the attribution is what makes an entry
+somebody's suggestion rather than an anonymous one, and it is also what tells a caller
+which entries they may take off again.
+
+A user who does not want that known about them should not add the title. There is no
+setting that makes an entry anonymous, and this page does not imply one.
+
+**And nothing else.** The record holds four members, and none of them is about a
+reader:
+
+    grep -n 'get; init;' Jellyfin.Plugin.Watchlist/Store/SharedWatchlistDocument.cs
+    47:    public required int SchemaVersion { get; init; }
+    52:    public required Guid ListId { get; init; }
+    63:    public required Guid OwnerUserId { get; init; }
+    68:    public required IReadOnlyList<WatchlistEntry> Entries { get; init; }
+
+**The shared list holds no per-user reading state.** Nobody learns from it who has
+opened the list, who has looked at an entry, or what anybody has watched. Reading it
+writes nothing at all, so the list does not record that a read happened. The one
+watched-related value this plugin stores is a per-user preference on that user's own
+document and is not on this record:
+
+    grep -n 'public bool? RemoveWhenWatched' Jellyfin.Plugin.Watchlist/Store/WatchlistUserPreferences.cs
+    43:    public bool? RemoveWhenWatched { get; init; }
+
+**And a private list is not reachable from here.** No endpoint returns another user's
+private list, which is a property of the whole route set rather than of these three,
+and the shared routes did not weaken it: they are separate routes rather than a list
+identifier added to the private ones, so there is no spelling of a shared request that
+names a private list.
+
+### What is stored on it
+
+The same four values a private entry carries, and the fifth that a private entry does
+not: who added it. A private entry leaves that member unset, so a user's own document
+holds what it held before the shared list existed, and the two are held apart by the
+suite from both sides:
+
+    grep -n 'public void TheReadSaysWhoAddedEachEntry\|public void APrivateListSaysNothingAboutWhoAddedAnEntry' \
+      Jellyfin.Plugin.Watchlist.Tests/SharedWatchlistApiTests.cs
+    104:    public void TheReadSaysWhoAddedEachEntry()
+    121:    public void APrivateListSaysNothingAboutWhoAddedAnEntry()
+
+How long an entry stays, and what an uninstall leaves behind, are the same answers the
+sections above give for a private list: until somebody removes it, and everything
+stays where it is.
 
 ## What a refusal does not give away
 
