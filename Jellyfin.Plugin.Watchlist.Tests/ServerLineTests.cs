@@ -33,8 +33,9 @@ public class ServerLineTests
     /// The move it probes is the next one this tree will make, from the line it builds
     /// against today to the one the second half of #4 adds. It is a version inside a
     /// fixture string and never a reference anything restores, so it names the line and
-    /// not a package: which 12.0 version this repository would pin is question 5 on #1
-    /// and nothing here answers it.
+    /// not a package: which 12.0 version this repository would pin is decided on #1
+    /// rather than here, and answer 5 there, taken 2026-08-24, is none until a stable
+    /// 12.0 server release exists.
     /// </remarks>
     [Fact]
     public void APackageSetMovedWithoutTheAbiIsRefused()

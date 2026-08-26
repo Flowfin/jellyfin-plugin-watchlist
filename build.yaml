@@ -54,9 +54,10 @@ version: "0.1.0.0"
 # file and reds when the two name different lines.
 #
 # 10.11, because that is the package set the project references. The 12.0 artifact is
-# the other half of #4 and waits on question 5 on #1; when it arrives it is a second
-# manifest with its own ABI and its own framework, because one entry cannot claim two
-# lines.
+# the other half of #4, and what it waits on is a stable 12.0 server release rather
+# than a decision: answer 5 on #1, taken 2026-08-24, is that 1.0 ships this artifact
+# alone and the 12.0 one follows that release. When it arrives it is a second manifest
+# with its own ABI and its own framework, because one entry cannot claim two lines.
 targetAbi: "10.11.0.0"
 # The framework that line runs, taken from the package rather than chosen: the
 # Jellyfin.Controller 10.11.11 nuspec declares a net9.0 dependency group, and the
