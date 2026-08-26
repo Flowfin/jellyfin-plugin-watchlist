@@ -31,10 +31,17 @@ that. Authorisation is the server's, under its default policy, so a request
 carries whatever token the server already issued to that user and nothing here
 asks for a permission a watchlist has no reason to ask for.
 
-Nothing in this plugin requires administrator rights. Nothing in this plugin
-takes a user identifier either, in a route, in a query or in a body. There is
-deliberately no spelling of any of these requests that names somebody else: a
-caller reads and changes their own list because a request is from them.
+No endpoint here demands administrator rights to be reached. One of them asks
+about them once it has been reached: taking an entry off the shared list is
+allowed to the person who put it there and to an administrator, so the removal
+asks the server's own elevation policy about the caller and refuses on the
+answer. Being an administrator changes nothing about any other endpoint, and it
+gives no access to anybody's private list.
+
+Nothing in this plugin takes a user identifier, in a route, in a query or in a
+body. There is deliberately no spelling of any of these requests that names
+somebody else: a caller reads and changes their own list because a request is
+from them, and the shared list is one object rather than a list per person.
 
 The examples below use a placeholder host and a placeholder token. No value in
 them came from a real server.
@@ -152,6 +159,101 @@ exactly that one.
 Removed and never-there are one answer for the same reason the add's 404 is one
 answer. The caller asked for the list not to hold the item, and it does not.
 Separating the two would be a way of reading a list by writing to it.
+
+## GET Watchlist/Shared/Items
+
+Reads the one list the whole server shares, oldest entry first.
+
+No parameters.
+
+Each entry carries what the private list's entries carry and one thing more: the
+identifier of the user who put it on the list. That is stored and returned on
+purpose. A shared list is written by everybody, so a title on it is somebody's
+suggestion rather than an anonymous fact, and it is also what tells a caller
+which entries they may take off again.
+
+Two callers can get different answers from this one list. An entry is left out
+for a caller whose libraries do not hold the item, exactly as an unresolvable
+entry is left out of a private list, so a shared list cannot be used to learn
+what sits in a library the caller has no access to.
+
+    curl -H 'Authorization: MediaBrowser Token="<token>"' \
+      https://jellyfin.example/Watchlist/Shared/Items
+
+| response | what it means |
+| --- | --- |
+| 200 | The shared list. It is empty when nobody has put anything on it, and that is not an error. |
+| 401 | The request carried no user identity this plugin could read. |
+| 404 | This server has no shared list. Nobody has made one. |
+| 503 | The shared list exists and this plugin will not read it. |
+
+The 404 and the empty 200 are different answers to different questions, and
+collapsing them would be the more comfortable mistake. A server on which nobody
+has made a shared list is not a server with an empty one, and a client told the
+list is empty would show a user a shared list that does not exist.
+
+## POST Watchlist/Shared/Items/{itemId}
+
+Puts one library item on the shared list, and records the caller as the person
+who put it there.
+
+| parameter | in | what it is |
+| --- | --- | --- |
+| `itemId` | route | The library item, as the server's own identifier. |
+
+No body. Anybody who may use this server may add to the shared list. Safe to
+repeat, and a repeat by a second person changes nothing: the entry keeps the
+name of whoever put it there first, because taking that name off a title
+somebody else asked for would be the opposite of what the attribution is for.
+
+    curl -X POST -H 'Authorization: MediaBrowser Token="<token>"' \
+      https://jellyfin.example/Watchlist/Shared/Items/00000000000000000000000000000000
+
+| response | what it means |
+| --- | --- |
+| 204 | The item is on the shared list. This call put it there, or it was already there. |
+| 400 | The item is not of a kind a watchlist holds. |
+| 401 | The request carried no user identity this plugin could read. |
+| 404 | There is nothing here for this caller to add, or this server has no shared list. |
+| 409 | The shared list is at its cap. Nothing was added and nothing was removed. |
+| 503 | The shared list exists and this plugin will not write to it. |
+
+The 404 answers three questions with one answer here rather than two. An item
+that is not in the library, an item this caller may not see, and a server with
+no shared list all read the same. The first two are collapsed for the reason the
+private add's 404 gives; the third joins them because a caller who wants to know
+whether a shared list exists reads it, which answers that question directly.
+
+## DELETE Watchlist/Shared/Items/{itemId}
+
+Takes one item off the shared list, if this caller may.
+
+| parameter | in | what it is |
+| --- | --- | --- |
+| `itemId` | route | The library item, as the server's own identifier. |
+
+Who may: the user who put the entry there, and an administrator. Whether a
+caller is an administrator is the server's answer rather than this plugin's, and
+it is asked through the server's own elevation policy.
+
+    curl -X DELETE -H 'Authorization: MediaBrowser Token="<token>"' \
+      https://jellyfin.example/Watchlist/Shared/Items/00000000000000000000000000000000
+
+| response | what it means |
+| --- | --- |
+| 204 | The item is not on the shared list. This call took it off, or it was never there. |
+| 401 | The request carried no user identity this plugin could read. |
+| 403 | The entry is somebody else's and this caller is not an administrator. Nothing was removed. |
+| 404 | This server has no shared list. |
+| 503 | The shared list exists and this plugin will not write to it. |
+
+The 403 says something a 404 would hide, and here that is right. Every entry on
+this list names who added it, so a caller who is told an entry is not theirs
+could have read the same thing off the list a moment earlier. There is nothing
+to protect by pretending the entry is absent, and a caller told 204 for an entry
+that is still there would report a removal that did not happen.
+
+Removed and never-there stay one answer, as on a private list.
 
 ## Setting a per-user preference
 

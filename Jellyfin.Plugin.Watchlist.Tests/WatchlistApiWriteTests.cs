@@ -410,6 +410,7 @@ public sealed class WatchlistApiWriteTests : IDisposable
         describer,
         new PluginConfiguration(),
         clock,
+        AuthorisationAnswering.No(),
         NullLogger<WatchlistController>.Instance);
 
     private IReadOnlyList<WatchlistEntry> StoredFor(Guid userId) =>

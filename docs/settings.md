@@ -180,8 +180,10 @@ the shared list and deletes nothing stored.
 Where it is stored: the plugin's configuration, one value for the whole server.
 
 Not read by anything today. The record the shared list is kept in landed on #83
-and its projection is #84; the record is read by nothing outside the store, so this
-setting has no reader either.
+and the endpoints over it on #85, and neither of them asks this question: what they
+answer is decided by whether a shared list exists on the server, and nothing makes
+one yet. Creating it, and what this switch does to it, is #87. Its projection is
+#84.
 
 ### SharedListName
 
@@ -264,15 +266,22 @@ are.
 Nothing. The server-wide set above is the whole set #32 fixes, and a setting
 beyond it needs its own issue and a reason rather than an extra row here.
 
-What is worth reading twice is how much of it is inert. One of the eight settings
-above is read by the code that ships:
+What is worth reading twice is how much of it is inert. Two of the eight settings
+above are read by the code that ships, and this sentence said one until the shared
+list got its endpoints on #85:
 
     git grep -l 'MaxEntriesPerUser' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
 
-The other seven are saved and kept and read by nothing, because the projection and
-the scheduled task are not built. That sentence named the shared record as a third
-absence and it is one no longer: #83 landed the record on `6930c4a`. It changes
-nothing here, because nothing outside the store reads or writes it, so no setting
-above has gained a reader. A server can set any of them today and see no effect,
-and that is what this file says rather than something a person has to discover.
+    git grep -l 'MaxEntriesInSharedList' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+
+The other six are saved and kept and read by nothing, because the projection and
+the scheduled task are not built.
+
+WHAT A READER OF THE SHARED CAP GETS TODAY IS STILL NOTHING, and that is a
+different sentence from the one above rather than a softening of it. The cap is
+read on every add to the shared list, and no server has a shared list, because
+nothing in this plugin makes one. Creating it is #87. So the setting has a reader
+and that reader is not reachable yet, and an administrator who moves the number
+sees no effect for that reason rather than because nothing looks at it.

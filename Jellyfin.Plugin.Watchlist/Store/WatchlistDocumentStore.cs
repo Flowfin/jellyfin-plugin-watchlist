@@ -452,6 +452,123 @@ public sealed class WatchlistDocumentStore
     }
 
     /// <summary>
+    /// Puts one entry on the shared list, unless that would take it past its cap.
+    /// </summary>
+    /// <param name="entry">The entry to add, carrying who is adding it.</param>
+    /// <param name="maxEntriesInSharedList">
+    /// The greatest number of entries the shared list may hold, passed in for the same
+    /// reason the per-user cap is: the store needs no server to be exercised and the
+    /// caller stays the one place that decides which cap applies.
+    /// </param>
+    /// <returns>What happened, and the numbers behind it.</returns>
+    /// <remarks>
+    /// A server with no shared list is refused rather than given one. Making the list
+    /// is a decision an administrator takes, and an add that made it would take that
+    /// decision on the first call from anybody.
+    ///
+    /// An item already on the list keeps the entry that is there, attribution and all.
+    /// A second person asking for a title that is already on the list is asking for
+    /// the list to hold it, which it does, and rewriting the entry would take the
+    /// first person's name off something they put there.
+    /// </remarks>
+    public WatchlistAddResult AddShared(WatchlistEntry entry, int maxEntriesInSharedList)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        lock (SharedGate())
+        {
+            var read = ReadSharedInsideTheGate();
+
+            if (!read.Exists)
+            {
+                return WatchlistAddResult.RefusedNoSharedList();
+            }
+
+            if (!read.IsAvailable)
+            {
+                return WatchlistAddResult.RefusedListUnavailable();
+            }
+
+            var document = read.Document!;
+
+            if (document.Entries.Any(existing => existing.ItemId == entry.ItemId))
+            {
+                return WatchlistAddResult.AlreadyOnTheList(document.Entries.Count, maxEntriesInSharedList);
+            }
+
+            if (document.Entries.Count >= maxEntriesInSharedList)
+            {
+                _logger.LogWarning(
+                    "Refusing to add to the shared watchlist: it holds {EntryCount} entries and the maximum is {Cap}. Nothing was added and nothing was removed.",
+                    document.Entries.Count,
+                    maxEntriesInSharedList);
+
+                return WatchlistAddResult.RefusedListIsFull(document.Entries.Count, maxEntriesInSharedList);
+            }
+
+            var entries = new List<WatchlistEntry>(document.Entries) { entry };
+
+            Commit(Stage(document with { Entries = entries }));
+
+            return WatchlistAddResult.Added(entries.Count, maxEntriesInSharedList);
+        }
+    }
+
+    /// <summary>
+    /// Takes one entry off the shared list, if this caller may.
+    /// </summary>
+    /// <param name="itemId">The item to take off.</param>
+    /// <param name="callerId">Who is asking.</param>
+    /// <param name="callerMayRemoveAnyEntry">
+    /// Whether this caller may remove an entry somebody else put there. Answered by
+    /// the caller rather than decided here, because who counts as an administrator is
+    /// the server's question and this store never meets a request.
+    /// </param>
+    /// <returns>What happened.</returns>
+    /// <remarks>
+    /// The rule is applied inside the gate rather than by whoever asks. A caller that
+    /// read the list, checked the attribution and then called a plain removal would be
+    /// making two changes out of one, and between them the entry can be removed and a
+    /// different one added under the same item by somebody else.
+    /// </remarks>
+    public SharedWatchlistRemoveResult RemoveShared(Guid itemId, Guid callerId, bool callerMayRemoveAnyEntry)
+    {
+        lock (SharedGate())
+        {
+            var read = ReadSharedInsideTheGate();
+
+            if (!read.Exists)
+            {
+                return SharedWatchlistRemoveResult.NoSharedList();
+            }
+
+            if (!read.IsAvailable)
+            {
+                return SharedWatchlistRemoveResult.Unavailable();
+            }
+
+            var document = read.Document!;
+            var target = document.Entries.FirstOrDefault(existing => existing.ItemId == itemId);
+
+            if (target is null)
+            {
+                return SharedWatchlistRemoveResult.NotOnTheList(document.Entries.Count);
+            }
+
+            if (!callerMayRemoveAnyEntry && target.AddedBy != callerId)
+            {
+                return SharedWatchlistRemoveResult.RefusedNotTheirEntry(document.Entries.Count);
+            }
+
+            var remaining = document.Entries.Where(existing => existing.ItemId != itemId).ToArray();
+
+            Commit(Stage(document with { Entries = remaining }));
+
+            return SharedWatchlistRemoveResult.Removed(remaining.Length);
+        }
+    }
+
+    /// <summary>
     /// The object that serialises changes to the shared list.
     /// </summary>
     /// <returns>The gate for the shared document.</returns>
