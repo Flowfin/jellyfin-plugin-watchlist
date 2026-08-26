@@ -49,8 +49,10 @@ internal static class ServerLine
         ArgumentNullException.ThrowIfNull(version);
 
         // A prerelease suffix belongs to the package and not to the line. 10.11.0-rc1 is
-        // built against the 10.11 line exactly as 10.11.0 is, and question 5 on #1 is
-        // where whether this repository pins such a package is decided rather than here.
+        // built against the 10.11 line exactly as 10.11.0 is. Whether this repository
+        // pins such a package is decided on #1 rather than here, and answer 5 there,
+        // taken 2026-08-24, is that it does not: the 12.0 artifact waits for a stable
+        // 12.0 server release instead of being built against a candidate.
         var numeric = version.Split('-', '+')[0];
         var positions = numeric.Split('.');
 
