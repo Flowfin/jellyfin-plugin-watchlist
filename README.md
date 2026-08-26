@@ -119,14 +119,18 @@ The store is built: the per-user document, its format and version, its atomic
 write, its bound, and the rule for an entry whose item can no longer be
 resolved.
 
-The HTTP endpoints are built. There are three, one to read a user's list and one
-each to put an item on it and take an item off, and what they answer is in
-[docs/api.md](docs/api.md). The configuration page is built and carries the whole
-set of server-wide settings, each described in
-[docs/settings.md](docs/settings.md). Seven of the eight are saved and read by
-nothing yet, because the things they steer are the ones named below as not built;
-that file says which is which rather than leaving an administrator to set a value
-and watch for an effect.
+The HTTP endpoints are built. They read a user's own list and put items on it and
+take items off, they do the same three things for the shared list, and they carry a
+list out of this server and read one back in. No count is written here, because a
+count in this file goes stale while the routes move: [docs/api.md](docs/api.md) is
+the list, and the suite compares it against the endpoints on every run.
+
+The configuration page is built and carries the whole set of server-wide settings,
+each described in [docs/settings.md](docs/settings.md). Seven of the eight are saved
+and read by nothing yet, because the things they steer are the ones named below as
+not built; that file says which is which rather than leaving an administrator to set
+a value and watch for an effect.
+
 The format a list leaves in is fixed, in
 [docs/export-format.md](docs/export-format.md), together with the code that
 writes it and the rule that matches an imported entry onto this server's items,
@@ -136,9 +140,12 @@ counted and left alone, because writing the list everybody reads is an
 administrative operation and there is no administrative surface yet.
 
 The projection into a playlist is not built, and it is the part a user would
-notice, because until it exists the list is reachable over the API and appears
-on no client. The shared list the opening describes is not built either. That is
-why there is no release.
+notice, because until it exists a list is reachable over the API and appears on no
+client. That is true of both kinds of list, which is the part of the shared list
+that is missing rather than the whole of it: the shared record, the setting that
+turns it on and the endpoints that read and change it are all here, and what is
+absent is the playlist it would appear in and the administrator surface that names
+and removes it. That is why there is no release.
 
 One of the two server lines above is not built either. The plugin compiles
 against the 10.11 package set, on the framework that line runs, and the packaging
