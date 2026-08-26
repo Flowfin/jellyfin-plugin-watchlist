@@ -31,6 +31,29 @@ public static class WatchlistDocumentFormat
         JsonSerializer.Deserialize<WatchlistDocument>(text, SerializerOptions)
         ?? throw new JsonException("The document text is the JSON literal null rather than a document.");
 
+    /// <summary>
+    /// Writes the shared list as the text that goes on disk.
+    /// </summary>
+    /// <param name="document">The document to write.</param>
+    /// <returns>The document text.</returns>
+    /// <remarks>
+    /// The same options as a user's document, deliberately. Two lists written by one
+    /// plugin under two sets of rules is two on-disk shapes to keep in step, and the
+    /// entry inside them is one type.
+    /// </remarks>
+    public static string Write(SharedWatchlistDocument document) =>
+        JsonSerializer.Serialize(document, SerializerOptions);
+
+    /// <summary>
+    /// Reads the shared list from the text on disk.
+    /// </summary>
+    /// <param name="text">The document text.</param>
+    /// <returns>The document.</returns>
+    /// <exception cref="JsonException">The text is not a document this plugin wrote.</exception>
+    public static SharedWatchlistDocument ReadShared(string text) =>
+        JsonSerializer.Deserialize<SharedWatchlistDocument>(text, SerializerOptions)
+        ?? throw new JsonException("The document text is the JSON literal null rather than a document.");
+
     private static JsonSerializerOptions BuildOptions()
     {
         var options = new JsonSerializerOptions

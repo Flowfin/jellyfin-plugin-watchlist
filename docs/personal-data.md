@@ -5,7 +5,10 @@ server other people may administer, so it is written down here rather than left 
 worked out from the source: what is kept, where it is kept, how long it stays, who can
 read it, and what leaves the machine.
 
-Every reading below was taken on `8edffa9`, the commit this file lands on top of.
+Every reading below was taken on `8edffa9`, except the four that moved when the
+shared list got a record of its own. Those four were re-taken on `6930c4a` and say so
+where they stand; every other command in this file was re-run at that commit and still
+prints what is pasted under it.
 
 ## The two things this file does not describe
 
@@ -13,11 +16,19 @@ Every reading below was taken on `8edffa9`, the commit this file lands on top of
 can see. That list has a different answer to every question below, and the one that
 decides its character is whether an entry records who put it there: a list of titles
 and a record of what named people wanted to watch are two different statements to make
-to a reader. That question is open on #1, and there is no shared record in the tree to
-describe either. The store is fourteen files and none of them is one:
+to a reader.
+
+THIS PARAGRAPH SAID THAT QUESTION WAS OPEN AND THAT NO SHARED RECORD WAS IN THE TREE.
+Both halves have moved and they moved in opposite directions for a reader, so neither
+is dropped in silence. The question is answered on #1 - one shared list per server, and
+an entry that records who put it there, visible to everyone who can see the list - and
+the record now exists. Re-taken on `6930c4a`, where the store is sixteen files and two
+of them are it:
 
     git ls-files 'Jellyfin.Plugin.Watchlist/Store/*'
     Jellyfin.Plugin.Watchlist/Store/IWatchlistItemResolver.cs
+    Jellyfin.Plugin.Watchlist/Store/SharedWatchlistDocument.cs
+    Jellyfin.Plugin.Watchlist/Store/SharedWatchlistReadResult.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistAddOutcome.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistAddResult.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocument.cs
@@ -32,26 +43,48 @@ describe either. The store is fourteen files and none of them is one:
     Jellyfin.Plugin.Watchlist/Store/WatchlistUserPreferences.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistVisibility.cs
 
+WHAT NO SERVER HOLDS IS THE POINT TO READ CAREFULLY, and this is a negative statement
+rather than a softened positive one. A record existing in the source and a list
+existing on somebody's machine are different things. Nothing in this plugin creates a
+shared list, writes to one, or reads one on behalf of a caller: there is no endpoint
+for it, no setting that makes one, and no scheduled pass that would touch it. The
+two members that read and write it are named in the store that declares them and
+nowhere else in the plugin, and the only caller of either is the suite:
+
+    git grep -lE 'WriteShared|ReadShared' -- Jellyfin.Plugin.Watchlist
+    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentFormat.cs
+    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
+
+    git grep -lE 'WriteShared|ReadShared' -- Jellyfin.Plugin.Watchlist.Tests
+    Jellyfin.Plugin.Watchlist.Tests/SharedWatchlistDocumentTests.cs
+
+The first two are the declaration and the reader beside it, so nothing in the shipped
+assembly calls either from outside the store. On a running server there is therefore no
+shared list, nothing about any user sits in one, and everything the rest of this page
+says about who can read what is unaffected by the record having arrived.
+
+The section this page still owes is the one that describes that list to a reader: who
+sees it, what they learn about other people from it, and that an entry names the person
+who added it. It is #69, it is written before the list ships rather than after, and it
+is not written here in advance of the surface it would describe, because a published
+statement about who can see what has already been read by the time it is corrected.
+
 The export format already carries the kind, so a reader of an exported file can tell
 the two apart, and the shared half of it is fed values by a caller rather than read
-from a record that exists:
+from the record. Re-taken on `6930c4a`; the three lines said the record was not built
+yet, and the change that built it corrected them where they stand:
 
     grep -n 'The pieces are passed in rather than read from a shared record' -A 2 \
       Jellyfin.Plugin.Watchlist/Export/WatchlistExporter.cs
-    52:    /// The pieces are passed in rather than read from a shared record, because the
-    53-    /// record that holds a shared list is not built yet. Whoever builds it maps it
-    54-    /// onto this call, and the format does not move when they do.
+    52:    /// The pieces are passed in rather than read from a shared record. That said the
+    53-    /// record was not built yet, and it is: what has not been written is the caller
+    54-    /// that maps one onto this call, and the format does not move when it is.
 
-Those two trailing lines carried a colon rather than a dash until this sentence
-landed beside them, which is what `grep` prints for a line that matched rather
-than for one it pulled in as context. The wording is identical either way, so the
-three lines were arranged by hand instead of taken from the command, and only the
-one line the pattern names is a match. Found by running every command pasted in
-this file and comparing it with what stands under it.
-
-A section for the shared list is owed before that list ships, and it is not written
-here in advance of the answer, because a published statement about who can see what has
-already been read by the time it is corrected.
+Those two trailing lines carry a dash rather than a colon, which is what `grep` prints
+for a line it pulled in as context rather than one that matched. Only the line the
+pattern names is a match, and the three were once arranged by hand instead of taken
+from the command, which is what an earlier reading of this file found by running every
+command pasted in it and comparing it with what stands under it.
 
 **The projected playlists.** The way a list is meant to become visible on a client is
 a playlist owned by that user. Nothing projects one yet:
@@ -67,19 +100,33 @@ Both absences are stated so this file is not read as covering them.
 
 ## What is stored
 
-Four values per entry, and nothing copied out of the library:
+Four values per entry, and nothing copied out of the library. Re-taken on `6930c4a`,
+where the line numbers moved by one and the four members did not:
 
     grep -n 'public required' Jellyfin.Plugin.Watchlist/Store/WatchlistEntry.cs
-    18:    public required Guid ItemId { get; init; }
-    23:    public required WatchlistItemKind Kind { get; init; }
-    28:    public required DateTimeOffset AddedAt { get; init; }
-    33:    public required WatchlistEntrySource Source { get; init; }
+    19:    public required Guid ItemId { get; init; }
+    24:    public required WatchlistItemKind Kind { get; init; }
+    29:    public required DateTimeOffset AddedAt { get; init; }
+    34:    public required WatchlistEntrySource Source { get; init; }
 
 An identifier for the library item, what kind of item it was recorded as, the instant
 the entry was added in UTC, and how it arrived. No title, no image, no file path. That
 started as a correctness rule, because a copied title is wrong the moment the media is
 renamed, and it is the reason a stored list says less about a person than the same list
 written out in words.
+
+There is a fifth member on the type and it is not on a user's entry. It records who put
+an entry on the shared list, and a user's own list has one writer, so nothing sets it
+on one:
+
+    grep -n 'public Guid? AddedBy' Jellyfin.Plugin.Watchlist/Store/WatchlistEntry.cs
+    53:    public Guid? AddedBy { get; init; }
+
+Unset, it is left out of the document rather than written as an empty value, so a
+user's document holds the same four values it held before the member existed. That is a
+property of the bytes and the suite refuses the other spelling: written as an empty
+value instead, three tests red, two of them the ones that hold the private document's
+shape against the committed sample.
 
 Three values around those entries, per user:
 
@@ -141,10 +188,20 @@ in today:
 One document per user, in the plugin's own data folder, named after that user's
 identifier and nothing else:
 
-    sed -n '88,90p' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
+    sed -n '107,109p' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
         public string PathFor(Guid userId) => Path.Combine(
             _dataFolderPath,
             string.Format(CultureInfo.InvariantCulture, "{0}.json", userId.ToString("N", CultureInfo.InvariantCulture)));
+
+Re-taken on `6930c4a`. The three lines are the ones this file has always pasted and the
+range that prints them moved, because the shared list's own path went in above them:
+
+    grep -n 'public string SharedListPath' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
+    95:    public string SharedListPath => Path.Combine(_dataFolderPath, SharedListFileName);
+
+That file is under the same folder and cannot be named by any identifier a server can
+mint, so it can never be mistaken for somebody's document. No server has one, for the
+reason stated at the top of this page.
 
 Which folder that is on a running server was measured against a stock container and is
 in [docs/uninstall.md](uninstall.md), beside the two other paths this plugin leaves
@@ -243,11 +300,12 @@ is outside it.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Seven places log at all:
+library. Re-taken on `6930c4a`, where nine places log at all and the count said seven
+until the shared list's two refusals were added:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:4
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:3
+    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:5
 
 and what they name is the calling user's identifier, an item identifier, the kind the
 library holds an item as, an entry count, a configured maximum, and a schema version.
@@ -263,8 +321,14 @@ plugin refuses to read is reported with its path, and the file name is the user'
 identifier, so a refused read puts that identifier in the server log:
 
     grep -n 'Refusing to read {Path}' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
-    133:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
-    148:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+    152:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+    167:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+    414:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    425:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+
+Re-taken on `6930c4a`. The paste held two lines until the shared list gained the same
+two refusals, and the last two of the four name a path that is the shared list's file
+rather than anybody's identifier.
 
 The path is what makes that line actionable, since it names the file somebody has to
 look at, and an identifier without the list beside it says nothing about what anyone

@@ -33,6 +33,20 @@ public sealed class WatchlistDocumentStore
     internal const string PendingSuffix = ".writing";
 
     /// <summary>
+    /// The file the one shared list lives in, under the same folder as every user's
+    /// document.
+    /// </summary>
+    /// <remarks>
+    /// It cannot collide with a user's document, and that is a property of the two
+    /// names rather than a name chosen because a collision looked unlikely. Every
+    /// user document is named by an identifier in its hexadecimal form, which is
+    /// thirty-two hexadecimal digits and nothing else; this name is not one, so no
+    /// identifier a server can mint produces it. The test asserts exactly that rather
+    /// than comparing against a handful of identifiers somebody thought of.
+    /// </remarks>
+    internal const string SharedListFileName = "shared-list.json";
+
+    /// <summary>
     /// One gate per document path, shared by every store in the process. Two stores
     /// over one folder are two objects guarding one file, and the file is what the
     /// serialisation is about.
@@ -74,6 +88,11 @@ public sealed class WatchlistDocumentStore
     /// Gets the folder every document lives in, resolved.
     /// </summary>
     public string DataFolderPath => _dataFolderPath;
+
+    /// <summary>
+    /// Gets where the one shared list lives.
+    /// </summary>
+    public string SharedListPath => Path.Combine(_dataFolderPath, SharedListFileName);
 
     /// <summary>
     /// Where one user's document lives.
@@ -357,6 +376,93 @@ public sealed class WatchlistDocumentStore
     }
 
     /// <summary>
+    /// Reads the shared list.
+    /// </summary>
+    /// <returns>
+    /// The stored list, or the answer that this server has none, or an unavailable
+    /// result for a document this plugin will not read. A server with no shared list
+    /// is not a server with an empty one: nobody has made one, and a caller that
+    /// cannot tell those apart makes a second list out of a read.
+    /// </returns>
+    /// <remarks>
+    /// A read never writes, and the version rule is the one a user's document is read
+    /// under. Both refusals leave the file exactly as it was.
+    /// </remarks>
+    public SharedWatchlistReadResult ReadShared()
+    {
+        lock (SharedGate())
+        {
+            return ReadSharedInsideTheGate();
+        }
+    }
+
+    private SharedWatchlistReadResult ReadSharedInsideTheGate()
+    {
+        var path = SharedListPath;
+
+        if (!File.Exists(path))
+        {
+            return SharedWatchlistReadResult.NoSharedList();
+        }
+
+        var stored = ParseDocument(File.ReadAllText(path));
+        var storedVersion = ReadSchemaVersion(stored);
+
+        if (storedVersion > SharedWatchlistDocument.CurrentSchemaVersion)
+        {
+            _logger.LogError(
+                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+                path,
+                storedVersion,
+                SharedWatchlistDocument.CurrentSchemaVersion);
+
+            return SharedWatchlistReadResult.UnavailableFromTheFuture(storedVersion);
+        }
+
+        if (!WatchlistDocumentUpgrades.CanBringSharedForward(storedVersion))
+        {
+            _logger.LogError(
+                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+                path,
+                storedVersion,
+                SharedWatchlistDocument.CurrentSchemaVersion);
+
+            return SharedWatchlistReadResult.UnavailableFromAnUnreachableVersion(storedVersion);
+        }
+
+        var upgraded = WatchlistDocumentUpgrades.BringSharedForward(stored, storedVersion);
+
+        return SharedWatchlistReadResult.Available(
+            WatchlistDocumentFormat.ReadShared(upgraded.ToJsonString()));
+    }
+
+    /// <summary>
+    /// Writes the shared list, so that a reader sees either the whole of the old one
+    /// or the whole of the new one and never part of either.
+    /// </summary>
+    /// <param name="document">The document to write.</param>
+    public void WriteShared(SharedWatchlistDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        lock (SharedGate())
+        {
+            Commit(Stage(document));
+        }
+    }
+
+    /// <summary>
+    /// The object that serialises changes to the shared list.
+    /// </summary>
+    /// <returns>The gate for the shared document.</returns>
+    /// <remarks>
+    /// Keyed by the path, in the same dictionary a user's gate is keyed in, so two
+    /// stores over one folder share it. It is not any user's gate, so writing the
+    /// shared list never waits for a user's list and never blocks one.
+    /// </remarks>
+    internal object SharedGate() => Gates.GetOrAdd(SharedListPath, _ => new object());
+
+    /// <summary>
     /// An empty document for a user, which is what a read of a file that is not there
     /// returns.
     /// </summary>
@@ -366,6 +472,26 @@ public sealed class WatchlistDocumentStore
     {
         SchemaVersion = WatchlistDocument.CurrentSchemaVersion,
         UserId = userId,
+        Entries = [],
+    };
+
+    /// <summary>
+    /// A shared list holding nothing, for a server on which one is being made.
+    /// </summary>
+    /// <param name="listId">The identity of the list, which is not its displayed name.</param>
+    /// <param name="ownerUserId">The user the list belongs to.</param>
+    /// <returns>An empty shared document.</returns>
+    /// <remarks>
+    /// Not what a read of a missing file returns, which is the difference between this
+    /// record and a user's. A user's list exists because the user does; a shared list
+    /// exists because somebody made one, so this is called by whoever makes it rather
+    /// than by a read.
+    /// </remarks>
+    public static SharedWatchlistDocument EmptyShared(Guid listId, Guid ownerUserId) => new()
+    {
+        SchemaVersion = SharedWatchlistDocument.CurrentSchemaVersion,
+        ListId = listId,
+        OwnerUserId = ownerUserId,
         Entries = [],
     };
 
@@ -395,9 +521,33 @@ public sealed class WatchlistDocumentStore
     }
 
     /// <summary>
+    /// The same for the shared list, through the same two halves.
+    /// </summary>
+    /// <param name="document">The document to write.</param>
+    /// <returns>The staged file and the target it is for.</returns>
+    /// <remarks>
+    /// The shared list is written by the writer a user's document is written by, so an
+    /// interrupted write leaves a staged file beside the list rather than a truncated
+    /// list, and that is one behaviour rather than two.
+    /// </remarks>
+    internal StagedWrite Stage(SharedWatchlistDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        Directory.CreateDirectory(_dataFolderPath);
+
+        var target = SharedListPath;
+        var staged = target + PendingSuffix;
+
+        File.WriteAllText(staged, WatchlistDocumentFormat.Write(document));
+
+        return new StagedWrite(staged, target);
+    }
+
+    /// <summary>
     /// Puts a staged write in place of the document, in one step.
     /// </summary>
-    /// <param name="staged">What <see cref="Stage"/> returned.</param>
+    /// <param name="staged">What either <c>Stage</c> overload returned.</param>
     /// <remarks>
     /// The staged file is in the same directory as the target, so this is a rename
     /// within one volume rather than a copy. A reader either opens the old file or the

@@ -42,10 +42,29 @@ public static class WatchlistDocumentUpgrades
         };
 
     /// <summary>
+    /// The same, for the shared list. Empty, because that record is at its first
+    /// version and there is nothing behind it to come forward from.
+    /// </summary>
+    /// <remarks>
+    /// Empty rather than absent. The chain is what decides whether a stored version is
+    /// readable, so the shared record is judged by the same rule as a user's from its
+    /// first version rather than from the first version that needed a step. A document
+    /// declaring version 0 is refused here today, and it is refused by the rule rather
+    /// than by there being no code to run.
+    /// </remarks>
+    private static readonly IReadOnlyDictionary<int, Func<JsonObject, JsonObject>> ShippedSharedSteps =
+        new Dictionary<int, Func<JsonObject, JsonObject>>();
+
+    /// <summary>
     /// Gets the steps this plugin ships, for a test that reads the real chain rather
     /// than a fixture one.
     /// </summary>
     internal static IReadOnlyDictionary<int, Func<JsonObject, JsonObject>> Steps => ShippedSteps;
+
+    /// <summary>
+    /// Gets the shared list's steps, for the same reason.
+    /// </summary>
+    internal static IReadOnlyDictionary<int, Func<JsonObject, JsonObject>> SharedSteps => ShippedSharedSteps;
 
     /// <summary>
     /// Whether a document declaring this version can be brought to the version this
@@ -68,6 +87,29 @@ public static class WatchlistDocumentUpgrades
     /// </exception>
     public static JsonObject BringForward(JsonObject document, int storedSchemaVersion) =>
         Apply(document, storedSchemaVersion, WatchlistDocument.CurrentSchemaVersion, ShippedSteps);
+
+    /// <summary>
+    /// Whether a stored shared list declaring this version can be brought to the
+    /// version this plugin writes.
+    /// </summary>
+    /// <param name="storedSchemaVersion">The version the document declares.</param>
+    /// <returns>True when every step between the two exists.</returns>
+    public static bool CanBringSharedForward(int storedSchemaVersion) =>
+        Covers(storedSchemaVersion, SharedWatchlistDocument.CurrentSchemaVersion, ShippedSharedSteps);
+
+    /// <summary>
+    /// Brings a stored shared list up to the version this plugin writes.
+    /// </summary>
+    /// <param name="document">The document as it was stored.</param>
+    /// <param name="storedSchemaVersion">The version it declares.</param>
+    /// <returns>The document at the current version.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// A step between the two versions is missing. Ask
+    /// <see cref="CanBringSharedForward"/> first; a caller that did not is a caller
+    /// that would have relabelled.
+    /// </exception>
+    public static JsonObject BringSharedForward(JsonObject document, int storedSchemaVersion) =>
+        Apply(document, storedSchemaVersion, SharedWatchlistDocument.CurrentSchemaVersion, ShippedSharedSteps);
 
     /// <summary>
     /// Whether a chain of steps reaches from one version to another.
