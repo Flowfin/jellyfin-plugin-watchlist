@@ -249,6 +249,7 @@ public sealed class WatchlistApiReadTests : IDisposable
         describer,
         new PluginConfiguration(),
         new StoppedClock(WhenItWasAdded),
+        AuthorisationAnswering.No(),
         NullLogger<WatchlistController>.Instance);
 
     private void Store(Guid userId, params WatchlistEntry[] entries)

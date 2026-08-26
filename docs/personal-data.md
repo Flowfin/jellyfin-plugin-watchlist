@@ -45,29 +45,43 @@ of them are it:
 
 WHAT NO SERVER HOLDS IS THE POINT TO READ CAREFULLY, and this is a negative statement
 rather than a softened positive one. A record existing in the source and a list
-existing on somebody's machine are different things. Nothing in this plugin creates a
-shared list, writes to one, or reads one on behalf of a caller: there is no endpoint
-for it, no setting that makes one, and no scheduled pass that would touch it. The
-two members that read and write it are named in the store that declares them and
-nowhere else in the plugin, and the only caller of either is the suite:
+existing on somebody's machine are different things.
+
+There are endpoints over that record now, and they are described in
+[api.md](api.md). They read the shared list, add to it and take entries off it, and
+none of them makes one. Nothing else in this plugin makes one either: no setting
+creates it, no scheduled pass creates it, and there is no route that would. Creating
+it is #87 and it has not been built.
+
+So on a server running this plugin today there is no shared list, and every one of
+those three endpoints answers that there is none. Nothing about any user sits in a
+shared list, and everything the rest of this page says about who can read what is
+unaffected by the record and its endpoints having arrived.
+
+That is checkable rather than asserted. The two members that read and write the
+record are named by the store that declares them and by the controller that calls
+them, and by nothing that could create one:
 
     git grep -lE 'WriteShared|ReadShared' -- Jellyfin.Plugin.Watchlist
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentFormat.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
 
-    git grep -lE 'WriteShared|ReadShared' -- Jellyfin.Plugin.Watchlist.Tests
-    Jellyfin.Plugin.Watchlist.Tests/SharedWatchlistDocumentTests.cs
+    git grep -c 'WriteShared' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs ; echo "exit=$?"
+    exit=1
 
-The first two are the declaration and the reader beside it, so nothing in the shipped
-assembly calls either from outside the store. On a running server there is therefore no
-shared list, nothing about any user sits in one, and everything the rest of this page
-says about who can read what is unaffected by the record having arrived.
+The controller reads the shared list and asks the store to change one; it never
+writes a document, which is what a creation would be.
 
 The section this page still owes is the one that describes that list to a reader: who
 sees it, what they learn about other people from it, and that an entry names the person
-who added it. It is #69, it is written before the list ships rather than after, and it
-is not written here in advance of the surface it would describe, because a published
-statement about who can see what has already been read by the time it is corrected.
+who added it. It is #69, and it is written before the list ships rather than after.
+What is now decided rather than open, and belongs in it when it is written: everybody
+on the server may read the shared list and add to it, every entry names the user who
+added it and that name is returned to every reader, and a removal is allowed to that
+user and to an administrator. Those are the answers to questions 7 and 8 on #1 as the
+endpoints implement them, and stating them in a sentence here would be the section
+rather than a note before it.
 
 The export format already carries the kind, so a reader of an exported file can tell
 the two apart, and the shared half of it is fed values by a caller rather than read
@@ -276,7 +290,7 @@ and the route set is written down and held to what the assembly actually exposes
 
     grep -n 'public void TheRoutesAreTheOnesWrittenDown' \
       Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs
-    41:    public void TheRoutesAreTheOnesWrittenDown()
+    44:    public void TheRoutesAreTheOnesWrittenDown()
 
 Read again on `7306873`. It said 55 until then, because the reader that test calls
 moved to a file of its own and the change that moved it did not carry this paste.
@@ -297,15 +311,24 @@ Eight spellings of a refusal that explains itself, each one a red run. The bound
 that is written beside the rules: the scan is line-based, so a call split across lines
 is outside it.
 
+One refusal does separate two cases rather than collapsing them, and it is worth
+naming here rather than being found. Taking an entry off the shared list is refused
+with its own code when the entry is somebody else's, instead of being answered as
+though the entry were not there. What that discloses is that the entry exists and is
+not the caller's, and the caller could have read exactly that off the shared list a
+moment earlier, because every entry on it names who added it. It discloses nothing
+about a library: an entry the caller may not see is left out of their reading of the
+list in the first place.
+
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Re-taken on `6930c4a`, where nine places log at all and the count said seven
-until the shared list's two refusals were added:
+library. Fifteen places log at all, and the count said seven before the shared list's
+record and then its endpoints arrived:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:4
-    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:5
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:9
+    Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:6
 
 and what they name is the calling user's identifier, an item identifier, the kind the
 library holds an item as, an entry count, a configured maximum, and a schema version.
