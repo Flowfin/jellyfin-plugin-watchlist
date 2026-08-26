@@ -179,7 +179,9 @@ the shared list and deletes nothing stored.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
-Not read by anything today. The shared record is #83 and its projection is #84.
+Not read by anything today. The record the shared list is kept in landed on #83
+and its projection is #84; the record is read by nothing outside the store, so this
+setting has no reader either.
 
 ### SharedListName
 
@@ -268,7 +270,9 @@ above is read by the code that ships:
     git grep -l 'MaxEntriesPerUser' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
 
-The other seven are saved and kept and read by nothing, because the projection,
-the scheduled task and the shared record are not built. A server can set any of
-them today and see no effect, and that is what this file says rather than
-something a person has to discover.
+The other seven are saved and kept and read by nothing, because the projection and
+the scheduled task are not built. That sentence named the shared record as a third
+absence and it is one no longer: #83 landed the record on `6930c4a`. It changes
+nothing here, because nothing outside the store reads or writes it, so no setting
+above has gained a reader. A server can set any of them today and see no effect,
+and that is what this file says rather than something a person has to discover.

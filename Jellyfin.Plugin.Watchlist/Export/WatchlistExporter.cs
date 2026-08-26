@@ -49,9 +49,9 @@ public static class WatchlistExporter
     /// <param name="providers">Where the provider identifiers come from.</param>
     /// <returns>The list as it goes into an export.</returns>
     /// <remarks>
-    /// The pieces are passed in rather than read from a shared record, because the
-    /// record that holds a shared list is not built yet. Whoever builds it maps it
-    /// onto this call, and the format does not move when they do.
+    /// The pieces are passed in rather than read from a shared record. That said the
+    /// record was not built yet, and it is: what has not been written is the caller
+    /// that maps one onto this call, and the format does not move when it is.
     /// </remarks>
     public static ExportedList SharedList(
         Guid? listId,
