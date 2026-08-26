@@ -125,11 +125,26 @@ lose the list.
 An exported list carries one value per entry that the store does not, the provider
 identifiers of the item, so that an import onto a different server can match a title
 rather than an identifier that means nothing there. What that file holds is in
-[docs/export-format.md](export-format.md), and no endpoint hands one out or takes one
-in today:
+[docs/export-format.md](export-format.md).
 
-    git grep -nE 'Export|Import' -- Jellyfin.Plugin.Watchlist/Api/ ; echo "exit=$?"
-    exit=1
+**THIS PARAGRAPH SAID NO ENDPOINT HANDS ONE OUT OR TAKES ONE IN, AND TWO DO.** They
+landed on #40 and the absence under them was never taken again, so a reader of this
+page was told the export never leaves the server through an endpoint while a route
+was handing it to whoever asked for their own:
+
+    git grep -cE 'Export|Import' -- Jellyfin.Plugin.Watchlist/Api/
+    Jellyfin.Plugin.Watchlist/Api/LibraryProviderIds.cs:1
+    Jellyfin.Plugin.Watchlist/Api/WatchlistImportEntryReport.cs:4
+    Jellyfin.Plugin.Watchlist/Api/WatchlistImportOutcome.cs:1
+    Jellyfin.Plugin.Watchlist/Api/WatchlistImportReport.cs:9
+    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:48
+
+What the two routes do is bounded and it is worth stating exactly, because the
+sentence they replace was about who can get the data out. `GET Watchlist/Export`
+hands the caller their OWN list, as an export, and takes no user identifier, like
+every other route here; `POST Watchlist/Import` writes into the caller's own list
+from a body they supplied. Neither reaches another user's list, neither sends
+anything anywhere, and what each answers is in [docs/api.md](api.md).
 
 ## Where it is stored
 
@@ -224,10 +239,14 @@ and the route set is written down and held to what the assembly actually exposes
 
     grep -n 'public void TheRoutesAreTheOnesWrittenDown' \
       Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs
-    44:    public void TheRoutesAreTheOnesWrittenDown()
+    46:    public void TheRoutesAreTheOnesWrittenDown()
 
-Read again on `7306873`. It said 55 until then, because the reader that test calls
-moved to a file of its own and the change that moved it did not carry this paste.
+Read again on `331b2af`. It has now said 55 and then 44, and each time the change
+that moved the line did not carry the paste: first the reader that test calls moved
+to a file of its own, then the export and the import were added to the pinned set.
+The number is what a reader follows to check the claim rather than the claim itself,
+and a number that has gone wrong twice for the same reason is worth naming as a habit
+rather than repairing quietly.
 
 What each route answers is in [docs/api.md](api.md).
 
@@ -440,13 +459,15 @@ request:
       -- Jellyfin.Plugin.Watchlist ; echo "exit=$?"
     exit=1
 
-There is one import from a `System.Net` namespace and it is not network access:
+The imports from a `System.Net` namespace are not network access:
 
     git grep -n 'using System.Net' -- Jellyfin.Plugin.Watchlist
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:4:using System.Net.Mime;
+    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:3:using System.Net.Mime;
 
-`System.Net.Mime` supplies the name of the media type the controller declares it
-answers in. There is no telemetry, no usage reporting and no update check of this
+Two imports rather than one, and the sentence under this said one until the transfer
+controller's line was taken again. `System.Net.Mime` supplies the name of the media
+type each controller declares it answers in. There is no telemetry, no usage reporting and no update check of this
 plugin's own. What updates the plugin is the server reading a manifest, which is the
 server's request made on an administrator's instruction rather than something this
 plugin does.
