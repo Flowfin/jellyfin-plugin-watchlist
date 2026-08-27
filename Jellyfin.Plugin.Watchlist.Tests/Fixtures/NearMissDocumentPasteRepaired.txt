@@ -1,0 +1,7 @@
+A page saying where the second line is, with the reading under the claim.
+
+    grep -n 'second' Jellyfin.Plugin.Watchlist.Tests/Fixtures/PastedCommandSubject.txt
+    2:the second line
+
+The same page with that one character right. If this disagreed as well, the
+fixture beside it would prove the document unusual rather than the paste read.

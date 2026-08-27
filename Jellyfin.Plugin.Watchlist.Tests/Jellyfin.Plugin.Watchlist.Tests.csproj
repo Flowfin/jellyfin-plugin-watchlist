@@ -250,6 +250,51 @@
     <EmbeddedResource Include="packages.lock.json" LogicalName="lock/Jellyfin.Plugin.Watchlist.Tests.json" />
   </ItemGroup>
 
+  <!--
+    The document-paste check's own two files, in the same shape as the two pairs
+    above: a document a reader meets and a register of declared departures.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="DOCUMENT-PASTES.md" />
+    <EmbeddedResource Include="DOCUMENT-PASTE-EXCEPTIONS.txt" />
+  </ItemGroup>
+
+  <!--
+    The rest of the tree the pasted commands in this repository's documents read,
+    under a prefix of its own so nothing else scans it and it scans nothing else.
+
+    ONLY THE PART NOT ALREADY EMBEDDED IS HERE, and that is a constraint of the
+    build rather than a choice. A file may be an EmbeddedResource once: including
+    it twice under two logical names is NETSDK1022 and stops the build. Everything
+    the item groups above already carry - both projects' sources, the fixtures, the
+    manifest, the changelog, two documents, both project files and both lock files -
+    is put in the tree by DocumentPasteTests instead, which maps those resource
+    names onto the repository paths they came from.
+
+    The set is DECLARED rather than being the repository. A command naming a path
+    outside it is reported as unjudged rather than answered from a shorter tree,
+    which is the failure this set exists against: an answer computed over fewer
+    files than the command was given looks exactly like an agreement.
+
+    docs/ is matched by wildcard so a page added tomorrow is in the population the
+    day it is added. The root files are named one by one because a wildcard there
+    would collide with the changelog above.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\README.md;..\CONTRIBUTING.md;..\NOTICE.md;..\SECURITY.md;..\Directory.Build.props;..\jellyfin.ruleset;..\DCO;..\LICENSE">
+      <LogicalName>tree/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\docs\**\*.md;..\docs\**\*.json" Exclude="..\docs\settings.md;..\docs\api.md;..\docs\samples\watchlist-export.sample.json">
+      <LogicalName>tree/docs/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\.github\**\*.yaml;..\.github\**\*.yml;..\.github\**\*.json">
+      <LogicalName>tree/.github/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Jellyfin.Plugin.Watchlist\**\*.html" Exclude="..\Jellyfin.Plugin.Watchlist\bin\**;..\Jellyfin.Plugin.Watchlist\obj\**">
+      <LogicalName>tree/Jellyfin.Plugin.Watchlist/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Jellyfin.Plugin.Watchlist\Jellyfin.Plugin.Watchlist.csproj" />
   </ItemGroup>

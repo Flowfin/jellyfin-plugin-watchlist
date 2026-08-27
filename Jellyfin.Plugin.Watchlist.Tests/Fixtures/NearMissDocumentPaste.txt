@@ -1,0 +1,7 @@
+A page saying where the second line is, with the reading under the claim.
+
+    grep -n 'second' Jellyfin.Plugin.Watchlist.Tests/Fixtures/PastedCommandSubject.txt
+    3:the second line
+
+One character is wrong and it is the one a change moving a line leaves behind.
+Nothing about the sentence, the command or the matched text says so.

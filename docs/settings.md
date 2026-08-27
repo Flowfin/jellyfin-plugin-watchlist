@@ -288,9 +288,21 @@ list got its endpoints on #85:
 
     git grep -l 'MaxEntriesPerUser' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs
 
     git grep -l 'MaxEntriesInSharedList' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+
+The first paste stood at one file until this change, and the second reader arrived
+with the import endpoint rather than with a change to this page:
+
+    git log --oneline --format='%h %ad %s' --date=short -1 -S'MaxEntriesPerUser' -- Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs
+    88d211f 2026-08-26 Carry a list out of one server and back into another one [#40]
+
+The count above is a count of SETTINGS and it did not move: this cap is read in two
+files now and it is still one setting, so the two the sentence names are the same
+two. What moved is the file list under the command, which is why the sentence is
+unchanged and the paste is not.
 
 The other six are saved and kept and read by nothing, because the projection and
 the scheduled task are not built.

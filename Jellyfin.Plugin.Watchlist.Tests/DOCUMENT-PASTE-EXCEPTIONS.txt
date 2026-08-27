@@ -1,0 +1,22 @@
+# Declared departures from the document-paste check, one per line.
+#
+#   <document path> | <line the command starts on> | <why this one is allowed>
+#
+# The document path is the path as the check reports it, from the repository root.
+# The line is the line the pasted command starts on, which is what a failure prints,
+# so an entry reads exactly like the failure it silences. The reason is required and
+# is read by a person, not by a machine.
+#
+# This register fails in both directions. An entry naming no paste in the population
+# is stale and reds the run, so a departure cannot outlive the paste that needed it.
+# A departure written in silence is what the check refuses in the first place.
+#
+# THE SITE MOVES WHEN THE DOCUMENT DOES, and that is the intended cost rather than an
+# oversight. An edit that shifts a declared paste to another line makes its entry
+# stale and reds the run, which puts the departure in front of somebody again. An
+# entry keyed on something that survives an edit would be one nobody ever re-reads.
+#
+# There is no entry today. Every paste in the population either agrees with what
+# stands under it or is outside what this check judges, and an unjudged paste needs
+# no entry: it is reported as unjudged rather than passed. DOCUMENT-PASTES.md says
+# which is which.
