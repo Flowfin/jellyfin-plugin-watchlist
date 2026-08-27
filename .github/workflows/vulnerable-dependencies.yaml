@@ -1,0 +1,77 @@
+# Every package in the resolved graph that carries a published advisory, listed in
+# one place, transitive ones included, with the job red while the list is not
+# empty.
+#
+# This is not the tier that refuses a vulnerable dependency. That is the restore
+# audit in Directory.Build.props, which applies to every build of this solution
+# wherever it runs, a contributor's machine included, and it landed long before
+# this job. What a restore does is refuse and name what it tripped over; what it
+# does not do is list. The entries of a graph are not independent - taking one
+# forced pin out changes what the next package resolves to, which was measured on
+# this board - so a red restore names one advisory while a reader has no way to
+# tell that from the whole set.
+#
+# So the two are one graph read twice for two purposes rather than one rule
+# written twice, and docs/parity.md carries a row for each. If ever only one of
+# them may stay, it is the restore audit: it refuses, and this reports.
+#
+# It reports and does not gate. Which checks the mainline requires is decided
+# on #63.
+name: Vulnerable dependencies
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the workflow level; the job below takes only what it reads.
+permissions: {}
+
+# A new push replaces the run under way. A reading of a graph that has already
+# been superseded says nothing about the branch as it now stands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vulnerable:
+    name: Vulnerable dependency listing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Say which server lines this run covers
+        # A scan of one package set says nothing about a line that has no package
+        # set here, and this job would otherwise read as a statement about
+        # everything this plugin supports. The same reading the build and test
+        # legs take, taken here for the same reason.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh --prove-it-bites
+          echo
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: List every package carrying a published advisory
+        # The probe runs first, which is the ordering every other guard here uses.
+        # A reader that had stopped refusing an answer it cannot understand would
+        # report a clean graph on an empty file and pass exactly like one that is
+        # holding.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/list-vulnerable-dependencies.sh --prove-it-bites
+          echo
+          bash .github/scripts/list-vulnerable-dependencies.sh
