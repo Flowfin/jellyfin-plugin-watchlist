@@ -1,0 +1,6 @@
+# Shell scripts are read by bash on every runner this repository uses, and the
+# hosted Windows image checks out with core.autocrlf on. A carriage return is part
+# of the line bash tries to run, so a script checked out that way fails at its
+# first line on that platform and nowhere else, which is the failure that looks
+# like the script rather than like the checkout.
+*.sh text eol=lf
