@@ -1,0 +1,5 @@
+# Three entries nobody can act on, one per way of being unreadable.
+#
+docs/a-page.md | 12 |
+docs/a-page.md | 12
+docs/a-page.md | the third paste | a site that is not a line number, so nothing can say which paste it means

@@ -1,0 +1,4 @@
+# The covering entry, plus one that outlived the page it was written for.
+#
+NearMissDocumentPaste.txt | 3 | the fixture this register exists to cover
+docs/a-page-that-was-deleted.md | 12 | a departure that outlived the paste it covered, which is what the other direction of this register has to refuse

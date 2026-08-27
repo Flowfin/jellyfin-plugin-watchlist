@@ -1,0 +1,9 @@
+A page telling a reader that nothing in the subject names the second line, with
+the exit code standing in for the absence:
+
+    grep -n 'second' Jellyfin.Plugin.Watchlist.Tests/Fixtures/PastedCommandSubject.txt ; echo "exit=$?"
+    exit=1
+
+This is the shape a number cannot catch. The paste is a CLAIM about what is not
+there, the command now prints a line, and the sentence above it is what somebody
+opens the page to read.

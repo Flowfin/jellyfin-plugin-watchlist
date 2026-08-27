@@ -1,0 +1,3 @@
+# A register that covers the near-miss fixture's one site, and nothing else.
+#
+NearMissDocumentPaste.txt | 3 | the fixture this register exists to cover, so the covering direction is proven rather than argued
