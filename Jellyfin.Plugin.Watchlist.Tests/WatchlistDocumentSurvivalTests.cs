@@ -7,7 +7,7 @@ using Xunit;
 namespace Jellyfin.Plugin.Watchlist.Tests;
 
 /// <summary>
-/// A stored list is never removed by anything this plugin does on its own.
+/// A stored list is never removed by anything this plugin does on its own account.
 /// </summary>
 /// <remarks>
 /// Disabling a plugin is how somebody finds out whether it is the cause of
@@ -23,6 +23,16 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// a read, and the difference between them is the file. Everything that comes
 /// later and wants to know whether a user's list was emptied or never existed
 /// has only that file to ask.
+///
+/// THE RULE IS NARROWED AND THE WORDS THAT NARROW IT ARE "ON ITS OWN ACCOUNT".
+/// One path removes a document, it is the deletion of the user the document
+/// belongs to, and it is reached only from the handler for that event. That is
+/// the opposite case rather than an exception to this one: nothing here tidies a
+/// document away because it looks like litter, and a user who is gone is
+/// somebody asking. A guard rewritten to accommodate the change that broke it is
+/// the shape that stops guarding anything, so what is kept is the counting: the
+/// test below still runs the surface and counts the files, and the one call that
+/// removes a document is named beside the count it is allowed to move.
 /// </remarks>
 public sealed class WatchlistDocumentSurvivalTests : IDisposable
 {
@@ -90,9 +100,9 @@ public sealed class WatchlistDocumentSurvivalTests : IDisposable
     }
 
     /// <summary>
-    /// The whole public surface of the store, run over one user's list, against a
-    /// folder holding two. Nothing it offers removes a document, including the
-    /// document belonging to the user the call was not about.
+    /// The public surface of the store other than the deletion of a user, run over
+    /// one user's list, against a folder holding two. Nothing it offers removes a
+    /// document, including the document belonging to the user the call was not about.
     /// </summary>
     /// <remarks>
     /// Counted rather than asserted file by file, because the failure this is
@@ -100,7 +110,7 @@ public sealed class WatchlistDocumentSurvivalTests : IDisposable
     /// the files it expects would only find the ones it thought of.
     /// </remarks>
     [Fact]
-    public void NoPathThroughTheStoreRemovesADocument()
+    public void NoPathThroughTheStoreExceptADeletedUserRemovesADocument()
     {
         var store = new WatchlistDocumentStore(DataFolder);
 
@@ -121,6 +131,33 @@ public sealed class WatchlistDocumentSurvivalTests : IDisposable
 
         Assert.Equal(2, Directory.GetFiles(DataFolder).Length);
         Assert.True(File.Exists(store.PathFor(AUser)));
+        Assert.Equal(untouched, File.ReadAllBytes(store.PathFor(AnotherUser)));
+    }
+
+    /// <summary>
+    /// The one call that does remove a document removes exactly one, and it is the
+    /// document of the user it was given.
+    /// </summary>
+    /// <remarks>
+    /// This is the same count from the other side, and it is what keeps the test
+    /// above from being a claim about a surface that has quietly grown a second
+    /// deleting path. The two together say the folder loses one file, for one named
+    /// user, on one call.
+    /// </remarks>
+    [Fact]
+    public void TheDeletionOfAUserRemovesThatOneDocumentAndNoOther()
+    {
+        var store = new WatchlistDocumentStore(DataFolder);
+
+        store.Add(AUser, Entry(1), maxEntriesPerUser: 10);
+        store.Add(AnotherUser, Entry(2), maxEntriesPerUser: 10);
+
+        var untouched = File.ReadAllBytes(store.PathFor(AnotherUser));
+
+        Assert.True(store.DeleteTheDocumentOfADeletedUser(AUser));
+
+        Assert.Single(Directory.GetFiles(DataFolder));
+        Assert.False(File.Exists(store.PathFor(AUser)));
         Assert.Equal(untouched, File.ReadAllBytes(store.PathFor(AnotherUser)));
     }
 

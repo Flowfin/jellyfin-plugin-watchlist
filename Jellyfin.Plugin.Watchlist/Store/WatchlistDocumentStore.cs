@@ -273,6 +273,50 @@ public sealed class WatchlistDocumentStore
     }
 
     /// <summary>
+    /// Removes the document of a user the server has deleted.
+    /// </summary>
+    /// <param name="userId">The user the server deleted.</param>
+    /// <returns>Whether a document was there to remove.</returns>
+    /// <remarks>
+    /// The one path here that removes a document, and it is named for the single
+    /// event that may take it so that a call site cannot read as housekeeping.
+    /// Everything else leaves every document where it is, an emptied one included:
+    /// an emptied list and a list nobody ever had answer a read the same way, and
+    /// the file is the only thing that tells them apart. A deleted user is not that
+    /// case. The account is gone, the list was that person's, and keeping it is this
+    /// plugin holding somebody's data after the server stopped holding their user.
+    ///
+    /// A staged write beside the document goes with it. An interrupted write leaves
+    /// one, and a file named for a user the server no longer has is the same residue
+    /// under either of the two names.
+    ///
+    /// It removes nothing else. The projected playlist belongs to the server, which
+    /// takes it on the route a user is deleted through and before the event that
+    /// reaches here is raised, and the shared list belongs to no single user.
+    /// </remarks>
+    public bool DeleteTheDocumentOfADeletedUser(Guid userId)
+    {
+        lock (GateFor(userId))
+        {
+            var path = PathFor(userId);
+            var staged = path + PendingSuffix;
+            var removed = File.Exists(path);
+
+            if (File.Exists(staged))
+            {
+                File.Delete(staged);
+            }
+
+            if (removed)
+            {
+                File.Delete(path);
+            }
+
+            return removed;
+        }
+    }
+
+    /// <summary>
     /// Puts one entry on a user's list, unless that would take the list past its cap.
     /// </summary>
     /// <param name="userId">The user.</param>
