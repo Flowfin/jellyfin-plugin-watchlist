@@ -38,6 +38,24 @@ jobs:
           # Nothing here pushes, so the token is not kept in .git/config.
           persist-credentials: false
 
+      - name: Say which server lines this run covers
+        # This repository claims two supported server lines and carries a package
+        # set for one, so every leg here covers half of what is supported and a
+        # green tick says nothing about the other half. The step prints which line
+        # the run built, read out of the manifest and the project rather than
+        # written here, and says in the same breath that the rest of the supported
+        # set is absent from this run rather than reported by it.
+        #
+        # The probe runs first, which is the ordering the package check and the
+        # invariant lint already use. A reading that had stopped refusing what it
+        # cannot read would print nothing and pass exactly like one that is
+        # holding.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh --prove-it-bites
+          echo
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh
+
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
