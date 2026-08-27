@@ -56,3 +56,69 @@
 
 - name: security
   color: 'b60205'
+
+# Saying that an issue is waiting, so the same absence is not read again on the
+# next pass.
+#
+# An issue that cannot move looks exactly like an issue nobody has picked up.
+# Nothing on this board separated the two until this family existed, and what
+# each pass over the tracker produced instead was another comment saying the
+# same issue is blocked. Thirty-six such comments stood across nineteen open
+# issues when #244 counted them, which was more than a third of what was open.
+#
+# The prefix is `blocked-on-`, and it is the prefix rather than any one name
+# that carries the meaning: a pass that subtracts waiting issues matches the
+# prefix, so a member added below is subtracted on the day it is first applied.
+#
+# WHAT A MEMBER NAMES IS THE KIND OF THING WAITED ON, never how long the wait
+# is. There are three because three kinds were read across this board's open
+# issues and no fourth was: another issue here, the maintainer, and an event
+# outside this repository. A fourth member is added the day a fourth kind is
+# read, in the same change that first applies it.
+#
+# MORE THAN ONE MEMBER IS LEGAL AND IS NOT A MISTAKE. An issue held by two
+# kinds of wait carries both, because dropping either one makes the issue read
+# as ready on the day the other clears.
+#
+# WHEN ONE IS APPLIED. Only when every condition of the issue that is not
+# already met waits on the same thing outside the issue. An issue with a half
+# that can still be worked carries none of these, because the label would hide
+# that half from every pass rather than describe it.
+#
+# A MEMBER SAYS THAT AN ISSUE WAITS AND NEVER WHAT IT WAITS FOR. What it waits
+# for belongs in the issue, in its own words, with the reading behind it. A
+# label carrying that detail would be a second copy of the sentence, and the
+# copy is the one that goes stale.
+#
+# WHETHER AN ISSUE CARRYING ONE MAY STILL BE PICKED UP: not as work. A pass
+# that meets one moves on to the next issue. A reader who believes the wait has
+# ended reads the thing that holds the answer and removes the label, which is
+# the whole of what picking it up means while it carries one.
+#
+# WHAT REMOVES EACH ONE is written at that member rather than here, because a
+# rule for taking a label off is read by somebody looking at the label. Nothing
+# takes one off on its own. No route in this tree reads these labels, no run
+# applies one and no run clears one, so a member that outlives its wait is a
+# false statement about which issues are stuck, and it is the failure this
+# family has that the absence it replaces did not.
+- name: blocked-on-issue
+  color: 'd4c5f9'
+  description: Waiting on other work on this board, named in the issue
+  # Removed when every issue it named has closed, by whoever closes the last of
+  # them. The names live in the issue rather than in the label, so removing it
+  # is a reading of those issues' states and not a memory of them.
+
+- name: blocked-on-maintainer
+  color: 'd4c5f9'
+  description: Waiting on the maintainer, not on a piece of work
+  # Removed by whoever writes the maintainer's answer onto the board, in the
+  # same act. The name and the description are the ones the fleet's own tracker
+  # uses for this wait, so an issue carrying it means there what it means here.
+
+- name: blocked-on-upstream
+  color: 'd4c5f9'
+  description: Waiting on a release or a change outside this repository
+  # Removed when the outside event has happened, read from the place that
+  # publishes it rather than from anybody's recollection of it. This is the
+  # member with no owner on this board: nobody here can schedule the event, so
+  # nobody here is late while it carries this.
