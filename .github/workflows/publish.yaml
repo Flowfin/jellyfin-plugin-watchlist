@@ -815,3 +815,151 @@ jobs:
           files: ./*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  alert:
+    name: Report a publish that shipped nothing
+    # Every other job, so this one is last, and `always()` so it runs when one of
+    # them did not. That is the difference between this and a step: a step at the
+    # end of a job cannot report on a job that stopped before reaching it, and a
+    # job that needs the others and runs anyway can.
+    #
+    # THE CASE THIS IS FOR. Every refusal above judges its own inputs. None of them
+    # judges the RELEASE, which is the thing a user receives, so a run whose last
+    # steps did not happen ends with a release that is absent, still a draft, or
+    # missing half its assets, and nothing says so. A pipeline that fails loudly is
+    # fine; the one worth planning for reports success and ships nothing, and it
+    # has happened to a plugin release pipeline built the same way.
+    #
+    # WHAT IT DOES NOT REACH. A run cancelled before its jobs start leaves nothing
+    # to run this, and a release created by hand outside this route is not a run at
+    # all. Both are outside what a job in this workflow can see, and #78 carries
+    # them.
+    needs: [gate, build, attest, release]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Read the tree for the script and write the one issue this exists to raise.
+      # It is the only job in this repository that writes to the tracker.
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Prove the judgement bites before it is trusted
+        # Ahead of the reading that matters, which is the ordering every guard in
+        # this repository uses. A judge that had stopped alerting would report a
+        # healthy release exactly like one that is holding, and this is the check
+        # whose whole purpose is to break a silence.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/judge-a-publish-run.sh --prove-it-bites
+
+      - name: Judge what this run left behind
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+          # Success only when every job before this one succeeded. A job that
+          # failed, was cancelled, or was skipped because an earlier one failed all
+          # mean the route did not finish, and what it left behind is read below
+          # rather than assumed empty.
+          OUTCOME: ${{ (needs.gate.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
+        run: |
+          set -euo pipefail
+
+          # The release for the tag this run published, or the fact that there is
+          # none. Anything other than a clean 200 or 404 leaves the report without
+          # an answer, and the judge refuses a report without one rather than
+          # reading silence as a healthy release.
+          code="$(curl -sS -o release.json -w '%{http_code}' \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${REPOSITORY}/releases/tags/${RUN_TAG}")"
+
+          case "${code}" in
+            200)
+              jq -n --slurpfile r release.json \
+                 --arg id "${RUN_ID}" --arg url "${RUN_URL}" \
+                 --arg conclusion "${OUTCOME}" --arg tag "${RUN_TAG}" \
+                 '{run: {id: $id, html_url: $url, conclusion: $conclusion, tag: $tag}, release: {found: true, draft: ($r[0].draft // false), assets: [$r[0].assets[]?.name]}}' > report.json
+              ;;
+            404)
+              jq -n --arg id "${RUN_ID}" --arg url "${RUN_URL}" \
+                 --arg conclusion "${OUTCOME}" --arg tag "${RUN_TAG}" \
+                 '{run: {id: $id, html_url: $url, conclusion: $conclusion, tag: $tag}, release: {found: false}}' > report.json
+              ;;
+            *)
+              echo "::error::Asking for the release of ${RUN_TAG} returned HTTP ${code}. Nothing is judged on an unclear answer, and this job fails rather than reporting a healthy release."
+              exit 1
+              ;;
+          esac
+
+          verdict=0
+          bash .github/scripts/judge-a-publish-run.sh --report report.json > findings.txt || verdict=$?
+
+          case "${verdict}" in
+            0)
+              echo "The release for ${RUN_TAG} is complete. Nothing to raise."
+              exit 0
+              ;;
+            1) ;;
+            *)
+              echo "::error::The publish report could not be judged. Failing rather than reporting a healthy release."
+              exit 1
+              ;;
+          esac
+
+          # Keyed on the run so one run cannot raise twice, and so closing the
+          # issue for one run suppresses nothing for the next: a later run has a
+          # later id and therefore a different title. The listing is read rather
+          # than the search index, because the index lags behind a newly created
+          # issue and the whole point of the key is that it is exact. It reads the
+          # newest 200 issues of any state, which is a bound rather than a
+          # guarantee.
+          title="Publish run ${RUN_ID} for ${RUN_TAG} did not ship a complete release"
+          existing="$(gh issue list --repo "${REPOSITORY}" --state all --limit 200 --json number,title | jq -r --arg t "${title}" '.[] | select(.title == $t) | .number' | head -n 1)"
+
+          if [ -n "${existing}" ]; then
+            echo "Already raised as #${existing}. This does not raise a second issue for one run."
+            exit 1
+          fi
+
+          {
+            echo "The publish route for \`${RUN_TAG}\` finished and what it left is not a release anybody can install."
+            echo
+            echo "Run: ${RUN_URL}"
+            echo "Workflow: Publish Release"
+            echo "What the jobs before this one reported: \`${OUTCOME}\`"
+            echo
+            echo "## What was expected and is not there"
+            echo
+            cat findings.txt
+            echo
+            echo "## How this was read"
+            echo
+            echo "The asset names came from the release for this tag over the API, and the judgement from \`.github/scripts/judge-a-publish-run.sh\`, whose probes ran in this same job before the reading. What this route attaches, and therefore what is missing above, is read off this workflow rather than decided there."
+            echo
+            echo "## What this does not say"
+            echo
+            echo "Nothing here was downloaded or verified. The assets are judged by name and by count, so an archive that is present and corrupt reads as present. Whether the release installs is #76."
+            echo
+            echo "Refs #78."
+          } > body.md
+
+          gh issue create --repo "${REPOSITORY}" \
+            --title "${title}" \
+            --body-file body.md \
+            --label ci --label "area: release" \
+            --milestone "M10 Release and catalogue readiness" \
+            --assignee iderex
+
+          echo "::error::This run did not ship a complete release. An issue has been raised."
+          exit 1
