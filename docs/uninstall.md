@@ -105,12 +105,14 @@ and the registrator hands it the plugin's own data folder, so the two are wired
 together:
 
     git grep -n 'DataFolderPath' -- Jellyfin.Plugin.Watchlist/
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:57:            Plugin.Instance!.DataFolderPath,
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:60:            Plugin.Instance!.DataFolderPath,
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:90:    public string DataFolderPath => _dataFolderPath;
 
-Read again at `331b2af`. The first line said 47 and moved for the same kind of reason
-the second did once: the watched rule's three registrations went in above it, so what
-changed is how far down the hook that one sits.
+Read again on the change that landed the deleted-user handler. The first line said 57
+and moved because two registrations and their comment went in above it. It said 47
+before that, for the same kind of reason the second line moved once: the watched
+rule's three registrations went in above it, so what changed is how far down the hook
+that one sits.
 
 Read again at `b893ea9`. The second line said 76 and the member has not moved for
 any reason this file is about: the shared list's own path and the constant naming

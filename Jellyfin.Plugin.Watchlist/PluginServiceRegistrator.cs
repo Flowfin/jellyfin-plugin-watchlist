@@ -1,9 +1,12 @@
 using System;
+using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Export;
 using Jellyfin.Plugin.Watchlist.Store;
+using Jellyfin.Plugin.Watchlist.Users;
 using Jellyfin.Plugin.Watchlist.Watched;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -73,5 +76,13 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             provider.GetRequiredService<ILogger<WatchedRemovalHandler>>()));
 
         serviceCollection.AddHostedService<UserDataWatchedSubscription>();
+
+        // What happens to a deleted user's list, and how the server says so. The
+        // deletion arrives through the event manager rather than as an event on the
+        // user manager, and the server resolves the consumers of a type out of its
+        // own container when it publishes, so this line is the whole of the
+        // attachment.
+        serviceCollection.AddSingleton<DeletedUserHandler>();
+        serviceCollection.AddSingleton<IEventConsumer<UserDeletedEventArgs>, UserDeletedSubscription>();
     }
 }

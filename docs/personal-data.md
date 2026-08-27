@@ -5,17 +5,24 @@ server other people may administer, so it is written down here rather than left 
 worked out from the source: what is kept, where it is kept, how long it stays, who can
 read it, and what leaves the machine.
 
-Every command in this file was re-run against `b893ea9`, the commit that added the
-shared list's endpoints, and each one still prints what is pasted under it. That is
-the whole file rather than the sections this change touched, because the change that
-landed those endpoints moved line numbers in files this page reads:
+Every command in this file was re-run against the change that landed the deleted-user
+handler, and each one still prints what is pasted under it. That is the whole file
+rather than the sections that change touched, because a path added to the store moves
+line numbers in files this page reads:
 
     git grep -c '^    \(git\|grep\|sed\|awk\|curl\|gh\) ' docs/personal-data.md
-    docs/personal-data.md:32
+    docs/personal-data.md:33
 
-Thirty-one were checked. The thirty-second is that line counting them, which counts
+Thirty-two were checked. The thirty-third is that line counting them, which counts
 itself and was written after the pass rather than checked by it, and saying so is
 cheaper than a count that quietly excludes the one command a reader can see.
+
+Most of the checking is a run rather than a reading now. `DocumentPasteTests` re-runs
+every `grep` and `git grep` paste in this file and reds the suite where one has
+stopped agreeing, which is thirty-two of the thirty-three. The one it does not judge
+is the `sed` paste under `## Where it is stored`, and that one was run by hand. What
+the check can and cannot see is in `Jellyfin.Plugin.Watchlist.Tests/DOCUMENT-PASTES.md`
+rather than restated here.
 
 Older readings name the commit they were taken on where they stand, and those
 sentences are kept. What they say is when a reading last MOVED, not when it was last
@@ -178,18 +185,31 @@ page, which is a decision recorded in [docs/storage-decision.md](storage-decisio
 
 ## How long it stays
 
-Until somebody removes it. There is no expiry, no trimming, no retention period, and
-the store has no path at all that deletes a document:
+Until somebody removes it, or until the server deletes the user it belongs to. There
+is no expiry, no trimming and no retention period, and the store has exactly one path
+that deletes a document:
 
-    grep -n 'public void NoPathThroughTheStoreRemovesADocument' \
+    grep -n 'public void NoPathThroughTheStoreExceptADeletedUserRemovesADocument' \
       Jellyfin.Plugin.Watchlist.Tests/WatchlistDocumentSurvivalTests.cs
-    103:    public void NoPathThroughTheStoreRemovesADocument()
+    113:    public void NoPathThroughTheStoreExceptADeletedUserRemovesADocument()
+
+THIS PAGE SAID THE STORE HAD NO SUCH PATH AT ALL, AND THAT HAS STOPPED BEING TRUE.
+What changed is the deletion of a user. The server removes the account, the list was
+that person's, and keeping it would be this plugin holding somebody's data after the
+server has stopped holding their user. The sentence is narrowed rather than
+withdrawn: no path here removes a document because it looks like litter, and the
+deletion removes exactly one document, the one belonging to the user the server
+named:
+
+    grep -n 'public void TheDeletionOfAUserRemovesThatOneDocumentAndNoOther' \
+      Jellyfin.Plugin.Watchlist.Tests/WatchlistDocumentSurvivalTests.cs
+    148:    public void TheDeletionOfAUserRemovesThatOneDocumentAndNoOther()
 
 Taking the last entry off a list leaves the document in place holding an empty one:
 
     grep -n 'public void RemovingTheLastEntryLeavesTheDocumentOnDisk' \
       Jellyfin.Plugin.Watchlist.Tests/WatchlistDocumentSurvivalTests.cs
-    50:    public void RemovingTheLastEntryLeavesTheDocumentOnDisk()
+    60:    public void RemovingTheLastEntryLeavesTheDocumentOnDisk()
 
 Reading a list never writes to it, so opening a watchlist leaves no trace in the file
 and a document written by an older version is brought forward in memory rather than on
@@ -406,12 +426,13 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Twenty-one places log at all, over four files:
+library. Twenty-two places log at all, over five files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:9
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:6
+    Jellyfin.Plugin.Watchlist/Users/DeletedUserHandler.cs:1
     Jellyfin.Plugin.Watchlist/Watched/WatchedRemovalHandler.cs:1
 
 THAT PASTE HAD ALREADY STOPPED REPRODUCING BEFORE THIS CHANGE, AND ONLY ONE OF ITS
@@ -425,6 +446,9 @@ What they name is the calling user's identifier, an item identifier, the kind th
 library holds an item as, an entry count, a configured maximum, and a schema version.
 The watched handler's line names a count of entries and two identifiers, the user the
 event named and the item that was played, and nothing out of the entries it removed.
+The deleted-user handler's line names one identifier, the user the server deleted, and
+it is written only where a document was there to remove, so a server deleting users
+who never opened a watchlist logs nothing at all.
 The pass that drops entries whose item can no longer be resolved reports one line with
 a count, and nothing out of the entries themselves:
 
@@ -439,12 +463,13 @@ identifier, so a refused read puts that identifier in the server log:
     grep -n 'Refusing to read {Path}' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
     152:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
     167:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
-    414:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
-    425:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    458:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    469:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
 
-Re-taken on `6930c4a`. The paste held two lines until the shared list gained the same
-two refusals, and the last two of the four name a path that is the shared list's file
-rather than anybody's identifier.
+Re-taken on the change that landed the deleted-user handler, where the last two moved
+from 414 and 425 because the deletion path went into the store above them. The paste
+held two lines until the shared list gained the same two refusals, and the last two of
+the four name a path that is the shared list's file rather than anybody's identifier.
 
 The path is what makes that line actionable, since it names the file somebody has to
 look at, and an identifier without the list beside it says nothing about what anyone

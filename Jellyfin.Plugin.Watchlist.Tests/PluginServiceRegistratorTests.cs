@@ -1,10 +1,13 @@
 using System;
 using System.Linq;
+using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Export;
 using Jellyfin.Plugin.Watchlist.Store;
+using Jellyfin.Plugin.Watchlist.Users;
 using Jellyfin.Plugin.Watchlist.Watched;
+using MediaBrowser.Controller.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -46,7 +49,7 @@ public class PluginServiceRegistratorTests
 
         new PluginServiceRegistrator().RegisterServices(services, null!);
 
-        Assert.Equal(9, services.Count);
+        Assert.Equal(11, services.Count);
         Assert.Contains(services, d => d.ServiceType == typeof(IWatchlistItemDescriber));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdSource));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdIndex));
@@ -56,6 +59,31 @@ public class PluginServiceRegistratorTests
         Assert.Contains(services, d => d.ServiceType == typeof(ISeriesCompletion));
         Assert.Contains(services, d => d.ServiceType == typeof(WatchedRemovalHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(IHostedService));
+        Assert.Contains(services, d => d.ServiceType == typeof(DeletedUserHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(IEventConsumer<UserDeletedEventArgs>));
+    }
+
+    /// <summary>
+    /// The deletion consumer is registered under the interface the server resolves it
+    /// by, because that registration is the whole of the attachment.
+    /// </summary>
+    /// <remarks>
+    /// The server publishes an event by asking its own container for every
+    /// <c>IEventConsumer</c> of that type, so a class registered under its own name
+    /// only is a handler the server never calls, and nothing else in the plugin would
+    /// notice.
+    /// </remarks>
+    [Fact]
+    public void TheDeletionConsumerIsRegisteredUnderTheInterfaceTheServerResolves()
+    {
+        var services = new ServiceCollection();
+
+        new PluginServiceRegistrator().RegisterServices(services, null!);
+
+        var consumers = services.Where(d => d.ServiceType == typeof(IEventConsumer<UserDeletedEventArgs>)).ToList();
+
+        Assert.Single(consumers);
+        Assert.Equal(typeof(UserDeletedSubscription), consumers[0].ImplementationType);
     }
 
     /// <summary>
