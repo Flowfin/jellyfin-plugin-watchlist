@@ -88,6 +88,9 @@ Where it is stored: the plugin's configuration, one value for the whole server.
 Every user's list carries the same name, because it is one name for the server
 rather than a per-user preference.
 
+Not read by anything today. The projection is M3 and is not built, so the name is
+saved and kept and is rendered nowhere.
+
 ### MaxEntriesPerUser
 
 The greatest number of entries one user's list may hold.
@@ -111,6 +114,13 @@ extra digit does not turn the cap back into no cap.
 Where it is stored: the plugin's configuration, which the server holds outside a
 user's document, because it is one value for the whole server rather than one per
 person.
+
+What reads it: the route that adds one item and the route that reads a whole list
+back in, each refusing a write that would take a list past the bound.
+
+    git grep -l 'MaxEntriesPerUser' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs
 
 ### RemoveWhenWatched
 
@@ -219,6 +229,9 @@ Bounds: the same as `ProjectedListName`.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
+Not read by anything today, for the same reason as `ProjectedListName`. Projecting
+the shared list is #84.
+
 ### MaxEntriesInSharedList
 
 The greatest number of entries the shared list may hold.
@@ -240,6 +253,19 @@ When it takes effect: on the next add to the shared list.
 Bounds: 0 to 1000000, the same as the per-user cap and for the same reasons.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
+
+What reads it: the route that adds an item to the shared list, refusing a write that
+would take that list past the bound.
+
+    git grep -l 'MaxEntriesInSharedList' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+
+WHAT AN ADMINISTRATOR WHO MOVES THIS NUMBER SEES TODAY IS STILL NOTHING, and that is
+a different sentence from the one above rather than a softening of it. The cap is
+read on every add to the shared list, and no server has a shared list, because
+nothing in this plugin creates one. Creating it is #87. So this setting has a reader
+and that reader is not reachable yet, which is why an administrator sees no effect
+rather than because nothing looks at the value.
 
 ## Per-user settings
 
@@ -273,43 +299,36 @@ The configuration page belongs to the server and is one page for the whole serve
 so it is the wrong surface for an answer that belongs to one person.
 [The API document](api.md) says the same thing from the caller's side.
 
-Not read by anything today. Both settings above are read by nothing, so an answer
-is stored and kept and changes no behaviour yet, exactly as the server-wide values
-are.
+One of the two is read and the other is not. This paragraph said both were read by
+nothing, and that stopped being true when the watched removal landed on #21.
+
+`RemoveWhenWatched` is read every time the server records that a user played
+something, and a user's own answer wins over the server-wide one there, which is the
+precedence rule above running rather than a second rule:
+
+    git grep -n 'Resolve(preferences?.RemoveWhenWatched' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/Configuration/EffectiveSettings.cs:55:        return Resolve(preferences?.RemoveWhenWatched, serverWide.RemoveWhenWatched);
+
+`ProjectionEnabled` is read by nothing, so a user's answer to it is stored and kept
+and changes no behaviour yet, exactly as the server-wide value is.
 
 ## What is not here
 
 Nothing. The server-wide set above is the whole set #32 fixes, and a setting
 beyond it needs its own issue and a reason rather than an extra row here.
 
-What is worth reading twice is how much of it is inert. Two of the eight settings
-above are read by the code that ships, and this sentence said one until the shared
-list got its endpoints on #85:
+What is worth reading twice is how much of it is inert, and no count of that is
+written here any more. A count in this file is wrong from the moment one more
+setting gets a reader, and that has happened twice without this paragraph moving:
+once when the shared list got its endpoints on #85, and once when the watched
+removal landed on #21. It said two of the eight settings were read by the code that
+ships, on a tree where three of them were.
 
-    git grep -l 'MaxEntriesPerUser' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
-    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs
+Each row above answers for its own setting instead, so the answer moves in the same
+change as the reader arrives. A row carrying a `What reads it:` line is read today
+and names what reads it; a row saying it is read by nothing is not read, and says
+what would have to be built for it to be.
 
-    git grep -l 'MaxEntriesInSharedList' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
-
-The first paste stood at one file until this change, and the second reader arrived
-with the import endpoint rather than with a change to this page:
-
-    git log --oneline --format='%h %ad %s' --date=short -1 -S'MaxEntriesPerUser' -- Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs
-    88d211f 2026-08-26 Carry a list out of one server and back into another one [#40]
-
-The count above is a count of SETTINGS and it did not move: this cap is read in two
-files now and it is still one setting, so the two the sentence names are the same
-two. What moved is the file list under the command, which is why the sentence is
-unchanged and the paste is not.
-
-The other six are saved and kept and read by nothing, because the projection and
-the scheduled task are not built.
-
-WHAT A READER OF THE SHARED CAP GETS TODAY IS STILL NOTHING, and that is a
-different sentence from the one above rather than a softening of it. The cap is
-read on every add to the shared list, and no server has a shared list, because
-nothing in this plugin makes one. Creating it is #87. So the setting has a reader
-and that reader is not reachable yet, and an administrator who moves the number
-sees no effect for that reason rather than because nothing looks at it.
+Every setting here that is read by nothing is read by nothing for the same reason:
+the projection and the scheduled task are not built. There is none that is inert
+for a reason of its own.
