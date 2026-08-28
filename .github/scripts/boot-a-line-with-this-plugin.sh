@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 #
-# Boots a server on one supported line with the packaged plugin and nothing else,
+# Boots a server on one supported line with the packaged plugin, and with the
+# siblings the hub declares where `--alongside` names a directory holding them,
 # and asserts that the plugin loaded and answers (#104).
+#
+# ONE FILE FOR BOTH HALVES, and this paragraph is why rather than an accident of
+# how it grew. The two runs #104 asks for differ in what is unpacked into the
+# server's plugin directory and in nothing else: the same image, the same
+# wizard, the same token, the same four assertions. A second script would be a
+# second copy of the boot, the ordering the anonymous arm depends on, and the
+# cleanup, and the day one of them was corrected the other would be the one
+# still running in the gate. The file was called
+# `boot-a-line-with-only-this-plugin.sh` while it could do one of the two.
 #
 # WHY THIS EXISTS. Every check in this repository reads the tree, builds it,
 # packages it or greps it. None of them has ever started a server, so "this
@@ -41,10 +51,25 @@
 #
 #     git grep -c 'IPlaylistManager' -- Jellyfin.Plugin.Watchlist/ ; echo "exit=$?"
 #
-# It also boots this plugin ALONE. A green run means the server holds no problem
-# with this plugin on it. It does not mean two plugins have been watched not
-# colliding, which is the other half of #104 and is a matrix over the sibling
-# boards rather than a second assertion here.
+# WHAT A RUN WITHOUT `--alongside` DOES NOT SAY. A green run means the server
+# holds no problem with this plugin on it. It does not mean two plugins from this
+# family have been watched not colliding. That is the other half of #104, and it
+# is this same script pointed at a directory of siblings rather than a second
+# assertion here.
+#
+# WHAT `--alongside` TAKES is a directory of ALREADY UNPACKED plugin directories,
+# one per sibling, named the way the server's own installer names them.
+# `say-which-siblings-the-hub-declares.sh --fetch` is what produces it: that
+# script decides which siblings the hub carries an installable version for,
+# checks each archive against the checksum the catalogue publishes, and unpacks
+# it under `<Name>_<version>`. The naming is load-bearing rather than tidy - the
+# collision scan derives a plugin's data folder from that same pair - and it
+# belongs there because that is where the name and the version are known.
+#
+# THIS SCRIPT DOWNLOADS NOTHING. The population it boots is whatever that
+# directory holds, so a run is reproducible from a directory somebody kept, and
+# the two questions - which siblings exist, and what a server does with them -
+# fail separately and are read separately.
 #
 # WHAT PROVES IT BITES. Two probes, ahead of the run that matters, which is the
 # ordering `say-which-server-lines-this-run-covers.sh` and the invariant lint in
@@ -98,17 +123,21 @@
 #
 # Usage:
 #
-#   .github/scripts/boot-a-line-with-only-this-plugin.sh \
+#   .github/scripts/boot-a-line-with-this-plugin.sh \
 #     --image jellyfin/jellyfin:10.11.11 --package <package.zip>
-#   .github/scripts/boot-a-line-with-only-this-plugin.sh \
+#   .github/scripts/boot-a-line-with-this-plugin.sh \
+#     --image jellyfin/jellyfin:10.11.11 --package <package.zip> \
+#     --alongside <directory of unpacked siblings>
+#   .github/scripts/boot-a-line-with-this-plugin.sh \
 #     --image jellyfin/jellyfin:10.11.11 --without-the-plugin
-#   .github/scripts/boot-a-line-with-only-this-plugin.sh --prove-it-bites
+#   .github/scripts/boot-a-line-with-this-plugin.sh --prove-it-bites
 
 set -euo pipefail
 
 manifest="build.yaml"
 image=""
 package=""
+alongside=""
 port="18096"
 without="no"
 prove="no"
@@ -127,9 +156,9 @@ secret="9f2c41b7-alone-harness"
 client='MediaBrowser Client="alone-harness", Device="ci", DeviceId="alone-harness", Version="1.0.0.0"'
 
 usage() {
-  echo "Usage: boot-a-line-with-only-this-plugin.sh --image <image> --package <package.zip> [--port <port>]" >&2
-  echo "       boot-a-line-with-only-this-plugin.sh --image <image> --without-the-plugin [--port <port>]" >&2
-  echo "       boot-a-line-with-only-this-plugin.sh --prove-it-bites" >&2
+  echo "Usage: boot-a-line-with-this-plugin.sh --image <image> --package <package.zip> [--alongside <directory>] [--port <port>]" >&2
+  echo "       boot-a-line-with-this-plugin.sh --image <image> --without-the-plugin [--port <port>]" >&2
+  echo "       boot-a-line-with-this-plugin.sh --prove-it-bites" >&2
   exit 2
 }
 
@@ -138,6 +167,7 @@ while [ "$#" -gt 0 ]; do
     --manifest) manifest="$2"; shift 2 ;;
     --image) image="$2"; shift 2 ;;
     --package) package="$2"; shift 2 ;;
+    --alongside) alongside="$2"; shift 2 ;;
     --port) port="$2"; shift 2 ;;
     --without-the-plugin) without="yes"; shift ;;
     --prove-it-bites) prove="yes"; shift ;;
@@ -343,6 +373,32 @@ if [ "${without}" = "no" ]; then
   if [ "${unpacked}" -eq 0 ]; then
     refuse "The package unpacked to nothing, so the run below would boot a server with no plugin and could not tell that from a plugin that failed to load."
   fi
+fi
+
+# The siblings, where a directory of them was named. Each one is copied under the
+# server's plugin path exactly as it was prepared, because the directory name is
+# what the collision scan's data-folder kind is derived from.
+#
+# AN EMPTY DIRECTORY ENDS THE RUN. A job that asked for siblings and booted none
+# would produce the alone run's reading under a check name saying otherwise, and
+# a green tick that means less than its name is worse than a red one. Whether
+# there is anything to install is decided before this, by the derivation, and a
+# family with nothing published is a matrix of skipped rows and no boot at all.
+siblings=0
+if [ -n "${alongside}" ]; then
+  [ -d "${alongside}" ] \
+    || refuse "${alongside} is not a directory. This harness downloads nothing and boots the population it is handed."
+
+  while IFS= read -r directory; do
+    cp -R "${directory}" "${plugins}/"
+    echo "Alongside:         $(basename "${directory}"): $(find "${directory}" -mindepth 1 -maxdepth 1 -printf '%f ' 2>/dev/null || true)"
+    siblings=$((siblings + 1))
+  done < <(find "${alongside}" -mindepth 1 -maxdepth 1 -type d | sort)
+
+  [ "${siblings}" -gt 0 ] \
+    || refuse "${alongside} holds no unpacked plugin directory, so this run would boot the same server the alone job boots and report it under a name saying siblings were installed."
+
+  echo "Alongside:         ${siblings} sibling(s) from this family, installed the way the catalogue publishes them."
 fi
 
 # The container and the temporary directory go whichever way the run ends. The
@@ -557,7 +613,11 @@ fi
 
 if [ "${#failures[@]}" -gt 0 ]; then
   echo "" >&2
-  echo "The plugin does not work alone on ${image}:" >&2
+  if [ "${siblings}" -eq 0 ]; then
+    echo "The plugin does not work alone on ${image}:" >&2
+  else
+    echo "The plugin does not work on ${image} with ${siblings} sibling(s) from this family installed beside it:" >&2
+  fi
 
   for failure in "${failures[@]}"; do
     echo "  ${failure}" >&2
@@ -567,4 +627,8 @@ if [ "${#failures[@]}" -gt 0 ]; then
 fi
 
 echo ""
-echo "The packaged plugin loads and answers on ${image}, alone."
+if [ "${siblings}" -eq 0 ]; then
+  echo "The packaged plugin loads and answers on ${image}, alone."
+else
+  echo "The packaged plugin loads and answers on ${image} with ${siblings} sibling(s) from this family installed beside it, and the server holds no collision this scan reads."
+fi
