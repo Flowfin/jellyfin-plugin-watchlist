@@ -1,0 +1,168 @@
+# Boot a real server with the packaged plugin and nothing else, and assert that
+# the plugin loaded and answers (#104).
+#
+# Every other check on this board reads the tree, builds it, packages it or greps
+# it. None of them starts a server, so "this plugin loads" has been a claim about
+# source on every green run this repository has produced. This is the first job
+# here that installs the archive a user would install, into a stock server, and
+# reads what the server says about it.
+#
+# WHAT IT INSTALLS is the archive the packager produces, built in this job from
+# the same action and the same pin the release route runs. Copying build output
+# into the container would prove the code compiles and not that the thing a user
+# downloads works, and the difference between those two is where a plugin release
+# fails in front of somebody.
+#
+# THE HARNESS IS A FIRST-PARTY SCRIPT IN THE TREE, for the reason the vulnerable
+# dependency listing and the line disclosure are: the gate should be readable
+# here, and it should run the same way on a workstation with a container runtime
+# as it does on a runner.
+#
+#   .github/scripts/boot-a-line-with-only-this-plugin.sh \
+#     --image jellyfin/jellyfin:10.11.11 --package <package.zip>
+#
+# TWO PROBES RUN AHEAD OF THE RUN THAT MATTERS, which is the ordering every other
+# guard in this repository uses. A harness that asserted nothing would pass the
+# real run exactly like one that is holding.
+#
+#   The log scan and the listed-and-active judgement run over fabricated inputs
+#   and their one-change neighbours. No container.
+#
+#   The harness is pointed at the same image with an empty plugin directory and
+#   must refuse it FOR BEING UNLISTED rather than merely exit non-zero. That
+#   proves assertion 2, and it proves the administrator arm of assertion 3 as a
+#   side effect, because this plugin's configuration route and Watchlist/Items
+#   answer 404 there and 200 on the run with the package.
+#
+# ONE LINE IS BOOTED AND THE RUN SAYS SO. The tree carries one package set, and
+# answer 5 on #1 is that 1.0 ships the 10.11 artifact alone with the 12.0 one
+# following a stable 12.0 server release. A second job here would have nothing to
+# package, so the disclosure step below names the line this run covers rather
+# than leaving four green ticks to be read as a statement about both. That is the
+# same reading the build, test and dependency legs already take, taken here for
+# the same reason.
+#
+# WHAT THIS IS NOT. It boots this plugin ALONE. A green run means the server
+# holds no problem with this plugin on it; it does not mean two plugins have been
+# watched not colliding. The sibling half of #104 is a matrix over the plugins
+# the hub catalogue declares, and it is not in this file.
+#
+# It reports and does not gate. Which checks the mainline requires is decided on
+# #63, and the required set is read rather than restated:
+#
+#     gh api repos/Flowfin/jellyfin-plugin-watchlist/rulesets/20456281 \
+#       --jq '[.rules[] | select(.type=="required_status_checks")
+#              | .parameters.required_status_checks[].context]'
+name: Interoperability
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  # The matrix runs on a schedule as well as on a change, because what it reads
+  # is a published server image and a container runtime rather than this tree
+  # alone: a run that passed last week says nothing about the image the same tag
+  # resolves to today.
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+# Deny everything at the workflow level; the job below takes only what it reads.
+permissions: {}
+
+# A superseded run on the same ref tells nobody anything, and this one holds a
+# container runtime for the length of two server boots.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  alone:
+    # This name is the check context. Changing it removes a context rather than
+    # renaming one, so it moves only together with whatever requires it.
+    name: Alone on ${{ matrix.line }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read # check out the tree the package is built from
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # build.yaml declares targetAbi 10.11.0.0, and 10.11.11 is the newest
+          # image published on that line, so this job boots a server the manifest
+          # claims to load on. The tag is where the version is read from: a
+          # floating tag would move this job onto a server nobody chose.
+          - line: "10.11"
+            framework: net9.0
+            image: "jellyfin/jellyfin:10.11.11"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Say which server lines this run covers
+        # One line is booted and the tree supports two. Without this step a green
+        # tick here reads as a statement about both.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh --prove-it-bites
+          echo
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh
+
+      - name: Say what this job is booting
+        env:
+          LINE: ${{ matrix.line }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          echo "Server line: ${LINE}"
+          echo "Image:       ${IMAGE}"
+          grep -n '^targetAbi:\|^framework:' build.yaml
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Build the package this job installs
+        id: jprm
+        # The same packager and the same pin the release route runs. No version
+        # input: the packager reads it out of build.yaml, which is the only place
+        # the version is written.
+        uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
+        with:
+          dotnet-target: ${{ matrix.framework }}
+
+      - name: Prove the harness bites before it is believed
+        run: |
+          set -euo pipefail
+          bash .github/scripts/boot-a-line-with-only-this-plugin.sh --prove-it-bites
+
+      - name: Prove the harness refuses a server with no plugin installed
+        # This step passes when the harness REFUSED, and the inversion lives
+        # inside the script rather than here on purpose. A step written as "run it
+        # and expect a non-zero exit" accepts a harness that died before it
+        # asserted anything. The script knows which failure it raised; a shell
+        # here knows only the exit status.
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/boot-a-line-with-only-this-plugin.sh \
+            --image "${IMAGE}" --port 18097 --without-the-plugin
+
+      - name: Boot the line with only this plugin
+        env:
+          IMAGE: ${{ matrix.image }}
+          ARTIFACT: ${{ steps.jprm.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/boot-a-line-with-only-this-plugin.sh \
+            --image "${IMAGE}" --package "${ARTIFACT}"
