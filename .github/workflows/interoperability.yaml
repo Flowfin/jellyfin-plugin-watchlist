@@ -18,7 +18,7 @@
 # here, and it should run the same way on a workstation with a container runtime
 # as it does on a runner.
 #
-#   .github/scripts/boot-a-line-with-only-this-plugin.sh \
+#   .github/scripts/boot-a-line-with-this-plugin.sh \
 #     --image jellyfin/jellyfin:10.11.11 --package <package.zip>
 #
 # THREE PROBES RUN AHEAD OF THE RUN THAT MATTERS, which is the ordering every
@@ -46,11 +46,29 @@
 # same reading the build, test and dependency legs already take, taken here for
 # the same reason.
 #
-# WHAT THIS IS NOT. It installs no sibling. The stock image boots five bundled
-# plugins beside this one, so the collision scan runs over a real population from
-# the first run rather than over a set of one; what it has NOT read is a server
-# holding this plugin and a sibling from this family. That is the matrix over the
-# plugins the hub catalogue declares, and it is not in this file.
+# THE SECOND JOB INSTALLS THE FAMILY. `alone` reads a server holding this plugin
+# and the five the stock image bundles, which is already a real population rather
+# than a set of one. What it cannot read is this plugin beside a SIBLING, and that
+# is the second half of #104. `with-the-family` derives the sibling set from the
+# hub's declaration, installs every sibling whose catalogue entry carries a
+# version for the line being booted, and runs the same four assertions over the
+# larger server.
+#
+# THE ROWS ARE DERIVED AND NEVER LISTED HERE. A list of siblings in this file
+# would be a second place the family is enumerated and would go stale the day one
+# joins or leaves it. `say-which-siblings-the-hub-declares.sh` carries the
+# criterion and its proof; what a run prints is what the hub declared at the
+# moment it ran.
+#
+# A SIBLING WITH NOTHING TO INSTALL IS SHOWN AND SKIPPED rather than left out, so
+# a reader counting rows is not looking at a matrix that quietly dropped what it
+# could not do. Most of the family is in that state today, and the job's own
+# output is where that is read rather than here.
+#
+# IT NEEDS `alone` TO HAVE PASSED. A verdict about this plugin beside its family
+# is unreadable while this plugin alone is broken, and the two jobs would report
+# one failure twice. A second container boot is also not worth paying for on a
+# harness that has just gone red.
 #
 # It reports and does not gate. Which checks the mainline requires is decided on
 # #63, and the required set is read rather than restated:
@@ -148,7 +166,7 @@ jobs:
       - name: Prove the harness bites before it is believed
         run: |
           set -euo pipefail
-          bash .github/scripts/boot-a-line-with-only-this-plugin.sh --prove-it-bites
+          bash .github/scripts/boot-a-line-with-this-plugin.sh --prove-it-bites
 
       - name: Prove the collision scan bites before it is believed
         # Every kind the scan reports is run over a report built to carry exactly
@@ -169,7 +187,7 @@ jobs:
           IMAGE: ${{ matrix.image }}
         run: |
           set -euo pipefail
-          bash .github/scripts/boot-a-line-with-only-this-plugin.sh \
+          bash .github/scripts/boot-a-line-with-this-plugin.sh \
             --image "${IMAGE}" --port 18097 --without-the-plugin
 
       - name: Boot the line with only this plugin
@@ -178,5 +196,88 @@ jobs:
           ARTIFACT: ${{ steps.jprm.outputs.artifact }}
         run: |
           set -euo pipefail
-          bash .github/scripts/boot-a-line-with-only-this-plugin.sh \
+          bash .github/scripts/boot-a-line-with-this-plugin.sh \
             --image "${IMAGE}" --package "${ARTIFACT}"
+
+  with-the-family:
+    # This name is the check context. Changing it removes a context rather than
+    # renaming one, so it moves only together with whatever requires it.
+    name: With the family on ${{ matrix.line }}
+    needs: alone
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read # check out the tree the package is built from
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The same line and the same image the alone job boots. A sibling
+          # installed here is one the hub publishes for this line, so a second
+          # line arrives with a second package set rather than with a second
+          # entry here.
+          - line: "10.11"
+            framework: net9.0
+            image: "jellyfin/jellyfin:10.11.11"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Say which server lines this run covers
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh
+
+      - name: Prove the sibling derivation bites before it is believed
+        # The row judgement over fabricated hub documents and their one-change
+        # neighbours: a version for another line, a catalogue entry published
+        # from a repository whose name merely begins with a sibling's, and this
+        # board appearing as its own sibling. No network.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-siblings-the-hub-declares.sh --prove-it-bites
+
+      - name: Say which siblings the hub declares, and fetch them
+        # The population and what it installs, printed before anything boots, so
+        # a green tick below is read against the rows it actually covered. A
+        # sibling with no installable version is a row that says so.
+        env:
+          # A public read. The token raises the rate limit, which is per address
+          # and shared on a runner; the script works without one.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-siblings-the-hub-declares.sh \
+            --fetch "${RUNNER_TEMP}/siblings"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Build the package this job installs
+        id: jprm
+        # The same packager and the same pin the release route runs, as in the
+        # alone job. The archive a user installs is the subject here too.
+        uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
+        with:
+          dotnet-target: ${{ matrix.framework }}
+
+      - name: Boot the line with this plugin and the family beside it
+        # The probes that prove this harness bites - the log scan, the listing
+        # judgement, every collision kind, and the refusal of a server with no
+        # plugin installed - all ran in the alone job this one needs. They are
+        # not paid for twice: the two jobs run the same scripts at the same
+        # commit, and a red probe there stops this job from starting at all.
+        env:
+          IMAGE: ${{ matrix.image }}
+          ARTIFACT: ${{ steps.jprm.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/boot-a-line-with-this-plugin.sh \
+            --image "${IMAGE}" --package "${ARTIFACT}" \
+            --alongside "${RUNNER_TEMP}/siblings"
