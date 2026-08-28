@@ -21,12 +21,16 @@
 #   .github/scripts/boot-a-line-with-only-this-plugin.sh \
 #     --image jellyfin/jellyfin:10.11.11 --package <package.zip>
 #
-# TWO PROBES RUN AHEAD OF THE RUN THAT MATTERS, which is the ordering every other
-# guard in this repository uses. A harness that asserted nothing would pass the
-# real run exactly like one that is holding.
+# THREE PROBES RUN AHEAD OF THE RUN THAT MATTERS, which is the ordering every
+# other guard in this repository uses. A harness that asserted nothing would pass
+# the real run exactly like one that is holding.
 #
 #   The log scan and the listed-and-active judgement run over fabricated inputs
 #   and their one-change neighbours. No container.
+#
+#   Every kind the collision scan reports runs over a report built to carry
+#   exactly that collision and over a one-change neighbour that must be clean.
+#   No container.
 #
 #   The harness is pointed at the same image with an empty plugin directory and
 #   must refuse it FOR BEING UNLISTED rather than merely exit non-zero. That
@@ -42,10 +46,11 @@
 # same reading the build, test and dependency legs already take, taken here for
 # the same reason.
 #
-# WHAT THIS IS NOT. It boots this plugin ALONE. A green run means the server
-# holds no problem with this plugin on it; it does not mean two plugins have been
-# watched not colliding. The sibling half of #104 is a matrix over the plugins
-# the hub catalogue declares, and it is not in this file.
+# WHAT THIS IS NOT. It installs no sibling. The stock image boots five bundled
+# plugins beside this one, so the collision scan runs over a real population from
+# the first run rather than over a set of one; what it has NOT read is a server
+# holding this plugin and a sibling from this family. That is the matrix over the
+# plugins the hub catalogue declares, and it is not in this file.
 #
 # It reports and does not gate. Which checks the mainline requires is decided on
 # #63, and the required set is read rather than restated:
@@ -144,6 +149,15 @@ jobs:
         run: |
           set -euo pipefail
           bash .github/scripts/boot-a-line-with-only-this-plugin.sh --prove-it-bites
+
+      - name: Prove the collision scan bites before it is believed
+        # Every kind the scan reports is run over a report built to carry exactly
+        # that collision and over a one-change neighbour that must be clean. A
+        # scan that reported nothing would pass a colliding server exactly like
+        # one that is holding.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/scan-a-server-for-collisions.sh --prove-it-bites
 
       - name: Prove the harness refuses a server with no plugin installed
         # This step passes when the harness REFUSED, and the inversion lives

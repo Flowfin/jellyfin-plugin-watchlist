@@ -18,7 +18,7 @@
 # So this takes an archive produced by the same packager and the same pin the
 # release route runs, and unpacks it the way a server does.
 #
-# WHAT IT ASSERTS, and it is three things:
+# WHAT IT ASSERTS, and it is four things:
 #
 #   1. The startup log holds no error from this plugin.
 #   2. The server lists this plugin, under the identifier build.yaml declares,
@@ -28,6 +28,12 @@
 #      configuration route keyed on its identifier, and `Watchlist/Items`, which
 #      is this plugin's own controller and is the one of the three that says the
 #      controller was registered by a real server rather than by a test host.
+#   4. The running server holds no collision of any kind
+#      `scan-a-server-for-collisions.sh` reads. That script carries what each
+#      kind is, where it is read from and what it cannot see; it is run from here
+#      rather than from a job of its own because the server, the token and the
+#      whole population are already in hand at this point, and a second boot
+#      would answer about a different server.
 #
 # WHAT IT DOES NOT ASSERT, said here rather than left to be discovered. It does
 # not add an item, does not read a playlist and does not touch a library. The
@@ -505,6 +511,28 @@ for route in "/Plugins" "/Plugins/${guid}/Configuration" "/Watchlist/Items"; do
     failures+=("${route} returned ${as_anonymous} to an anonymous caller, and every route asserted here is behind authorisation.")
   fi
 done
+
+# 4. The server holds no collision of any kind the scan reads. It is run here
+#    rather than in a job of its own because the server, the administrator token
+#    and the whole population are already in hand, and a second boot would prove
+#    the same thing about a different server. It is skipped on the near miss,
+#    which is about assertion 2 and would pay another boot for a reading its own
+#    probe already covers.
+if [ "${without}" = "no" ]; then
+  scan="$(dirname "$0")/scan-a-server-for-collisions.sh"
+
+  [ -f "${scan}" ] \
+    || refuse "The collision scan is not beside this harness at ${scan}. A run that skipped it would report a server as clean that nothing had read for a collision."
+
+  echo "4. Scanning the running server for collisions."
+
+  if ! scanned="$(bash "${scan}" --manifest "${manifest}" --base "${base}" --token "${token}" 2>&1)"; then
+    printf '%s\n' "${scanned}" | sed 's/^/   /'
+    failures+=("The collision scan refused the running server. Its report is above.")
+  else
+    printf '%s\n' "${scanned}" | sed 's/^/   /'
+  fi
+fi
 
 if [ "${without}" = "yes" ]; then
   # The near miss asserts the SHAPE of the failure rather than that there was
