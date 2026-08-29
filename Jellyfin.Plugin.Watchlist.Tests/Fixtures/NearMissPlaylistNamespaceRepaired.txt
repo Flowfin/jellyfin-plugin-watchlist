@@ -1,0 +1,28 @@
+// The one-change neighbour of NearMissPlaylistNamespace.txt.
+//
+// Same projector, same adoption of a list already carrying the name, same create when
+// none does, with the shared flag asked for through the seam instead of through the
+// server's own request object. The reconciler names no server playlist type, so it
+// compiles unchanged against a line that spells that object differently, and the one
+// file that has to know the difference is the one file that does. This file is a
+// fixture and is never compiled.
+
+public sealed class WatchlistProjector
+{
+    private readonly IPlaylistGateway _playlists;
+
+    public WatchlistProjector(IPlaylistGateway playlists) => _playlists = playlists;
+
+    public async Task<Guid> ListFor(Guid userId, string name, CancellationToken cancellationToken)
+    {
+        foreach (var playlist in _playlists.PlaylistsOf(userId))
+        {
+            if (string.Equals(playlist.Name, name, StringComparison.Ordinal))
+            {
+                return playlist.PlaylistId;
+            }
+        }
+
+        return await _playlists.CreateAsync(userId, name, cancellationToken).ConfigureAwait(false);
+    }
+}

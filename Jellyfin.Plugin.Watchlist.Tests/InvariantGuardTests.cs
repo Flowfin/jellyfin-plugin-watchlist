@@ -157,6 +157,53 @@ public class InvariantGuardTests
     }
 
     /// <summary>
+    /// The near-miss for the fourth invariant. A projector taking the gateway for
+    /// everything except one flag, reaching past it for the server's own creation
+    /// request because that is where the flag is and widening the seam is a
+    /// conversation. Every line of it compiles, and it puts the one type that differs
+    /// between the two server lines back into the one file that must not know.
+    /// </summary>
+    [Fact]
+    public void TheGuardRefusesAServerPlaylistTypeOutsideTheAdapter()
+    {
+        var findings = ScanFixture("NearMissPlaylistNamespace.txt");
+
+        Assert.NotEmpty(findings);
+        Assert.All(findings, f => Assert.Equal("playlist-namespace", f.RuleId));
+    }
+
+    /// <summary>
+    /// The same projector with the flag asked for through the seam. Without this the
+    /// test above would prove the fixture unusual rather than that the guard reads the
+    /// reference.
+    /// </summary>
+    [Fact]
+    public void TheOneChangeNeighbourOfTheServerPlaylistTypePasses()
+    {
+        var findings = ScanFixture("NearMissPlaylistNamespaceRepaired.txt");
+
+        Assert.True(
+            findings.Count == 0,
+            "The repaired fixture should trip nothing, and it tripped:"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, findings));
+    }
+
+    /// <summary>
+    /// The adapter is a real file the scan reads, so the register entry that covers it
+    /// is covering something. A guard whose one departure named a file that had been
+    /// renamed would go quiet in exactly the direction nobody looks.
+    /// </summary>
+    [Fact]
+    public void TheAdapterTheRegisterNamesIsInTheScannedSet()
+    {
+        var scanned = SourceEntries().Select(e => e.Name).ToList();
+
+        Assert.Contains("Projection/ServerPlaylistGateway.cs", scanned, StringComparer.Ordinal);
+        Assert.Contains("Projection/IPlaylistGateway.cs", scanned, StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// The register that ships. An entry in it that covers nothing reds this run, so
     /// the day the store stops touching the file system the entry has to go rather
     /// than sit there widening the rule for a file that no longer needs it.

@@ -63,3 +63,29 @@ plugin-network | WebRequest\s*\.\s*Create\s*\( | makes a web request
 plugin-network | \bDns\s*\.\s*GetHost | resolves a name against the network
 plugin-network | using\s+System\.Net\.Http\b | imports the HTTP stack
 plugin-network | using\s+System\.Net\.Sockets\b | imports the socket stack
+
+# One file in this plugin knows there is a server playlist type, and it is the adapter
+# on #82. The difference between the two supported server lines is one parameter on one
+# playlist call, so a reconciler that names a server playlist type directly is a
+# reconciler that has to be edited when the second line arrives, and the seam that was
+# built to absorb that edit is bypassed.
+#
+# The register below names the adapter's own file, which is how the scan is told where
+# the seam is. It fails in both directions: the day the adapter stops naming these types
+# the entry is stale and reds the run.
+#
+# The imports are matched as well as the type names. A file cannot name one of these
+# types without either importing its namespace or spelling it in full, so the two forms
+# together are the whole of what a reference can look like. `ProjectedPlaylist` and
+# `ProjectedPlaylistEntry` are this plugin's own words and are outside every pattern
+# here, which is the point of having them.
+playlist-namespace | using\s+MediaBrowser\.Controller\.Playlists\b | imports the server's playlist namespace outside the adapter
+playlist-namespace | using\s+MediaBrowser\.Model\.Playlists\b | imports the server's playlist namespace outside the adapter
+playlist-namespace | \bMediaBrowser\s*\.\s*Controller\s*\.\s*Playlists\s*\. | spells a server playlist type in full outside the adapter
+playlist-namespace | \bMediaBrowser\s*\.\s*Model\s*\.\s*Playlists\s*\. | spells a server playlist type in full outside the adapter
+playlist-namespace | \bIPlaylistManager\b | takes the server's playlist manager outside the adapter
+playlist-namespace | \bPlaylistCreationRequest\b | names a server playlist type outside the adapter
+playlist-namespace | \bPlaylistCreationResult\b | names a server playlist type outside the adapter
+playlist-namespace | \bPlaylistUpdateRequest\b | names a server playlist type outside the adapter
+playlist-namespace | \bPlaylistUserUpdateRequest\b | names a server playlist type outside the adapter
+playlist-namespace | \bPlaylistUserPermissions\b | names a server playlist type outside the adapter

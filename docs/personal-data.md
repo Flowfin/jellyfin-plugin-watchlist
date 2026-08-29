@@ -11,15 +11,20 @@ rather than the sections that change touched, because a path added to the store 
 line numbers in files this page reads:
 
     git grep -c '^    \(git\|grep\|sed\|awk\|curl\|gh\) ' docs/personal-data.md
-    docs/personal-data.md:33
+    docs/personal-data.md:34
 
-Thirty-two were checked. The thirty-third is that line counting them, which counts
+Thirty-three were checked. The thirty-fourth is that line counting them, which counts
 itself and was written after the pass rather than checked by it, and saying so is
 cheaper than a count that quietly excludes the one command a reader can see.
 
+Two of the thirty-three arrived after that pass rather than in it, with the playlist
+seam on #82, and were run at the commit that landed that instead. They are the pair
+under `## The one thing this file does not describe`, and they replace a single paste
+whose answer the seam had stopped agreeing with.
+
 Most of the checking is a run rather than a reading now. `DocumentPasteTests` re-runs
 every `grep` and `git grep` paste in this file and reds the suite where one has
-stopped agreeing, which is thirty-two of the thirty-three. The one it does not judge
+stopped agreeing, which is thirty-three of the thirty-four. The one it does not judge
 is the `sed` paste under `## Where it is stored`, and that one was run by hand. What
 the check can and cannot see is in `Jellyfin.Plugin.Watchlist.Tests/DOCUMENT-PASTES.md`
 rather than restated here.
@@ -42,14 +47,21 @@ everything else on this page is unaffected by the record and its endpoints exist
 The section says it at greater length and with what it is read from.
 
 **The projected playlists.** The way a list is meant to become visible on a client is
-a playlist owned by that user. Nothing projects one yet:
+a playlist owned by that user. Nothing projects one yet, and the sentence under this
+one used to be that nothing in this plugin names a playlist at all. That has stopped
+being true and the absence has not: one file names the server's playlist manager, it is
+the seam every playlist call would go through, and nothing wires it up.
 
-    git grep -n 'IPlaylistManager' -- Jellyfin.Plugin.Watchlist ; echo "exit=$?"
+    git grep -l 'IPlaylistManager' -- Jellyfin.Plugin.Watchlist
+    Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
+
+    git grep -n 'PlaylistGateway' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs ; echo "exit=$?"
     exit=1
 
-So everything below is about a document on the server and this plugin's own endpoints.
-A playlist is a second surface with its own answer to who can see it, and that answer
-belongs here when there is a playlist to describe.
+Nothing constructs that file, so no playlist is created, read or written on any server
+running this plugin, and everything below is about a document on the server and this
+plugin's own endpoints. A playlist is a second surface with its own answer to who can
+see it, and that answer belongs here when there is a playlist to describe.
 
 That absence is stated so this file is not read as covering it.
 
