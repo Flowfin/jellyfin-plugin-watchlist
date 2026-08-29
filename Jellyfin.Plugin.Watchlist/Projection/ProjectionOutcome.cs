@@ -28,4 +28,10 @@ public enum ProjectionOutcome
     /// wrote, and the configured name had moved, so the playlist was renamed.
     /// </summary>
     Renamed = 3,
+
+    /// <summary>
+    /// A playlist the owner already had, carrying the configured name, was taken over
+    /// as this target's projected list and its rows were read onto the list.
+    /// </summary>
+    Adopted = 4,
 }

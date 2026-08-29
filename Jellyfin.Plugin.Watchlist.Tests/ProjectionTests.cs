@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -277,7 +278,7 @@ public sealed class ProjectionTests : IDisposable
     {
         var store = new WatchlistDocumentStore(DataFolder, new RecordingLogger());
 
-        var target = UserProjectionTarget.For(store, AUser, PluginConfiguration.DefaultProjectedListName);
+        var target = TargetFor(store, AUser);
 
         Assert.True(target.IsRecordAvailable);
         Assert.Null(target.Remembered);
@@ -295,7 +296,7 @@ public sealed class ProjectionTests : IDisposable
         var store = new WatchlistDocumentStore(DataFolder, new RecordingLogger());
         Place(store.PathFor(TheFixtureUser), "watchlist-document-from-the-future.json");
 
-        var target = UserProjectionTarget.For(store, TheFixtureUser, PluginConfiguration.DefaultProjectedListName);
+        var target = TargetFor(store, TheFixtureUser);
 
         Assert.False(target.IsRecordAvailable);
         Assert.Null(target.Remembered);
@@ -305,10 +306,18 @@ public sealed class ProjectionTests : IDisposable
     /// There is no target without a store to read.
     /// </summary>
     [Fact]
-    public void ThereIsNoTargetWithoutAStore()
+    public void ThereIsNoTargetWithoutAnyOfWhatItReads()
     {
+        var store = new WatchlistDocumentStore(DataFolder, new RecordingLogger());
+
         Assert.Throws<ArgumentNullException>(
-            () => UserProjectionTarget.For(null!, AUser, PluginConfiguration.DefaultProjectedListName));
+            () => UserProjectionTarget.For(null!, new PluginConfiguration(), new ADescriberOf(), AStoppedClock(), AUser));
+        Assert.Throws<ArgumentNullException>(
+            () => UserProjectionTarget.For(store, null!, new ADescriberOf(), AStoppedClock(), AUser));
+        Assert.Throws<ArgumentNullException>(
+            () => UserProjectionTarget.For(store, new PluginConfiguration(), null!, AStoppedClock(), AUser));
+        Assert.Throws<ArgumentNullException>(
+            () => UserProjectionTarget.For(store, new PluginConfiguration(), new ADescriberOf(), null!, AUser));
     }
 
     /// <summary>
@@ -381,6 +390,12 @@ public sealed class ProjectionTests : IDisposable
     /// a thing a server produces on its own, so what the record holds has to tell them
     /// apart and the name cannot.
     /// </summary>
+    /// <remarks>
+    /// The second list arrives after the projection exists, which is the order that
+    /// makes this about the identifier. A list carrying the configured name that is
+    /// already there when the first pass runs is adopted rather than duplicated, and
+    /// that is #41 rather than this.
+    /// </remarks>
     [Fact]
     public async Task TheIdentifierTellsApartTwoPlaylistsOfOneUserSharingAName()
     {
@@ -388,21 +403,27 @@ public sealed class ProjectionTests : IDisposable
         var server = new APlaylistServerOf();
         var projector = new WatchlistProjector(server, new RecordingProjectorLogger());
 
+        var made = await projector.EnsurePlaylistAsync(TargetFor(store, AUser), CancellationToken.None);
+
         server.AlreadyHolds(
             AUser,
             Guid.Parse("cccccccc-0000-0000-0000-000000000004"),
             PluginConfiguration.DefaultProjectedListName);
 
-        var result = await projector.EnsurePlaylistAsync(TargetFor(store, AUser), CancellationToken.None);
+        var again = await projector.EnsurePlaylistAsync(TargetFor(store, AUser), CancellationToken.None);
 
         var owned = server.PlaylistsOf(AUser);
         Assert.Equal(2, owned.Count);
         Assert.Single(owned.Select(playlist => playlist.Name).Distinct(StringComparer.Ordinal));
-        Assert.Equal(result.Projection!.PlaylistId, store.Read(AUser).Document!.Projection!.PlaylistId);
+        Assert.Equal(ProjectionOutcome.AlreadyProjected, again.Outcome);
+        Assert.Equal(made.Projection!.PlaylistId, store.Read(AUser).Document!.Projection!.PlaylistId);
     }
 
     private static UserProjectionTarget TargetFor(WatchlistDocumentStore store, Guid userId) =>
-        UserProjectionTarget.For(store, userId, PluginConfiguration.DefaultProjectedListName);
+        UserProjectionTarget.For(store, new PluginConfiguration(), new ADescriberOf(), AStoppedClock(), userId);
+
+    private static StoppedClock AStoppedClock() =>
+        new(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero));
 
     /// <summary>
     /// A server holding exactly the playlist a user's document already names, so a
@@ -461,11 +482,20 @@ public sealed class ProjectionTests : IDisposable
 
         public WatchlistProjectionState? Remembered { get; private set; }
 
+        public IReadOnlyList<Guid> Adopted { get; private set; } = [];
+
         public bool Remember(WatchlistProjectionState projection)
         {
             Remembered = projection;
 
             return true;
+        }
+
+        public int Adopt(IReadOnlyList<Guid> itemIds)
+        {
+            Adopted = itemIds;
+
+            return itemIds.Count;
         }
     }
 
@@ -491,5 +521,7 @@ public sealed class ProjectionTests : IDisposable
         public WatchlistProjectionState? Remembered => null;
 
         public bool Remember(WatchlistProjectionState projection) => false;
+
+        public int Adopt(IReadOnlyList<Guid> itemIds) => 0;
     }
 }

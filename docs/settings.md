@@ -133,12 +133,15 @@ Where it is stored: the plugin's configuration, which the server holds outside a
 user's document, because it is one value for the whole server rather than one per
 person.
 
-What reads it: the route that adds one item and the route that reads a whole list
-back in, each refusing a write that would take a list past the bound.
+What reads it: the route that adds one item, the route that reads a whole list back
+in, and the adoption of a playlist somebody made by hand, each refusing a write that
+would take a list past the bound. The third of those is why adoption can take fewer
+rows than the playlist offered.
 
     git grep -l 'MaxEntriesPerUser' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs
+    Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
 
 ### RemoveWhenWatched
 

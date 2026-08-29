@@ -26,6 +26,26 @@ show up.
 Adding an item to that playlist from a client puts it on the list, and removing
 it takes it off, so the list can be worked from the same place it is read.
 
+**If you already made a playlist with that name, it is taken over rather than
+duplicated.** The workaround people use before a plugin like this exists is a
+hand-made playlist called something like Watchlist, and creating a second one
+beside it would leave you adding to one list while the plugin writes to another.
+So on the first pass for a user, a playlist that user owns whose name is exactly
+the configured list name becomes their projected list: the plugin remembers it,
+and reads what is already in it onto the list. Rows it cannot put on a list are
+left where they are, which is anything that is not a film, a show or an episode,
+and anything you no longer have access to.
+
+Two limits of that, both deliberate. If you own **more than one** playlist with
+that name, none of them is taken over and the plugin makes its own, because
+nothing in either list says which one you meant and guessing is wrong half the
+time on somebody else's data. And a playlist owned by another user is never taken
+over, whatever it is called.
+
+If you would rather keep your own list to yourself, rename it, or change the name
+the plugin uses; both are in [docs/settings.md](docs/settings.md), together with
+the rule that stops the plugin renaming a list once you have named it yourself.
+
 ## Which servers it supports
 
 Two server lines, 10.11 and 12.0. They do not share a runtime and they do not
@@ -154,13 +174,21 @@ reads such a file back onto your own list. A shared list inside such a file is
 counted and left alone, because writing the list everybody reads is an
 administrative operation and there is no administrative surface yet.
 
-The projection into a playlist is not built, and it is the part a user would
-notice, because until it exists a list is reachable over the API and appears on no
-client. That is true of both kinds of list, which is the part of the shared list
-that is missing rather than the whole of it: the shared record, the setting that
-turns it on and the endpoints that read and change it are all here, and what is
-absent is the playlist it would appear in and the administrator surface that names
-and removes it. That is why there is no release.
+The projection into a playlist does not run, and it is the part a user would
+notice, because until it does a list is reachable over the API and appears on no
+client. What has changed is what is missing rather than whether anything is: the
+half that decides which playlist a list belongs in is written and tested - it
+creates one on demand, takes over a matching one you already had, and keeps the
+name in step - and none of it is wired into a running server, so no playlist is
+created, renamed or read on any server this plugin is installed on. What is still
+unwritten is the half that puts the entries in and keeps them there, and the pass
+that would call either.
+
+That is true of both kinds of list, which is the part of the shared list that is
+missing rather than the whole of it: the shared record, the setting that turns it
+on and the endpoints that read and change it are all here, and what is absent is
+the playlist it would appear in and the administrator surface that names and
+removes it. That is why there is no release.
 
 One of the two server lines above is not built either. The plugin compiles
 against the 10.11 package set, on the framework that line runs, and the packaging

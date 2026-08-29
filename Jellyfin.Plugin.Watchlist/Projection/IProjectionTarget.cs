@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Jellyfin.Plugin.Watchlist.Store;
 
 namespace Jellyfin.Plugin.Watchlist.Projection;
@@ -61,4 +62,23 @@ public interface IProjectionTarget
     /// <param name="projection">The playlist and the name it was written under.</param>
     /// <returns>False where the record could not be written.</returns>
     bool Remember(WatchlistProjectionState projection);
+
+    /// <summary>
+    /// Takes the rows of a playlist this target is adopting into the list itself.
+    /// </summary>
+    /// <param name="itemIds">The library items the playlist holds.</param>
+    /// <returns>How many of them went onto the list.</returns>
+    /// <remarks>
+    /// This is on the target rather than in the projector because it is the second
+    /// thing the two kinds of list differ in. What an entry carries is not the same on
+    /// both - an entry on a list several people write says who put it there - and the
+    /// bound it is added under is a different setting for each. What is common is that
+    /// a playlist has rows and the list should end up holding them, and that is the
+    /// whole of what the projector knows.
+    ///
+    /// The count is what was TAKEN rather than what was offered, because a row that is
+    /// already on the list, one whose item the user may not see, and one of a kind a
+    /// list does not hold are all rows that arrive here and do not become entries.
+    /// </remarks>
+    int Adopt(IReadOnlyList<Guid> itemIds);
 }

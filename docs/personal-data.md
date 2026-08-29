@@ -465,12 +465,12 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Twenty-seven places log at all, over six files:
+library. Twenty-nine places log at all, over six files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:9
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
-    Jellyfin.Plugin.Watchlist/Projection/WatchlistProjector.cs:5
+    Jellyfin.Plugin.Watchlist/Projection/WatchlistProjector.cs:7
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:6
     Jellyfin.Plugin.Watchlist/Users/DeletedUserHandler.cs:1
     Jellyfin.Plugin.Watchlist/Watched/WatchedRemovalHandler.cs:1
@@ -489,11 +489,11 @@ event named and the item that was played, and nothing out of the entries it remo
 The deleted-user handler's line names one identifier, the user the server deleted, and
 it is written only where a document was there to remove, so a server deleting users
 who never opened a watchlist logs nothing at all.
-The projector's five lines name a user identifier and a playlist identifier and never
-the name of either. Two of the five are said once per playlist for the life of the
-process rather than on every pass, because what they report is a standing state of the
-server: a playlist whose label the user changed, and a second playlist of that user
-carrying the configured name.
+The projector's seven lines name a user identifier, a playlist identifier and counts of
+playlists and of rows, and never the name of a list or of anything in one. Two of the
+seven are said once per playlist for the life of the process rather than on every pass,
+because what they report is a standing state of the server: a playlist whose label the
+user changed, and a second playlist of that user carrying the configured name.
 The pass that drops entries whose item can no longer be resolved reports one line with
 a count, and nothing out of the entries themselves:
 
