@@ -88,8 +88,26 @@ Where it is stored: the plugin's configuration, one value for the whole server.
 Every user's list carries the same name, because it is one name for the server
 rather than a per-user preference.
 
-Not read by anything today. The projection is M3 and is not built, so the name is
-saved and kept and is rendered nowhere.
+**When this plugin stops writing the name.** A projected playlist is renamed only
+where its label is still the one this plugin last wrote for it. Where the two
+differ the user named that playlist, and this plugin never writes its name again,
+on this setting change or on any later one; the contents keep being reconciled
+through the identifier, which the label does not affect. The comparison is what
+the code asks, because nothing here can ask a server whether a person typed a
+name.
+
+Two consequences of that rule are worth knowing before you meet them. A user who
+renames their playlist to exactly what this setting later becomes is
+indistinguishable from one who never renamed it, and this plugin manages the name
+again from then on. And a second playlist of that user carrying this name is not
+adopted or renamed: the identifier decides which one is the projection, the server
+resolves such a collision on the directory rather than on the name, and the plugin
+says so once rather than on every pass.
+
+Read on a running server by nothing yet, and the reason has moved. The projection
+is built - it renames under the rule above and creates under #17 - and nothing
+constructs it, because neither it nor the playlist seam is registered with the
+server. So this value is saved, kept, and rendered nowhere until a pass runs.
 
 ### MaxEntriesPerUser
 
