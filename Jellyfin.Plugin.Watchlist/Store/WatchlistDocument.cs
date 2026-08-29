@@ -13,7 +13,7 @@ public sealed record WatchlistDocument
     /// The version this plugin writes. A document carrying a higher number was
     /// written by a newer plugin than the one reading it.
     /// </summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>
     /// Gets the schema version the document was written with.
@@ -45,4 +45,21 @@ public sealed record WatchlistDocument
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public WatchlistUserPreferences? Preferences { get; init; }
+
+    /// <summary>
+    /// Gets what this plugin remembers about the playlist this list is projected
+    /// into, or null where nothing has been projected for this user yet.
+    /// </summary>
+    /// <remarks>
+    /// Null means no playlist has ever been made for this user, which is the state
+    /// every user is in until they add something. The projection is on demand: a
+    /// server with a thousand users who have never touched the plugin holds a
+    /// thousand documents that do not exist and no playlists at all.
+    ///
+    /// Suppressed when it is null for the same reason the preferences block is, so a
+    /// user with no projection carries no such member on disk and their document is
+    /// byte for byte the shape it had before this member existed.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public WatchlistProjectionState? Projection { get; init; }
 }

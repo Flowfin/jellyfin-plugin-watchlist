@@ -420,6 +420,47 @@ public sealed class WatchlistDocumentStore
     }
 
     /// <summary>
+    /// Writes which playlist this user's list is projected into, and the name this
+    /// plugin last wrote for it, into that user's document.
+    /// </summary>
+    /// <param name="userId">The user.</param>
+    /// <param name="projection">
+    /// What this plugin now remembers about that user's playlist, or null to forget
+    /// it, which is what a user who has never had one looks like.
+    /// </param>
+    /// <returns>
+    /// False when the document could not be read at all, which is a document from a
+    /// newer plugin or one no upgrade step reaches. Nothing is written in that case,
+    /// for the same reason a read of it returns no list: the file is left alone rather
+    /// than replaced by a shape this build understands.
+    /// </returns>
+    /// <remarks>
+    /// The read and the write are one change under the same gate as every other writer
+    /// here, so a playlist recorded while an entry is being added loses neither, and
+    /// the bytes reach disk through the same staged write.
+    ///
+    /// A caller that had to read, edit and write the document itself would be a second
+    /// place that knows the document's shape, and the window between its read and its
+    /// write is where an add made from an endpoint disappears.
+    /// </remarks>
+    public bool SetProjection(Guid userId, WatchlistProjectionState? projection)
+    {
+        lock (GateFor(userId))
+        {
+            var read = ReadInsideTheGate(userId);
+
+            if (!read.IsAvailable)
+            {
+                return false;
+            }
+
+            Commit(Stage(read.Document! with { Projection = projection }));
+
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Reads the shared list.
     /// </summary>
     /// <returns>

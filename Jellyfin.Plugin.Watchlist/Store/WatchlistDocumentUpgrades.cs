@@ -39,6 +39,7 @@ public static class WatchlistDocumentUpgrades
         {
             [0] = FromVersionZeroToVersionOne,
             [1] = FromVersionOneToVersionTwo,
+            [2] = FromVersionTwoToVersionThree,
         };
 
     /// <summary>
@@ -221,4 +222,20 @@ public static class WatchlistDocumentUpgrades
     /// the member is suppressed to avoid.
     /// </remarks>
     private static JsonObject FromVersionOneToVersionTwo(JsonObject document) => document;
+
+    /// <summary>
+    /// Version 2 to version 3, which adds no member to a stored document.
+    /// </summary>
+    /// <param name="document">The document at version 2.</param>
+    /// <returns>The same members, which are already the version 3 shape.</returns>
+    /// <remarks>
+    /// Version 3 added the block recording which playlist this user's list is
+    /// projected into, and that block is written only once a projection has been made.
+    /// A version 2 document was written before this plugin could make one, so every one
+    /// of them is a user with no projection, and the version 3 shape of that is the
+    /// block being absent. Writing an empty block here would put a playlist identifier
+    /// of all zeroes on disk, which a later pass would read as a playlist to reconcile
+    /// against rather than as one nobody has made.
+    /// </remarks>
+    private static JsonObject FromVersionTwoToVersionThree(JsonObject document) => document;
 }

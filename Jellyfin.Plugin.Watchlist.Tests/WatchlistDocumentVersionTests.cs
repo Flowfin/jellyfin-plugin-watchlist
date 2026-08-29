@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -31,24 +32,33 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
     }
 
     /// <summary>
-    /// The fixtures are one document at four versions. If they ever differ in anything
-    /// else, every other test in this file is proving something other than what it
-    /// says.
+    /// The fixtures are one document at every version, and one version past the last.
+    /// If they ever differ in anything else, every other test in this file is proving
+    /// something other than what it says.
     /// </summary>
     /// <remarks>
-    /// Version 2 added the per-user preferences block and these fixtures still differ
-    /// in the number alone, which is the point rather than an oversight: the block is
-    /// written only for a user who answered something, so the version 2 shape of a
-    /// user who answered nothing is byte for byte the version 1 shape.
+    /// Each version that added a member added one that is written only for a user who
+    /// has something to write there, so these fixtures still differ in the number
+    /// alone. Version 2 added the per-user preferences block, which a user who
+    /// answered nothing does not carry, and version 3 added the block naming the
+    /// playlist their list is projected into, which a user with no projection does not
+    /// carry either. That is the point rather than an oversight: the shape of a user
+    /// who has done neither is byte for byte the version 1 shape.
+    ///
+    /// The numbers are derived from the version the plugin writes rather than typed,
+    /// so raising it does not ask anybody to remember this file.
     /// </remarks>
     [Fact]
     public void TheFixturesDifferOnlyInTheVersionNumber()
     {
-        var current = Fixture("watchlist-document-v2.json");
+        var current = Fixture(FixtureFor(WatchlistDocument.CurrentSchemaVersion));
 
-        Assert.Equal(current, Fixture("watchlist-document-from-the-future.json").Replace("\"SchemaVersion\": 3", "\"SchemaVersion\": 2", StringComparison.Ordinal));
-        Assert.Equal(current, Fixture("watchlist-document-v1.json").Replace("\"SchemaVersion\": 1", "\"SchemaVersion\": 2", StringComparison.Ordinal));
-        Assert.Equal(current, Fixture("watchlist-document-v0.json").Replace("\"SchemaVersion\": 0", "\"SchemaVersion\": 2", StringComparison.Ordinal));
+        Assert.Equal(current, AtCurrentVersion("watchlist-document-from-the-future.json", WatchlistDocument.CurrentSchemaVersion + 1));
+
+        for (var version = WatchlistDocumentUpgrades.OldestReadableSchemaVersion; version < WatchlistDocument.CurrentSchemaVersion; version++)
+        {
+            Assert.Equal(current, AtCurrentVersion(FixtureFor(version), version));
+        }
     }
 
     /// <summary>
@@ -67,7 +77,7 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
 
         Assert.False(result.IsAvailable);
         Assert.Null(result.Document);
-        Assert.Equal(3, result.StoredSchemaVersion);
+        Assert.Equal(WatchlistDocument.CurrentSchemaVersion + 1, result.StoredSchemaVersion);
         Assert.Equal(before, File.ReadAllBytes(path));
     }
 
@@ -86,8 +96,8 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
 
         var line = Assert.Single(log.Lines);
         Assert.Contains(path, line, StringComparison.Ordinal);
-        Assert.Contains("version 3", line, StringComparison.Ordinal);
-        Assert.Contains("version 2", line, StringComparison.Ordinal);
+        Assert.Contains(VersionInWords(WatchlistDocument.CurrentSchemaVersion + 1), line, StringComparison.Ordinal);
+        Assert.Contains(VersionInWords(WatchlistDocument.CurrentSchemaVersion), line, StringComparison.Ordinal);
         Assert.StartsWith("Error", line, StringComparison.Ordinal);
     }
 
@@ -100,13 +110,13 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
     public void TheSameDocumentAtTheCurrentVersionIsRead()
     {
         var store = new WatchlistDocumentStore(DataFolder, new RecordingLogger());
-        Place("watchlist-document-v2.json");
+        Place(FixtureFor(WatchlistDocument.CurrentSchemaVersion));
 
         var result = store.Read(AUser);
 
         Assert.True(result.IsAvailable);
         Assert.Equal(3, result.Document!.Entries.Count);
-        Assert.Equal(2, result.Document.SchemaVersion);
+        Assert.Equal(WatchlistDocument.CurrentSchemaVersion, result.Document.SchemaVersion);
     }
 
     /// <summary>
@@ -138,6 +148,7 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
     [InlineData("watchlist-document-v0.json")]
     [InlineData("watchlist-document-v1.json")]
     [InlineData("watchlist-document-v2.json")]
+    [InlineData("watchlist-document-v3.json")]
     [InlineData("watchlist-document-from-the-future.json")]
     public void AReadNeverRewritesTheFile(string fixture)
     {
@@ -166,6 +177,48 @@ public sealed class WatchlistDocumentVersionTests : IDisposable
 
         return path;
     }
+
+    /// <summary>
+    /// The fixture that carries one version of the document.
+    /// </summary>
+    /// <param name="schemaVersion">The version it declares.</param>
+    /// <returns>The fixture file name.</returns>
+    private static string FixtureFor(int schemaVersion) => string.Format(
+        CultureInfo.InvariantCulture,
+        "watchlist-document-v{0}.json",
+        schemaVersion);
+
+    /// <summary>
+    /// A fixture with its declared version replaced by the one the plugin writes, so
+    /// two fixtures can be compared for everything except that number.
+    /// </summary>
+    /// <param name="name">The fixture file name.</param>
+    /// <param name="declared">The version that fixture declares.</param>
+    /// <returns>The fixture text, at the current version.</returns>
+    private static string AtCurrentVersion(string name, int declared) => Fixture(name).Replace(
+        Declaration(declared),
+        Declaration(WatchlistDocument.CurrentSchemaVersion),
+        StringComparison.Ordinal);
+
+    /// <summary>
+    /// The line a fixture declares its version on.
+    /// </summary>
+    /// <param name="schemaVersion">The version.</param>
+    /// <returns>The declaration as it stands in the file.</returns>
+    private static string Declaration(int schemaVersion) => string.Format(
+        CultureInfo.InvariantCulture,
+        "\"SchemaVersion\": {0}",
+        schemaVersion);
+
+    /// <summary>
+    /// How a refusal names a version in the log.
+    /// </summary>
+    /// <param name="schemaVersion">The version.</param>
+    /// <returns>The words the line carries.</returns>
+    private static string VersionInWords(int schemaVersion) => string.Format(
+        CultureInfo.InvariantCulture,
+        "version {0}",
+        schemaVersion);
 
     private static string Fixture(string name)
     {
