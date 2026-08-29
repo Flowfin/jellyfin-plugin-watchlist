@@ -38,6 +38,14 @@ public sealed record ProjectionResult
         new(ProjectionOutcome.AlreadyProjected, projection);
 
     /// <summary>
+    /// The playlist was renamed to the configured name and the record moved with it.
+    /// </summary>
+    /// <param name="projection">The playlist and the name it now carries.</param>
+    /// <returns>The result.</returns>
+    public static ProjectionResult Renamed(WatchlistProjectionState projection) =>
+        new(ProjectionOutcome.Renamed, projection);
+
+    /// <summary>
     /// A playlist was created for this target and written into its record.
     /// </summary>
     /// <param name="projection">The playlist and the name it was created under.</param>

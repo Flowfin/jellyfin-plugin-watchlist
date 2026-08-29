@@ -22,4 +22,10 @@ public enum ProjectionOutcome
     /// be written, so nothing further was done with it.
     /// </summary>
     RefusedRecordUnavailable = 2,
+
+    /// <summary>
+    /// The target already had a playlist, its label was still the one this plugin
+    /// wrote, and the configured name had moved, so the playlist was renamed.
+    /// </summary>
+    Renamed = 3,
 }

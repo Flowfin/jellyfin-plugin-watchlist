@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Watchlist.Store;
@@ -46,6 +48,7 @@ public sealed class WatchlistProjector
 {
     private readonly IPlaylistGateway _playlists;
     private readonly ILogger<WatchlistProjector> _logger;
+    private readonly ConcurrentDictionary<string, byte> _said = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WatchlistProjector"/> class.
@@ -85,10 +88,12 @@ public sealed class WatchlistProjector
         }
 
         var remembered = target.Remembered;
+        var onTheServer = remembered is null ? null : CurrentlyOnTheServer(target, remembered.PlaylistId);
 
-        if (remembered is not null && IsStillOnTheServer(target.OwnerUserId, remembered.PlaylistId))
+        if (remembered is not null && onTheServer is not null)
         {
-            return ProjectionResult.AlreadyProjected(remembered);
+            return await KeepTheNameInStepAsync(target, remembered, onTheServer, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         var name = target.ConfiguredName;
@@ -125,21 +130,178 @@ public sealed class WatchlistProjector
     }
 
     /// <summary>
-    /// Whether the server still holds this playlist for this user.
+    /// Brings the label of a playlist this plugin already has into step with the
+    /// configured name, where the label is still the one this plugin wrote.
     /// </summary>
-    /// <param name="ownerUserId">The user whose playlists are asked for.</param>
-    /// <param name="playlistId">The playlist the record remembers.</param>
-    /// <returns>True where the server lists it.</returns>
-    private bool IsStillOnTheServer(Guid ownerUserId, Guid playlistId)
+    /// <param name="target">The target.</param>
+    /// <param name="remembered">What the record holds.</param>
+    /// <param name="onTheServer">The playlist as the server holds it now.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The result of the pass.</returns>
+    /// <remarks>
+    /// <para>
+    /// THE COMPARISON IS THE RULE AND AN INTENTION IS NOT. This plugin cannot ask a
+    /// server whether a person typed a name, so the only honest question is whether the
+    /// label is still the last one it set. Where it is not, the user named that playlist
+    /// and this plugin never writes its name again.
+    /// </para>
+    /// <para>
+    /// The record is written before the server is asked to rename. Both orders leave the
+    /// same wrong state if the second half fails - a label and a record that disagree,
+    /// which the next pass reads as a user-named list - and this one fails without having
+    /// touched anything the user can see.
+    /// </para>
+    /// <para>
+    /// A label that already reads as the configured name is left alone and the record is
+    /// brought onto it. That is the user who renamed their playlist to exactly what the
+    /// setting later became: indistinguishable from one who never renamed it, so this
+    /// plugin manages the name again from then on. It is the rule getting a case wrong in
+    /// the harmless direction, and it is cheaper to say so than to carry a value that
+    /// tries to detect it.
+    /// </para>
+    /// </remarks>
+    private async Task<ProjectionResult> KeepTheNameInStepAsync(
+        IProjectionTarget target,
+        WatchlistProjectionState remembered,
+        ProjectedPlaylist onTheServer,
+        CancellationToken cancellationToken)
     {
-        foreach (var playlist in _playlists.PlaylistsOf(ownerUserId))
+        var wanted = target.ConfiguredName;
+
+        if (string.Equals(onTheServer.Name, remembered.LastNameWritten, StringComparison.Ordinal))
+        {
+            return await RenamedToAsync(target, remembered, wanted, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (string.Equals(onTheServer.Name, wanted, StringComparison.Ordinal))
+        {
+            // The label already reads as the setting, so nothing is renamed and the
+            // record is what moves. Without this the next setting change would find a
+            // label this plugin does not recognise and leave it alone for ever.
+            return Recorded(target, remembered with { LastNameWritten = wanted });
+        }
+
+        if (NotSaidYet("named-by-the-user", remembered.PlaylistId))
+        {
+            _logger.LogInformation(
+                "Playlist {PlaylistId} of user {UserId} no longer carries the name this plugin wrote, so the name is the user's and this plugin will not write it again. Its contents are still reconciled",
+                remembered.PlaylistId,
+                target.OwnerUserId);
+        }
+
+        return ProjectionResult.AlreadyProjected(remembered);
+    }
+
+    /// <summary>
+    /// Moves the record onto a name and then asks the server for it, doing neither where
+    /// the name has not moved.
+    /// </summary>
+    /// <param name="target">The target.</param>
+    /// <param name="remembered">What the record holds.</param>
+    /// <param name="wanted">The configured name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The result of the pass.</returns>
+    private async Task<ProjectionResult> RenamedToAsync(
+        IProjectionTarget target,
+        WatchlistProjectionState remembered,
+        string wanted,
+        CancellationToken cancellationToken)
+    {
+        if (string.Equals(remembered.LastNameWritten, wanted, StringComparison.Ordinal))
+        {
+            return ProjectionResult.AlreadyProjected(remembered);
+        }
+
+        var renamed = remembered with { LastNameWritten = wanted };
+
+        if (!target.Remember(renamed))
+        {
+            return ProjectionResult.RefusedRecordUnavailable();
+        }
+
+        await _playlists
+            .RenameAsync(remembered.PlaylistId, target.OwnerUserId, wanted, cancellationToken)
+            .ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "Renamed playlist {PlaylistId} of user {UserId} to the configured name",
+            remembered.PlaylistId,
+            target.OwnerUserId);
+
+        return ProjectionResult.Renamed(renamed);
+    }
+
+    /// <summary>
+    /// Writes a record that carries no change to the server with it.
+    /// </summary>
+    /// <param name="target">The target.</param>
+    /// <param name="projection">What the record should hold.</param>
+    /// <returns>The result of the pass.</returns>
+    private static ProjectionResult Recorded(IProjectionTarget target, WatchlistProjectionState projection) =>
+        target.Remember(projection)
+            ? ProjectionResult.AlreadyProjected(projection)
+            : ProjectionResult.RefusedRecordUnavailable();
+
+    /// <summary>
+    /// The playlist the server holds for this user under the remembered identifier, or
+    /// null where it holds none.
+    /// </summary>
+    /// <param name="target">The target, whose owner is who the server is asked about.</param>
+    /// <param name="playlistId">The playlist the record remembers.</param>
+    /// <returns>The playlist, or null.</returns>
+    /// <remarks>
+    /// The whole list is walked rather than one playlist being asked for, because the
+    /// same read answers the collision question below and a second call would be a
+    /// second read of the same thing.
+    /// </remarks>
+    private ProjectedPlaylist? CurrentlyOnTheServer(IProjectionTarget target, Guid playlistId)
+    {
+        ProjectedPlaylist? found = null;
+
+        foreach (var playlist in _playlists.PlaylistsOf(target.OwnerUserId))
         {
             if (playlist.PlaylistId == playlistId)
             {
-                return true;
+                found = playlist;
+            }
+            else if (string.Equals(playlist.Name, target.ConfiguredName, StringComparison.Ordinal))
+            {
+                // A second list of this user carrying the configured name. The server
+                // resolves such a collision on the directory rather than on the name, so
+                // this is a thing that happens and not a thing to guard against. The
+                // identifier decides which playlist is the projection; this is said once
+                // so an operator can see why two rows read alike.
+                if (NotSaidYet("name-collision", playlist.PlaylistId))
+                {
+                    _logger.LogInformation(
+                        "Playlist {PlaylistId} of user {UserId} carries the configured list name and is not the projected list, which is {ProjectedPlaylistId}. The identifier decides and nothing is renamed",
+                        playlist.PlaylistId,
+                        target.OwnerUserId,
+                        playlistId);
+                }
             }
         }
 
-        return false;
+        return found;
     }
+
+    /// <summary>
+    /// Whether this observation about this playlist has not been made yet, and records
+    /// that it is being made now.
+    /// </summary>
+    /// <param name="kind">Which observation this is, so two about one playlist are two.</param>
+    /// <param name="playlistId">The playlist the observation is about.</param>
+    /// <returns>True the first time, false afterwards.</returns>
+    /// <remarks>
+    /// ONCE PER PROCESS, AND A RESTART SAYS IT AGAIN. What is reported is a standing
+    /// state of the server rather than an event, so a pass finding it again has nothing
+    /// new to say and a line per user per pass is a log nobody reads. The alternative is
+    /// a value in every user's document whose only purpose is to keep a log quiet, and
+    /// that costs a schema version on every installed server. The bound is stated rather
+    /// than hidden: this suppresses repetition, it does not promise a line was written
+    /// exactly once in the life of a server.
+    /// </remarks>
+    private bool NotSaidYet(string kind, Guid playlistId) => _said.TryAdd(
+        kind + " " + playlistId.ToString("N", CultureInfo.InvariantCulture),
+        0);
 }
