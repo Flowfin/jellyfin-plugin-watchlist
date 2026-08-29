@@ -28,16 +28,81 @@ three consecutive runs.
 
 ## The container harness
 
-There is not one yet.
+There is one, it is not part of the ordinary run, and this section says how to
+start it and what it needs on the machine. This paragraph replaces one saying
+there was none, which was true when it was written and stopped being true when
+`.github/workflows/interoperability.yaml` landed. The reading under it went
+stale in silence, because it matched a word no path in this tree carries:
 
-    git ls-files | grep -icE 'harness|compose|docker'
-    0
+    git grep -c 'boot-a-line-with-this-plugin.sh' -- .github/workflows/interoperability.yaml
+    .github/workflows/interoperability.yaml:5
 
-#52 builds it. When it lands it is a separate run that somebody asks for, and
-never part of the ordinary one, because it starts a real server in a container
-and so needs a container runtime that nothing else in this tree needs. How to
-start it, what it needs on the machine, and what a red run leaves behind to read
-belong in this section then.
+It boots a stock Jellyfin in a container, unpacks the packaged archive into the
+server's plugin directory the way a server does, completes first-time setup,
+creates an administrator, and asserts that the plugin loaded, is listed as
+active, answers that administrator, refuses an anonymous caller and collides
+with nothing else on the server. What each assertion covers and what it does
+not is in `docs/parity.md`, in the `Alone on 10.11` row, which is the authority
+for that rather than this section.
+
+**It is never part of the ordinary run.** It starts a real server in a container
+and so needs a container runtime that no other check here needs, and the local
+command in `docs/parity.md` does not chain it for the same reason it does not
+chain the workflow audit: a leg that is absent on most machines is a leg whose
+green means nothing. Run it when you have changed the packaging, the manifest,
+the plugin's identity or anything the server reads at load time.
+
+**What it needs.** `docker`, `unzip`, `curl`, `jq` and `bash`. No display, no
+elevation and no machine-wide trust store - the server answers plain HTTP on a
+port bound to the loopback address, so nothing trusts a certificate - and it
+starts no daemon, so a container runtime that is not already running ends the
+run with that sentence rather than with a verdict about the plugin. The script
+says so itself, which is where to read it rather than here:
+
+    git grep -n 'It needs no display, no elevated rights' -- .github/scripts/
+    .github/scripts/boot-a-line-with-this-plugin.sh:118:# It needs no display, no elevated rights and no machine trust store. The server
+    .github/scripts/scan-a-server-for-collisions.sh:88:# It needs no display, no elevated rights and no machine trust store.
+
+**How to start it.** The one form that needs nothing but the script proves the
+harness bites and starts no container at all:
+
+    bash .github/scripts/boot-a-line-with-this-plugin.sh --prove-it-bites
+
+The two that boot a server take the image and, for the run that matters, an
+archive:
+
+    bash .github/scripts/boot-a-line-with-this-plugin.sh \
+      --image jellyfin/jellyfin:10.11.11 --package <package.zip>
+    bash .github/scripts/boot-a-line-with-this-plugin.sh \
+      --image jellyfin/jellyfin:10.11.11 --without-the-plugin
+
+The image tag is pinned rather than floating in the job that runs this, so a
+local run naming a different tag is answering about a different server. The
+archive is the one the packager produces, which is `jprm` and is not in this
+tree: the job installs it through an action, so producing one locally means
+installing that packager yourself. A `bin/` directory copied into the container
+is not a substitute - the archive is the subject, and the two come apart at the
+artifact list, the framework directory and the declared ABI, which the compiler
+never sees.
+
+**What a red run leaves to read.** The container's log, printed into the output
+of the run that failed, and no artifact:
+
+    git grep -n 'docker logs' -- .github/scripts/boot-a-line-with-this-plugin.sh
+    .github/scripts/boot-a-line-with-this-plugin.sh:471:  docker logs "${container}" 2>&1 | tail -n 120 >&2
+    .github/scripts/boot-a-line-with-this-plugin.sh:526:docker logs "${container}" > "${log}" 2>&1 || true
+
+So a red run in the gate is readable in that run's own log for as long as this
+repository keeps it, and a red run here is readable in your terminal. Whether
+that should be an uploaded artifact instead is #62 and is not settled here.
+
+**This is not the harness #52 asks for.** That one drives the whole loop - add
+an item through the API, assert the playlist holds it, remove it as a client
+would, assert the store dropped it - and the two middle assertions have no
+subject while nothing in this plugin writes to a playlist. #52 is where that is
+read and where the harness that does it is built. When it lands it is the same
+shape as the one above, and this section grows the part that is new rather than
+being rewritten.
 
 ## What a test is not allowed to need
 
