@@ -11,7 +11,7 @@ rather than the sections that change touched, because a path added to the store 
 line numbers in files this page reads:
 
     git grep -c '^    \(git\|grep\|sed\|awk\|curl\|gh\) ' docs/personal-data.md
-    docs/personal-data.md:34
+    docs/personal-data.md:35
 
 Thirty-three were checked. The thirty-fourth is that line counting them, which counts
 itself and was written after the pass rather than checked by it, and saying so is
@@ -22,9 +22,13 @@ seam on #82, and were run at the commit that landed that instead. They are the p
 under `## The one thing this file does not describe`, and they replace a single paste
 whose answer the seam had stopped agreeing with.
 
+The thirty-fifth arrived with the projector on #17, later than all of them, and names
+the two values a projection writes into a user's document. It is under
+`## What is stored` and it was run at the commit that landed it.
+
 Most of the checking is a run rather than a reading now. `DocumentPasteTests` re-runs
 every `grep` and `git grep` paste in this file and reds the suite where one has
-stopped agreeing, which is thirty-three of the thirty-four. The one it does not judge
+stopped agreeing, which is thirty-four of the thirty-five. The one it does not judge
 is the `sed` paste under `## Where it is stored`, and that one was run by hand. What
 the check can and cannot see is in `Jellyfin.Plugin.Watchlist.Tests/DOCUMENT-PASTES.md`
 rather than restated here.
@@ -47,21 +51,29 @@ everything else on this page is unaffected by the record and its endpoints exist
 The section says it at greater length and with what it is read from.
 
 **The projected playlists.** The way a list is meant to become visible on a client is
-a playlist owned by that user. Nothing projects one yet, and the sentence under this
-one used to be that nothing in this plugin names a playlist at all. That has stopped
-being true and the absence has not: one file names the server's playlist manager, it is
-the seam every playlist call would go through, and nothing wires it up.
+a playlist owned by that user. THE ABSENCE HAS GOT SMALLER TWICE AND IT IS STILL AN
+ABSENCE, which is why this reads as a history rather than as one sentence. It first
+said that nothing in this plugin names a playlist at all; the seam on #82 ended that.
+It then said that one file names the server's playlist manager and nothing above it
+decides anything; the projector on #17 ended that too. What is left is the last link:
+the code that would make a playlist exists, and nothing on a running server calls it.
 
     git grep -l 'IPlaylistManager' -- Jellyfin.Plugin.Watchlist
     Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
 
-    git grep -n 'PlaylistGateway' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs ; echo "exit=$?"
+    git grep -nE 'PlaylistGateway|WatchlistProjector' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs ; echo "exit=$?"
     exit=1
 
-Nothing constructs that file, so no playlist is created, read or written on any server
-running this plugin, and everything below is about a document on the server and this
-plugin's own endpoints. A playlist is a second surface with its own answer to who can
-see it, and that answer belongs here when there is a playlist to describe.
+Neither the seam nor the projector is registered, so nothing in a running server can
+resolve either, and no playlist is created, read or written on any server running this
+plugin. Everything below is about a document on the server and this plugin's own
+endpoints. A playlist is a second surface with its own answer to who can see it, and
+that answer belongs here when there is a playlist to describe.
+
+What the projector already writes into a user's document IS described below, under
+`## What is stored`, because that block is bytes on disk whether or not anything ever
+calls the code that fills it. A reader who takes this absence for "nothing about a
+playlist is stored" would be wrong in the direction that matters.
 
 That absence is stated so this file is not read as covering it.
 
@@ -120,12 +132,27 @@ What that block tells a reader about the person is what they chose for those two
 settings, and it is readable by whoever can read the file, exactly as the entries
 are. Nothing in it is derived from the library or from what they watched.
 
-The whole of it on disk for a user who answered nothing, as the suite's own fixture
-holds it:
+And one more block, there only for a user whose list has been projected into a
+playlist. It records which playlist that is and the name this plugin last wrote for
+it:
 
-    cat Jellyfin.Plugin.Watchlist.Tests/Fixtures/watchlist-document-v2.json
+    grep -n 'public required' Jellyfin.Plugin.Watchlist/Store/WatchlistProjectionState.cs
+    38:    public required Guid PlaylistId { get; init; }
+    43:    public required string LastNameWritten { get; init; }
+
+Two values, and neither is about the person. The first is an identifier the server
+minted for a playlist; the second is a name an administrator configured for every
+user on the server. What the pair says about this user is that a playlist was made
+for them, which is a thing they can already see on any client they log in to. A user
+who has never had one has no such block in their document at all, for the same reason
+the preferences block is absent for a user who answered nothing.
+
+The whole of it on disk for a user who has answered nothing and had no playlist made,
+as the suite's own fixture holds it:
+
+    cat Jellyfin.Plugin.Watchlist.Tests/Fixtures/watchlist-document-v3.json
     {
-      "SchemaVersion": 2,
+      "SchemaVersion": 3,
       "UserId": "11111111-1111-1111-1111-111111111111",
       "Entries": [
         {
@@ -438,11 +465,12 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Twenty-two places log at all, over five files:
+library. Twenty-four places log at all, over six files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:9
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
+    Jellyfin.Plugin.Watchlist/Projection/WatchlistProjector.cs:2
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:6
     Jellyfin.Plugin.Watchlist/Users/DeletedUserHandler.cs:1
     Jellyfin.Plugin.Watchlist/Watched/WatchedRemovalHandler.cs:1
@@ -475,11 +503,13 @@ identifier, so a refused read puts that identifier in the server log:
     grep -n 'Refusing to read {Path}' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
     152:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
     167:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
-    458:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
-    469:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    499:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    510:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
 
 Re-taken on the change that landed the deleted-user handler, where the last two moved
-from 414 and 425 because the deletion path went into the store above them. The paste
+from 414 and 425 because the deletion path went into the store above them, and again
+on the change that landed the projector, which moved them to 499 and 510 for the same
+reason: the store gained the writer that records a user's playlist above them. The paste
 held two lines until the shared list gained the same two refusals, and the last two of
 the four name a path that is the shared list's file rather than anybody's identifier.
 
