@@ -2,16 +2,19 @@
 #
 #   <source file name> | <rule id> | <why this one is allowed>
 #
-# The file name is the name as the scan reports it, without a directory. The rule
-# id is one of the ids in Invariants.txt. The reason is required and is read by a
-# person, not by a machine.
+# The file name is the name as the scan reports it, which keeps the directory it sits
+# in: two files with one name in two folders are two files. The rule id is one of the
+# ids in Invariants.txt. The reason is required and is read by a person, not by a
+# machine.
 #
 # This register fails in both directions, the same way the headless one does. An
 # entry that matches nothing is stale and reds the run, so a departure cannot
 # outlive the code that needed it.
 #
-# The single entry below is not a hole in the rule. It is the rule: the store is
-# the one place allowed to touch the file system, and the entry is how the scan
-# is told which file that is.
+# Neither entry below is a hole in the rule. Each one IS the rule: an invariant here
+# says one named file owns a thing and nothing else touches it, and the entry is how
+# the scan is told which file that is. An entry naming a second file under one of
+# these ids would be the hole, and it would be visible as one.
 #
 Store/WatchlistDocumentStore.cs | store-filesystem | the store is the only part of this plugin that touches the file system, and this is the file it is
+Projection/ServerPlaylistGateway.cs | playlist-namespace | the adapter is the only part of this plugin that knows there is a server playlist type, and this is the file it is

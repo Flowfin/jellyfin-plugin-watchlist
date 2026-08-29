@@ -1,0 +1,36 @@
+// The near miss for playlist-namespace.
+//
+// Nobody bypasses the adapter on purpose. They bypass it because the list has to be
+// created public so a second household member can see it, the gateway's create takes a
+// name and an owner and nothing else, and the server's own request object carries the
+// flag right there. Widening the seam is a conversation; adding one import is a
+// keystroke.
+//
+// What it does is put a server playlist type back into the reconciler, which is the one
+// file that has to compile unchanged against both server lines, and the type it reaches
+// for is the one that differs between them. This file is a fixture and is never
+// compiled.
+
+using MediaBrowser.Model.Playlists;
+
+public sealed class WatchlistProjector
+{
+    private readonly IPlaylistGateway _playlists;
+
+    public WatchlistProjector(IPlaylistGateway playlists) => _playlists = playlists;
+
+    public async Task<Guid> ListFor(Guid userId, string name, CancellationToken cancellationToken)
+    {
+        foreach (var playlist in _playlists.PlaylistsOf(userId))
+        {
+            if (string.Equals(playlist.Name, name, StringComparison.Ordinal))
+            {
+                return playlist.PlaylistId;
+            }
+        }
+
+        var request = new PlaylistCreationRequest { Name = name, UserId = userId, Public = true };
+
+        return await CreateAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+}
