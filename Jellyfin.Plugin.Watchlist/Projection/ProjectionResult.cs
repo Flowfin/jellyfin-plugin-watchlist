@@ -38,6 +38,14 @@ public sealed record ProjectionResult
         new(ProjectionOutcome.AlreadyProjected, projection);
 
     /// <summary>
+    /// A playlist the owner already had was taken over as this target's projected list.
+    /// </summary>
+    /// <param name="projection">The playlist and the name it was adopted under.</param>
+    /// <returns>The result.</returns>
+    public static ProjectionResult Adopted(WatchlistProjectionState projection) =>
+        new(ProjectionOutcome.Adopted, projection);
+
+    /// <summary>
     /// The playlist was renamed to the configured name and the record moved with it.
     /// </summary>
     /// <param name="projection">The playlist and the name it now carries.</param>

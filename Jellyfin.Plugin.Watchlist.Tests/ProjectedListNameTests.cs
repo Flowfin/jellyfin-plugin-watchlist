@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -301,7 +302,7 @@ public sealed class ProjectedListNameTests : IDisposable
         var projector = new WatchlistProjector(server, new RecordingProjectorLogger());
 
         var result = await projector.EnsurePlaylistAsync(
-            UserProjectionTarget.For(store, TheFixtureUser, TheNewName),
+            TargetFor(store, TheNewName, TheFixtureUser),
             CancellationToken.None);
 
         Assert.Equal(ProjectionOutcome.RefusedRecordUnavailable, result.Outcome);
@@ -321,14 +322,22 @@ public sealed class ProjectedListNameTests : IDisposable
         var configuration = new PluginConfiguration();
 
         await projector.EnsurePlaylistAsync(
-            UserProjectionTarget.For(store, AUser, configuration.ProjectedListName),
+            TargetFor(store, configuration.ProjectedListName),
             CancellationToken.None);
 
         Assert.Equal(PluginConfiguration.DefaultProjectedListName, server.PlaylistsOf(AUser)[0].Name);
     }
 
     private static UserProjectionTarget TargetFor(WatchlistDocumentStore store, string configuredName) =>
-        UserProjectionTarget.For(store, AUser, configuredName);
+        TargetFor(store, configuredName, AUser);
+
+    private static UserProjectionTarget TargetFor(WatchlistDocumentStore store, string configuredName, Guid userId) =>
+        UserProjectionTarget.For(
+            store,
+            new PluginConfiguration { ProjectedListName = configuredName },
+            new ADescriberOf(),
+            new StoppedClock(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero)),
+            userId);
 
     private static int Lines(RecordingProjectorLogger log, string fragment)
     {
@@ -380,5 +389,7 @@ public sealed class ProjectedListNameTests : IDisposable
         public WatchlistProjectionState? Remembered { get; }
 
         public bool Remember(WatchlistProjectionState projection) => false;
+
+        public int Adopt(IReadOnlyList<Guid> itemIds) => 0;
     }
 }

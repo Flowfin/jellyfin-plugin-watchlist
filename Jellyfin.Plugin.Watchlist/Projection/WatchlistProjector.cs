@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,10 +33,12 @@ namespace Jellyfin.Plugin.Watchlist.Projection;
 /// the identifier, and every later operation names it.
 /// </para>
 /// <para>
-/// ADOPTING A PLAYLIST THAT ALREADY CARRIES THE CONFIGURED NAME IS NOT DONE HERE. A
-/// first pass over a target with nothing remembered creates. Matching an existing list
-/// by name, and refusing to guess when more than one matches, is #41, and it arrives as
-/// a decision taken before the creation below rather than as a change to it.
+/// ADOPTION HAPPENS ON A FIRST PASS AND NOWHERE ELSE. Where a target has nothing
+/// remembered and its owner has exactly one playlist carrying the configured name, that
+/// playlist is taken over rather than a second one created beside it. A target whose
+/// remembered playlist has been deleted is not a first pass and does not adopt: it is a
+/// list this plugin already managed, and what happened to it is a different question
+/// from what a person's hand-made list is.
 /// </para>
 /// <para>
 /// Nothing here reaches a server playlist type. Every call goes through
@@ -88,12 +91,25 @@ public sealed class WatchlistProjector
         }
 
         var remembered = target.Remembered;
-        var onTheServer = remembered is null ? null : CurrentlyOnTheServer(target, remembered.PlaylistId);
+        var owned = _playlists.PlaylistsOf(target.OwnerUserId);
+        var onTheServer = remembered is null ? null : Holding(owned, remembered.PlaylistId);
 
         if (remembered is not null && onTheServer is not null)
         {
+            ReportACollision(target, owned, remembered.PlaylistId);
+
             return await KeepTheNameInStepAsync(target, remembered, onTheServer, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        if (remembered is null)
+        {
+            var adopted = AdoptableFrom(target, owned);
+
+            if (adopted is not null)
+            {
+                return TakeOver(target, adopted);
+            }
         }
 
         var name = target.ConfiguredName;
@@ -243,46 +259,143 @@ public sealed class WatchlistProjector
             : ProjectionResult.RefusedRecordUnavailable();
 
     /// <summary>
-    /// The playlist the server holds for this user under the remembered identifier, or
-    /// null where it holds none.
+    /// Adopts a playlist a person made by hand: records it, and takes its rows onto the
+    /// list.
     /// </summary>
-    /// <param name="target">The target, whose owner is who the server is asked about.</param>
-    /// <param name="playlistId">The playlist the record remembers.</param>
-    /// <returns>The playlist, or null.</returns>
+    /// <param name="target">The target.</param>
+    /// <param name="adopted">The playlist being adopted.</param>
+    /// <returns>The result of the pass.</returns>
     /// <remarks>
-    /// The whole list is walked rather than one playlist being asked for, because the
-    /// same read answers the collision question below and a second call would be a
-    /// second read of the same thing.
+    /// The record is written before the rows are read, for the reason the rename uses:
+    /// a failure after the rows had been taken would leave the entries on the list and
+    /// nothing pointing at the playlist they came from, and the next pass would take
+    /// them again.
+    ///
+    /// The configured name is what is recorded as last written, and that is what makes
+    /// an adopted list behave like one this plugin created: it matched that name at the
+    /// moment it was adopted, so a later setting change renames it under #35's rule
+    /// rather than being read as a name the user chose.
     /// </remarks>
-    private ProjectedPlaylist? CurrentlyOnTheServer(IProjectionTarget target, Guid playlistId)
+    private ProjectionResult TakeOver(IProjectionTarget target, ProjectedPlaylist adopted)
     {
-        ProjectedPlaylist? found = null;
-
-        foreach (var playlist in _playlists.PlaylistsOf(target.OwnerUserId))
+        var projection = new WatchlistProjectionState
         {
-            if (playlist.PlaylistId == playlistId)
+            PlaylistId = adopted.PlaylistId,
+            LastNameWritten = target.ConfiguredName,
+        };
+
+        if (!target.Remember(projection))
+        {
+            return ProjectionResult.RefusedRecordUnavailable();
+        }
+
+        var rows = _playlists.EntriesOf(adopted.PlaylistId, target.OwnerUserId);
+        var itemIds = new List<Guid>(rows.Count);
+
+        foreach (var row in rows)
+        {
+            itemIds.Add(row.ItemId);
+        }
+
+        var taken = target.Adopt(itemIds);
+
+        _logger.LogInformation(
+            "Adopted playlist {PlaylistId} of user {UserId} as their projected list and took {Taken} of its {Offered} rows onto the list",
+            adopted.PlaylistId,
+            target.OwnerUserId,
+            taken,
+            itemIds.Count);
+
+        return ProjectionResult.Adopted(projection);
+    }
+
+    /// <summary>
+    /// The one playlist of this user carrying the configured name, or null where there
+    /// is none and where there is more than one.
+    /// </summary>
+    /// <param name="target">The target.</param>
+    /// <param name="owned">The playlists this user has.</param>
+    /// <returns>The playlist to adopt, or null.</returns>
+    /// <remarks>
+    /// MORE THAN ONE MATCH ADOPTS NOTHING. Two lists with one name is a state the server
+    /// produces on its own, and there is nothing in either of them that says which one
+    /// the person meant. Guessing gets it right half the time and the half it gets wrong
+    /// is somebody's list being managed without their asking, so this plugin makes its
+    /// own instead and says why.
+    /// </remarks>
+    private ProjectedPlaylist? AdoptableFrom(IProjectionTarget target, IReadOnlyList<ProjectedPlaylist> owned)
+    {
+        ProjectedPlaylist? match = null;
+        var matches = 0;
+
+        foreach (var playlist in owned)
+        {
+            if (string.Equals(playlist.Name, target.ConfiguredName, StringComparison.Ordinal))
             {
-                found = playlist;
-            }
-            else if (string.Equals(playlist.Name, target.ConfiguredName, StringComparison.Ordinal))
-            {
-                // A second list of this user carrying the configured name. The server
-                // resolves such a collision on the directory rather than on the name, so
-                // this is a thing that happens and not a thing to guard against. The
-                // identifier decides which playlist is the projection; this is said once
-                // so an operator can see why two rows read alike.
-                if (NotSaidYet("name-collision", playlist.PlaylistId))
-                {
-                    _logger.LogInformation(
-                        "Playlist {PlaylistId} of user {UserId} carries the configured list name and is not the projected list, which is {ProjectedPlaylistId}. The identifier decides and nothing is renamed",
-                        playlist.PlaylistId,
-                        target.OwnerUserId,
-                        playlistId);
-                }
+                match = playlist;
+                matches++;
             }
         }
 
-        return found;
+        if (matches <= 1)
+        {
+            return match;
+        }
+
+        _logger.LogInformation(
+            "User {UserId} has {Matches} playlists carrying the configured list name, so none is adopted and a new one is created instead",
+            target.OwnerUserId,
+            matches);
+
+        return null;
+    }
+
+    /// <summary>
+    /// The playlist the server holds under this identifier, or null where it holds none.
+    /// </summary>
+    /// <param name="owned">The playlists this user has.</param>
+    /// <param name="playlistId">The playlist the record remembers.</param>
+    /// <returns>The playlist, or null.</returns>
+    private static ProjectedPlaylist? Holding(IReadOnlyList<ProjectedPlaylist> owned, Guid playlistId)
+    {
+        foreach (var playlist in owned)
+        {
+            if (playlist.PlaylistId == playlistId)
+            {
+                return playlist;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Says once, for each other playlist of this user that carries the configured name,
+    /// that the identifier and not the name decides which one is the projection.
+    /// </summary>
+    /// <param name="target">The target.</param>
+    /// <param name="owned">The playlists this user has.</param>
+    /// <param name="playlistId">The playlist that IS the projection.</param>
+    /// <remarks>
+    /// The server resolves such a collision on the directory rather than on the name, so
+    /// two playlists with one label is a thing that happens and not a thing to guard
+    /// against. This is said so an operator can see why two rows read alike.
+    /// </remarks>
+    private void ReportACollision(IProjectionTarget target, IReadOnlyList<ProjectedPlaylist> owned, Guid playlistId)
+    {
+        foreach (var playlist in owned)
+        {
+            if (playlist.PlaylistId != playlistId
+                && string.Equals(playlist.Name, target.ConfiguredName, StringComparison.Ordinal)
+                && NotSaidYet("name-collision", playlist.PlaylistId))
+            {
+                _logger.LogInformation(
+                    "Playlist {PlaylistId} of user {UserId} carries the configured list name and is not the projected list, which is {ProjectedPlaylistId}. The identifier decides and nothing is renamed",
+                    playlist.PlaylistId,
+                    target.OwnerUserId,
+                    playlistId);
+            }
+        }
     }
 
     /// <summary>

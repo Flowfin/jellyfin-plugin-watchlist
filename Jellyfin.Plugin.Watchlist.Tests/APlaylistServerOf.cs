@@ -57,6 +57,28 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
     }
 
     /// <summary>
+    /// Puts rows on a playlist without going through an add, so a test can start from a
+    /// list somebody made by hand.
+    /// </summary>
+    /// <param name="playlistId">The playlist.</param>
+    /// <param name="itemIds">The library items its rows point at, in order.</param>
+    public void Rows(Guid playlistId, params Guid[] itemIds)
+    {
+        var rows = new List<ProjectedPlaylistEntry>();
+
+        for (var at = 0; at < itemIds.Length; at++)
+        {
+            rows.Add(new ProjectedPlaylistEntry
+            {
+                EntryId = string.Format(CultureInfo.InvariantCulture, "row-{0}", at),
+                ItemId = itemIds[at],
+            });
+        }
+
+        _rows[playlistId] = rows;
+    }
+
+    /// <summary>
     /// Takes a playlist off the server the way a user deleting it from a client would,
     /// leaving whatever remembered it pointing at nothing.
     /// </summary>
