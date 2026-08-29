@@ -11,11 +11,12 @@ rather than the sections that change touched, because a path added to the store 
 line numbers in files this page reads:
 
     git grep -c '^    \(git\|grep\|sed\|awk\|curl\|gh\) ' docs/personal-data.md
-    docs/personal-data.md:35
+    docs/personal-data.md:41
 
 Thirty-three were checked. The thirty-fourth is that line counting them, which counts
 itself and was written after the pass rather than checked by it, and saying so is
-cheaper than a count that quietly excludes the one command a reader can see.
+cheaper than a count that quietly excludes the one command a reader can see. A second
+counting line arrived later, under the same rule and with the same admission.
 
 Two of the thirty-three arrived after that pass rather than in it, with the playlist
 seam on #82, and were run at the commit that landed that instead. They are the pair
@@ -26,10 +27,25 @@ The thirty-fifth arrived with the projector on #17, later than all of them, and 
 the two values a projection writes into a user's document. It is under
 `## What is stored` and it was run at the commit that landed it.
 
+Five more arrived with `## The projected playlists`, later still, and were run at the
+commit that landed that section.
+
 Most of the checking is a run rather than a reading now. `DocumentPasteTests` re-runs
 every `grep` and `git grep` paste in this file and reds the suite where one has
-stopped agreeing, which is thirty-four of the thirty-five. The one it does not judge
-is the `sed` paste under `## Where it is stored`, and that one was run by hand. What
+stopped agreeing, which is thirty-nine of the forty-one:
+
+    git grep -c '^    \(git grep\|grep\) ' docs/personal-data.md
+    docs/personal-data.md:39
+
+Both numbers include that line and the one at the top of this file, each of which
+counts itself, which is the same admission the paragraph above makes and is why the
+two are stated together rather than one being quietly adjusted.
+
+The two commands it does not run are the `sed` paste under `## Where it is stored` and the
+`git show` of a jellyfin checkout under `## The projected playlists`. Both were run by
+hand, and the second is the weaker of the two by some way: it reads a tree this
+repository does not hold at all, so no run here could ever judge it and its output is
+a reading somebody took on a machine that had that checkout. What
 the check can and cannot see is in `Jellyfin.Plugin.Watchlist.Tests/DOCUMENT-PASTES.md`
 rather than restated here.
 
@@ -50,32 +66,20 @@ running this plugin has a shared list, nothing about any user sits in one, and
 everything else on this page is unaffected by the record and its endpoints existing.
 The section says it at greater length and with what it is read from.
 
-**The projected playlists.** The way a list is meant to become visible on a client is
-a playlist owned by that user. THE ABSENCE HAS GOT SMALLER TWICE AND IT IS STILL AN
-ABSENCE, which is why this reads as a history rather than as one sentence. It first
-said that nothing in this plugin names a playlist at all; the seam on #82 ended that.
-It then said that one file names the server's playlist manager and nothing above it
-decides anything; the projector on #17 ended that too. What is left is the last link:
-the code that would make a playlist exists, and nothing on a running server calls it.
+**The projected playlists are described now**, in [their own section
+below](#the-projected-playlists), and they used to be named here as an absence. A
+playlist is a second surface with its own answer to who can see it, so it gets a
+section rather than a sentence inside the document's.
 
-    git grep -l 'IPlaylistManager' -- Jellyfin.Plugin.Watchlist
-    Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
+WHAT THAT SECTION KEEPS IS THE NEGATIVE, AND THE NEGATIVE IS SMALLER THAN IT WAS
+RATHER THAN GONE. This paragraph read as a history because it shrank twice: it first
+said nothing in this plugin names a playlist at all, which the seam on #82 ended, and
+then said one file names the server's playlist manager and nothing above it decides
+anything, which the projector on #17 ended. What is left is the last link, and it is
+the sentence that section carries: the code that would make a playlist exists, and
+nothing on a running server calls it.
 
-    git grep -nE 'PlaylistGateway|WatchlistProjector' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs ; echo "exit=$?"
-    exit=1
-
-Neither the seam nor the projector is registered, so nothing in a running server can
-resolve either, and no playlist is created, read or written on any server running this
-plugin. Everything below is about a document on the server and this plugin's own
-endpoints. A playlist is a second surface with its own answer to who can see it, and
-that answer belongs here when there is a playlist to describe.
-
-What the projector already writes into a user's document IS described below, under
-`## What is stored`, because that block is bytes on disk whether or not anything ever
-calls the code that fills it. A reader who takes this absence for "nothing about a
-playlist is stored" would be wrong in the direction that matters.
-
-That absence is stated so this file is not read as covering it.
+Both absences are stated so this file is not read as covering what it does not.
 
 ## What is stored
 
@@ -521,6 +525,113 @@ the four name a path that is the shared list's file rather than anybody's identi
 The path is what makes that line actionable, since it names the file somebody has to
 look at, and an identifier without the list beside it says nothing about what anyone
 wanted to watch.
+
+## The projected playlists
+
+This is the surface a list is MEANT to become visible on, and it is where somebody
+other than the owner could meet one. Nothing below has happened on any server yet, for
+the reason at the end of this section, and it is written now because the code that
+would do it is here and a reader deciding whether to install this plugin is deciding
+about that code.
+
+### What a projection is
+
+One playlist per user, owned by that user, holding what is on their list. A playlist is
+what a stock client already renders, which is the whole reason the projection exists:
+the document under `## Where it is stored` is invisible to every client and a playlist
+is not.
+
+The plugin remembers which playlist that is and nothing else about it. What it writes
+into the user's document is the identifier and the name it last set, which is described
+under `## What is stored` and is two values about a playlist rather than anything about
+the person.
+
+### The plugin never shares a private one
+
+A playlist the plugin creates is made for one user and shared with nobody. It asks the
+server for a playlist by that user's identifier and by a name, and it names no other
+user and no public flag:
+
+    grep -n 'CreatePlaylist(new PlaylistCreationRequest' Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
+    87:            .CreatePlaylist(new PlaylistCreationRequest { Name = name, UserId = userId })
+
+What the server does with a request that names neither is a reading of the server
+rather than of this tree, taken in a jellyfin checkout at the line this artifact
+declares:
+
+    git show v10.11.11:Emby.Server.Implementations/Playlists/PlaylistManager.cs | sed -n '138,145p'
+                var playlist = new Playlist
+                {
+                    Name = name,
+                    Path = path,
+                    OwnerUserId = request.UserId,
+                    Shares = request.Users ?? [],
+                    OpenAccess = request.Public ?? false,
+                    DateCreated = info.CreationTimeUtc,
+
+So the shares are empty and the list is not open. There is no route through this plugin
+that shares one afterwards either: the seam it speaks to the server through declares
+listing a user's playlists, reading one's rows, creating, renaming, adding and
+removing, and nothing that changes who a playlist is shared with.
+
+    grep -c 'Task\|IReadOnlyList' Jellyfin.Plugin.Watchlist/Projection/IPlaylistGateway.cs
+    7
+
+That number counts declarations and their return types together rather than
+operations, and it is pasted as what the command prints rather than as the figure the
+sentence above wants. The sentence is the list of names, which a reader checks by
+opening the file.
+
+An ADMINISTRATOR of the server can see a playlist like anything else on the server they
+administer. That is the same answer this page already gives for the document on disk,
+and it is said again here rather than left to be carried across.
+
+### A playlist you already had
+
+A playlist the user owns that already carries the configured name is taken over on the
+first projection rather than duplicated, which is the behaviour the README describes
+under where the list appears. Two things follow for this page.
+
+Its rows are READ INTO the store, so items somebody put on a hand-made playlist become
+entries on their watchlist. Each goes through the same describer the endpoints use, so
+what is recorded is what the library says that item is FOR THAT USER, and a row they
+may not see is left off:
+
+    grep -n '_describer.Describe' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
+    134:            var described = _describer.Describe(itemId, OwnerUserId);
+
+An entry that arrived that way records that it came from a playlist edit rather than
+from an endpoint, which is one of the four values this page already says an entry
+carries:
+
+    grep -n 'Source = WatchlistEntrySource.PlaylistEdit' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
+    148:                    Source = WatchlistEntrySource.PlaylistEdit,
+
+Adoption does not change who can see the playlist. It is the user's own list, made by
+them, and the plugin takes over managing it rather than sharing it.
+
+### The shared list has no playlist at all
+
+`## The shared list` below describes a record and its endpoints. The playlist that
+record would appear in is #84 and is not built, so nothing on the shared list is
+visible on any client, and what that section says about who can read it is about the
+endpoints rather than about a playlist.
+
+### NONE OF THIS RUNS ON ANY SERVER
+
+Neither the seam nor the projector is registered, so nothing in a running server can
+resolve either:
+
+    git grep -l 'IPlaylistManager' -- Jellyfin.Plugin.Watchlist
+    Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
+
+    git grep -nE 'PlaylistGateway|WatchlistProjector' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs ; echo "exit=$?"
+    exit=1
+
+No playlist is created, renamed, read or adopted on any server running this plugin
+today. What stands above is what the code does when something calls it, and the thing
+that would call it is the reconciliation pass, which is #19 and #24. This sentence is
+the one to re-read first when either of those lands.
 
 ## What leaves the server
 
