@@ -11,11 +11,28 @@ name: Publish Release
 # in `framework` and `targetAbi`. A repository that ships two server lines needs a
 # second manifest and a second route; this file does not provide one, and the checks
 # below refuse to guess.
+#
+# There is a second trigger and it publishes nothing. The last job here raises a
+# tracking issue when a run ends having shipped no installable release, and the
+# judgement half of that is proved by probes inside the job. The RAISING half could
+# only ever be exercised by a real failed publish, which costs a pushed tag and an
+# immutable public release that deleting does not give back. So this workflow takes a
+# manual trigger with one boolean input that forces exactly the shipped-nothing
+# condition, and on that path every job that builds, attests or releases is skipped by
+# its own condition. It is #78's fourth condition, and what it buys is a regression
+# test somebody can run again rather than a version number spent once.
 on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+-stable"
       - "[0-9]+.[0-9]+.[0-9]+.[0-9]+-stable"
+  workflow_dispatch:
+    inputs:
+      deliberately-fail:
+        description: "Prove the alert raises. This publishes nothing: every publishing job is skipped and the last job judges a release that was never created."
+        type: boolean
+        default: false
+        required: true
 
 # Deny by default. Each job opts into the smallest scope it needs.
 permissions: {}
@@ -33,6 +50,11 @@ concurrency:
 jobs:
   gate:
     name: Release metadata gate
+    # A pushed tag and nothing else. On the manual trigger this is skipped, and that
+    # is what makes that path incapable of publishing rather than merely unlikely to:
+    # build needs this, attest needs build and release needs both, so one condition
+    # here takes the whole publishing chain out of the run.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -818,6 +840,10 @@ jobs:
 
   alert:
     name: Report a publish that shipped nothing
+    # A pushed tag always, and the manual trigger only where the input asked for it.
+    # A dispatch left at the default does nothing at all, which is the honest shape:
+    # the input is the only reason to dispatch this workflow, so a run without it has
+    # no work to do rather than a quieter version of the same work.
     # Every other job, so this one is last, and `always()` so it runs when one of
     # them did not. That is the difference between this and a step: a step at the
     # end of a job cannot report on a job that stopped before reaching it, and a
@@ -835,7 +861,7 @@ jobs:
     # all. Both are outside what a job in this workflow can see, and #78 carries
     # them.
     needs: [gate, build, attest, release]
-    if: always()
+    if: always() && (github.event_name == 'push' || inputs.deliberately-fail)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -864,7 +890,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          RUN_TAG: ${{ github.ref_name }}
+          # On a pushed tag this is the tag. On the deliberate-failure path it is a
+          # name no tag of this repository can carry, so the release lookup below is
+          # certain to answer 404 and the issue this raises is unmistakably a probe
+          # rather than a report about a release somebody might go looking for.
+          RUN_TAG: ${{ github.event_name == 'push' && github.ref_name || format('{0}-deliberately-failed-probe', github.ref_name) }}
+          PROBE: ${{ github.event_name == 'push' && 'no' || 'yes' }}
           REPOSITORY: ${{ github.repository }}
           # Success only when every job before this one succeeded. A job that
           # failed, was cancelled, or was skipped because an earlier one failed all
@@ -933,6 +964,10 @@ jobs:
           fi
 
           {
+            if [ "${PROBE}" = "yes" ]; then
+              echo "**This run was a deliberate failure and it published nothing.** It was dispatched by hand with the \`deliberately-fail\` input on, which skips every job that builds, attests or releases, so the release judged below was never created and no version number was spent. It exists to prove that the raising half of this alert works, which is #78's fourth condition. Everything under it is what this alert says when the condition it watches for is real."
+              echo
+            fi
             echo "The publish route for \`${RUN_TAG}\` finished and what it left is not a release anybody can install."
             echo
             echo "Run: ${RUN_URL}"
