@@ -227,7 +227,16 @@ if [ -z "${document}" ]; then
   # The audit is off for this restore alone, so the listing is reached rather
   # than pre-empted by the refusal it would otherwise raise. Every other route
   # that builds this solution restores with it on.
-  DOTNET_CLI_UI_LANGUAGE=en dotnet restore -p:NuGetAudit=false
+  #
+  # --locked-mode is named here even though RestoreLockedMode in
+  # Directory.Build.props already turns it on for every project in this
+  # solution. It is not redundant and it is not to be deleted as such: the
+  # graph this listing reports is only the graph the lock files pin if the
+  # restore that produced it refused to resolve anything else, and a reader
+  # of this one line cannot see the property that makes that true. Naming
+  # the flag makes the command say what the build already enforces, and it
+  # is what the Scorecard pinning alert on this line asked for.
+  DOTNET_CLI_UI_LANGUAGE=en dotnet restore --locked-mode -p:NuGetAudit=false
 
   DOTNET_CLI_UI_LANGUAGE=en dotnet list package \
     --vulnerable --include-transitive --no-restore \
