@@ -12,11 +12,14 @@ written into a document drifts against the live one without anybody noticing:
 
     gh api repos/Flowfin/jellyfin-plugin-watchlist/rulesets/20456281 \
       --jq '{enforcement, bypass: .bypass_actors, required: [.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context]}'
-    {"bypass":[],"enforcement":"active","required":["call / build","call / test","Reject Trojan Source Unicode","Audit workflows (zizmor)"]}
+    {"bypass":[],"enforcement":"active","required":["call / build","call / test","Reject Trojan Source Unicode","Audit workflows (zizmor)","Alone on 10.11","Code scanning (csharp)","Coverage floor","DCO sign-off","Deterministic PR-hygiene checks","Run the suite three times","Suite on macos-latest","Suite on ubuntu-latest","Suite on windows-latest","Vulnerable dependency listing","With the family on 10.11","dependency-review"]}
 
-That set has four contexts in it, and this file described a set of three until
-the change carrying this paragraph. The sentences that carried the old set,
-counted at the commit this change starts from:
+That set has sixteen contexts in it. It had four when the paragraph below was
+written and three before that, and each earlier reading was pasted here as
+though it were stable, which is the drift the sentence above warns about and the
+reason the set is printed rather than restated. The count of the sentences that
+carried the set of three, at the commit that repair started from, is kept
+because it measures that drift rather than today's set:
 
     git show 53ea2ea:docs/parity.md | grep -c 'three required contexts\|not required here until #63\|required there and reporting here\|Nothing here is required by the mainline'
     4
@@ -24,11 +27,17 @@ counted at the commit this change starts from:
 The set drifted exactly the way the sentence above warns about, which is why
 this is a reading taken again rather than a rewording.
 
-Requiring the whole adopted set is #63 and it has not happened. What has changed
-is that one context left the adopted-and-not-required group, and the section
-`Two instruments, each reporting under two names` is where that is followed up,
-because the name that was taken is one half of a pair this file asked #63 to
-choose between.
+Requiring the whole adopted set is #63 and it has happened. Every check this
+file marks as adopted and that reports a context on a pull request head is in
+the set above, under the name it actually reports. What is adopted and NOT in
+the set is out of it for a reason written in its own row: `Scorecard analysis`
+reports on the mainline push and on a schedule and never on a pull request, so
+requiring it would be a context that never arrives; `Restore audit` is a
+property of every build rather than a context of its own; and the packaging,
+inventory, provenance and alert legs live inside `.github/workflows/publish.yaml`
+and report under no context at all. The section `Two instruments, each reporting
+under two names` is where the two pairs are followed up, and both are decided by
+name now rather than one of them.
 
 ## The two gates as measured
 
@@ -273,7 +282,7 @@ What this command does not run, and cannot:
 | `ABI floor build` | Partly, under `call / test` | The half that compares the declared ABI with the package set the artifact is compiled from is in the suite, from #88, so it runs on every pull request that can change either value and reports under a context that is already required, and nothing new goes to #63 from this row. It sits there rather than in a workflow because the manifest and the project file are already read by the suite, and a second parser for either beside that one is a thing that can disagree with it. What is not run here is a build against the floor, which needs the second framework and the second package set from #4. #88 also stays open for the half that judges more than one artifact of one release, and there is one artifact today. |
 | `Package (JPRM) / Build package` | Not yet | #73 packages one artifact per supported line and attaches each with its checksum. |
 | `Package (JPRM) / Generate SBOM` | Declared, its jobs never run | Landed on #75, inside `.github/workflows/publish.yaml` rather than as a check of its own. The build job writes a CycloneDX inventory of the archive and refuses one that is not CycloneDX or does not name the archive it describes, the attest job mints a build provenance attestation, and the release job refuses a release carrying anything other than exactly one of each. That route BUILDS on a pushed tag and on nothing else, and no tag has been pushed, so no inventory has been produced here. The workflow now carries a second, manual trigger, and every job that builds, attests or releases is skipped on it, so a run of that workflow is no longer evidence that a build happened - which is why this sentence names the jobs rather than the run count, and hands the count to the reader: `gh api repos/Flowfin/jellyfin-plugin-watchlist/actions/workflows/publish.yaml/runs --jq .total_count`. `README.md` carries the commands a reader checks both with and says the same thing about them. What is not settled is one inventory per artifact once a release carries more than one, which is #73 behind #4. |
-| `CodeQL`, `Analyze (csharp)` | `Code scanning (csharp)` | Landed on #57, after being declared and skipped on every event since the tree was made. A second context named `CodeQL` reports beside it, from code scanning rather than from the workflow, and #63 has to pick one of the two by name. See the note under the tables. |
+| `CodeQL`, `Analyze (csharp)` | `Code scanning (csharp)` | Landed on #57, after being declared and skipped on every event since the tree was made. A second context named `CodeQL` reports beside it, from code scanning rather than from the workflow. This row said #63 has to pick one of the two by name; it has, and the required set names this one and not that one. See the note under the tables. |
 | `DCO sign-off` | `DCO sign-off` | Present and reporting, from this repository's own workflow. |
 | `Deterministic PR-hygiene checks` | `Deterministic PR-hygiene checks` | Landed on #59. Body linkage, commit subject linkage and the changelog co-change fail; diff size is an observation. |
 | `Reject Trojan Source Unicode` | `Reject Trojan Source Unicode` | Present, reporting and required on both boards. |
@@ -341,14 +350,29 @@ one accepted. #4 and #82 are the two issues that force the question, and neither
 has landed, so no answer is written here yet and the absence is the answer for
 today rather than an oversight.
 
-What a pull request from a fork does. Not measured. Uploading an analysis needs
-`security-events: write`, and a token on a `pull_request` event from a fork does
-not carry it, so whether this job succeeds without uploading or fails outright is
-a behaviour of the uploader that nobody here has watched. It matters only once a
-context is required, because a required context an outside contribution cannot
-report is a pull request nobody can merge. #63 is where that is decided, and it
-should read a real fork run before it requires this one rather than take the
-paragraph above as an answer.
+What a pull request from a fork does. Still not measured, AND THIS CONTEXT IS
+REQUIRED NOW, which is the order this paragraph asked for and did not get.
+Uploading an analysis needs `security-events: write`, and a token on a
+`pull_request` event from a fork does not carry it, so whether this job succeeds
+without uploading or fails outright is a behaviour of the uploader that nobody
+here has watched. It matters exactly because the context is required: a required
+context an outside contribution cannot report is a pull request nobody can
+merge. This paragraph said #63 should read a real fork run before requiring it.
+The requirement landed first, and no such run exists to read: every pull request
+this repository has ever carried was opened from a branch inside it.
+
+    gh pr list --repo Flowfin/jellyfin-plugin-watchlist --state all --limit 400 --json headRepositoryOwner --jq '[.[] | .headRepositoryOwner.login] | unique'
+    ["Flowfin"]
+
+Two things narrow it without closing it. The nearest reading is the same job on
+the sibling board, on a merged Dependabot pull request, which runs with the same
+read-only token a fork pull request runs with, and it concluded green; the paste
+is in the section below. And this repository now carries a Dependabot
+configuration, from #55, so the first pull request that automation opens here
+produces that run on this board rather than on a sibling. Until one of those two
+is read here, the residual is a required context whose behaviour under an
+outside head is inferred and not watched, and it is written down rather than
+counted as settled.
 
 ## Two instruments, each reporting under two names
 
@@ -403,13 +427,15 @@ Of that pair the required set names the workflow's job and not the app's:
       --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context' \
       | grep -iE 'zizmor|codeql|code scanning'
     Audit workflows (zizmor)
+    Code scanning (csharp)
 
-One line out of the four contexts these two instruments report under, and it is
-the half produced by a workflow in this tree rather than by the scanning app.
-This file asked #63 to pick one of the two by name so the choice was not made by
+Two lines out of the four contexts these two instruments report under, and each
+is the half produced by a workflow in this tree rather than by the scanning app.
+This paste named one line until #63 took the second pair as well. This file
+asked that issue to pick one of each pair by name so the choice was not made by
 picking whichever was nearer to hand, and the half in the required set is the
-one that issue argued for: the workflow's job concludes on its findings whether
-or not the upload happened, and the upload is switched off for a pull request
+one it argued for: the workflow's job concludes on its findings whether or not
+the upload happened, and for zizmor the upload is switched off for a pull request
 whose head sits outside this repository.
 
 What that leaves unread is what it left unread before. Whether the app's context
@@ -430,13 +456,11 @@ request when this reading was taken:
     48:    name: Code scanning (csharp)
 
 `Code scanning (csharp)` is the job in this repository's own workflow. `CodeQL`
-comes from the code scanning app, over the analysis that job uploads. This is
-the pair that is still open, so the choice belongs to #63 once now rather than
-twice. It is also the pair the reading above cannot settle, because there the
-job and the upload are one step and separating them is what a fork run would
-answer.
+comes from the code scanning app, over the analysis that job uploads. This was
+the pair still open, and #63 has taken it the same way as the other: the
+required set above names the workflow's job.
 
-The two halves of this pair are not interchangeable, and the reason is the
+The two halves of each pair are not interchangeable, and the reason is the
 unmeasured behaviour the section above records. The workflow's context concludes
 on the job whether or not the upload happened; whether the app's context
 concludes at all when the upload did not happen is not measured here. That is
@@ -444,10 +468,25 @@ the same question a pull request from a fork raises, and requiring the app's
 name rather than the workflow's would make the answer to it a precondition of
 every merge.
 
-The row for the code scan said the workflow's name is the one #63 requires. That
-sentence was a decision written in the table rather than taken on the issue, and
-it is the reason this pair went unrecorded while the other one was named. It has
-been removed, and the row now says what the zizmor row says.
+WHAT THIS PAIR STILL LEAVES UNREAD, AND IT IS WIDER THAN THE ZIZMOR ONE. There
+the upload is a step of its own, switched off for a pull request whose head sits
+outside this repository and for one Dependabot opened, and carrying
+`continue-on-error`, so the job's verdict is independent of the upload by
+construction. Here the analysis and its upload are one step and no such
+condition exists, so whether this job concludes green under the read-only token
+such a pull request runs with is not settled by reading this tree. The nearest
+reading is the same job on the sibling board, on a merged Dependabot pull
+request, which runs with the same read-only token:
+
+    gh pr view 1409 --repo Flowfin/jellyfin-plugin-sso --json statusCheckRollup --jq '[.statusCheckRollup[] | .name + " :: " + .conclusion] | sort | .[]' | grep -iE 'csharp|codeql'
+    Analyze (csharp) :: SUCCESS
+    CodeQL :: SUCCESS
+
+That is one board's run and not this one's, and no pull request from outside
+this repository has ever been opened here, so it is the nearest reading rather
+than the measurement. The row for the code scan said the workflow's name is the
+one #63 requires before that had been taken on the issue; it has been taken now,
+and the row says what the zizmor row says.
 
 ## The check that was declared here and never ran, and the one that still does not
 
