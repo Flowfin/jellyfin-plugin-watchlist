@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Watchlist.Store;
@@ -325,27 +326,19 @@ public sealed class WatchlistProjector
     /// </remarks>
     private ProjectedPlaylist? AdoptableFrom(IProjectionTarget target, IReadOnlyList<ProjectedPlaylist> owned)
     {
-        ProjectedPlaylist? match = null;
-        var matches = 0;
+        var carryingTheName = owned
+            .Where(playlist => string.Equals(playlist.Name, target.ConfiguredName, StringComparison.Ordinal))
+            .ToList();
 
-        foreach (var playlist in owned)
+        if (carryingTheName.Count <= 1)
         {
-            if (string.Equals(playlist.Name, target.ConfiguredName, StringComparison.Ordinal))
-            {
-                match = playlist;
-                matches++;
-            }
-        }
-
-        if (matches <= 1)
-        {
-            return match;
+            return carryingTheName.FirstOrDefault();
         }
 
         _logger.LogInformation(
             "User {UserId} has {Matches} playlists carrying the configured list name, so none is adopted and a new one is created instead",
             target.OwnerUserId,
-            matches);
+            carryingTheName.Count);
 
         return null;
     }
@@ -358,15 +351,7 @@ public sealed class WatchlistProjector
     /// <returns>The playlist, or null.</returns>
     private static ProjectedPlaylist? Holding(IReadOnlyList<ProjectedPlaylist> owned, Guid playlistId)
     {
-        foreach (var playlist in owned)
-        {
-            if (playlist.PlaylistId == playlistId)
-            {
-                return playlist;
-            }
-        }
-
-        return null;
+        return owned.FirstOrDefault(playlist => playlist.PlaylistId == playlistId);
     }
 
     /// <summary>
@@ -377,9 +362,22 @@ public sealed class WatchlistProjector
     /// <param name="owned">The playlists this user has.</param>
     /// <param name="playlistId">The playlist that IS the projection.</param>
     /// <remarks>
+    /// <para>
     /// The server resolves such a collision on the directory rather than on the name, so
     /// two playlists with one label is a thing that happens and not a thing to guard
     /// against. This is said so an operator can see why two rows read alike.
+    /// </para>
+    /// <para>
+    /// THIS LOOP STAYS A LOOP ON PURPOSE, and cs/linq/missed-where is dismissed at this
+    /// site rather than fixed. The third condition in its test is not a test: NotSaidYet
+    /// records that the observation is being made, so it answers false the second time it
+    /// is asked about the same playlist. Moving the condition into a Where would put that
+    /// mutation inside a predicate, where the number of times it runs is a property of
+    /// how the sequence is consumed rather than of what this method does, and a later
+    /// reader adding a Count or a second enumeration would silence a report without
+    /// touching a line that mentions it. The two neighbouring sites in this file were
+    /// rewritten because their conditions only read.
+    /// </para>
     /// </remarks>
     private void ReportACollision(IProjectionTarget target, IReadOnlyList<ProjectedPlaylist> owned, Guid playlistId)
     {

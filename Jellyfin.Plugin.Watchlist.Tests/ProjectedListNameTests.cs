@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -341,17 +342,7 @@ public sealed class ProjectedListNameTests : IDisposable
 
     private static int Lines(RecordingProjectorLogger log, string fragment)
     {
-        var count = 0;
-
-        foreach (var line in log.Lines)
-        {
-            if (line.Contains(fragment, StringComparison.Ordinal))
-            {
-                count++;
-            }
-        }
-
-        return count;
+        return log.Lines.Count(line => line.Contains(fragment, StringComparison.Ordinal));
     }
 
     private static void Place(string path, string fixture)
