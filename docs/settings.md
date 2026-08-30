@@ -274,8 +274,12 @@ Bounds: the same as `ProjectedListName`.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
-Not read by anything today, for the same reason as `ProjectedListName`. Projecting
-the shared list is #84.
+Read by one thing, and this row said it was read by nothing until #40. The export
+that carries the shared list off this server writes it into the file as the label the
+list was shown under, because the shared record deliberately holds no name and a file
+that named the list nothing would arrive somewhere else as a list with no name at all.
+What still does not read it is the projection, for the same reason as
+`ProjectedListName`: projecting the shared list is #84.
 
 ### MaxEntriesInSharedList
 
@@ -299,18 +303,20 @@ Bounds: 0 to 1000000, the same as the per-user cap and for the same reasons.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
-What reads it: the route that adds an item to the shared list, refusing a write that
-would take that list past the bound.
+What reads it: the route that adds an item to the shared list, and the one that
+imports a file into it, each refusing a write that would take that list past the
+bound.
 
     git grep -l 'MaxEntriesInSharedList' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
 
-WHAT AN ADMINISTRATOR WHO MOVES THIS NUMBER SEES TODAY IS STILL NOTHING, and that is
-a different sentence from the one above rather than a softening of it. The cap is
-read on every add to the shared list, and no server has a shared list, because
-nothing in this plugin creates one. Creating it is #87. So this setting has a reader
-and that reader is not reachable yet, which is why an administrator sees no effect
-rather than because nothing looks at the value.
+WHAT AN ADMINISTRATOR WHO MOVES THIS NUMBER SEES SAID NOTHING HERE, AND THAT WAS
+BECAUSE NO LIST COULD BE MADE. #87 landed the route that makes one, so the cap is
+reachable now: on a server whose administrator has made a shared list, an add past
+this bound is refused and so is the entry of an import that would cross it. On a
+server that has no shared list it is still read by nothing, because both readers stop
+before the cap when there is no list to write into.
 
 ## Per-user settings
 
