@@ -11,7 +11,7 @@ rather than the sections that change touched, because a path added to the store 
 line numbers in files this page reads:
 
     git grep -c '^    \(git\|grep\|sed\|awk\|curl\|gh\) ' docs/personal-data.md
-    docs/personal-data.md:41
+    docs/personal-data.md:42
 
 Thirty-three were checked. The thirty-fourth is that line counting them, which counts
 itself and was written after the pass rather than checked by it, and saying so is
@@ -30,12 +30,16 @@ the two values a projection writes into a user's document. It is under
 Five more arrived with `## The projected playlists`, later still, and were run at the
 commit that landed that section.
 
+One more arrived with the shared list's transfer routes on #40, later than all of
+them, and names the two endpoints that carry that list off this server and back onto
+one. It is under `### Who can read it` and it was run at the commit that landed it.
+
 Most of the checking is a run rather than a reading now. `DocumentPasteTests` re-runs
 every `grep` and `git grep` paste in this file and reds the suite where one has
-stopped agreeing, which is thirty-nine of the forty-one:
+stopped agreeing, which is forty of the forty-two:
 
     git grep -c '^    \(git grep\|grep\) ' docs/personal-data.md
-    docs/personal-data.md:39
+    docs/personal-data.md:40
 
 Both numbers include that line and the one at the top of this file, each of which
 counts itself, which is the same admission the paragraph above makes and is why the
@@ -177,24 +181,31 @@ identifiers of the item, so that an import onto a different server can match a t
 rather than an identifier that means nothing there. What that file holds is in
 [docs/export-format.md](export-format.md).
 
-**THIS PARAGRAPH SAID NO ENDPOINT HANDS ONE OUT OR TAKES ONE IN, AND TWO DO.** They
-landed on #40 and the absence under them was never taken again, so a reader of this
-page was told the export never leaves the server through an endpoint while a route
-was handing it to whoever asked for their own:
+**THIS PARAGRAPH SAID NO ENDPOINT HANDS ONE OUT OR TAKES ONE IN, AND FOUR DO.** The
+first two landed on #40 and the absence under them was never taken again, so a reader
+of this page was told the export never leaves the server through an endpoint while a
+route was handing it to whoever asked for their own. The other two landed later on the
+same issue and are the shared list's own pair:
 
     git grep -cE 'Export|Import' -- Jellyfin.Plugin.Watchlist/Api/
+    Jellyfin.Plugin.Watchlist/Api/ImportableTo.cs:7
+    Jellyfin.Plugin.Watchlist/Api/ImportedFile.cs:27
     Jellyfin.Plugin.Watchlist/Api/LibraryProviderIds.cs:1
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:23
     Jellyfin.Plugin.Watchlist/Api/WatchlistImportEntryReport.cs:4
     Jellyfin.Plugin.Watchlist/Api/WatchlistImportOutcome.cs:1
     Jellyfin.Plugin.Watchlist/Api/WatchlistImportReport.cs:9
-    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:48
+    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:23
 
-What the two routes do is bounded and it is worth stating exactly, because the
+What the four routes do is bounded and it is worth stating exactly, because the
 sentence they replace was about who can get the data out. `GET Watchlist/Export`
 hands the caller their OWN list, as an export, and takes no user identifier, like
 every other route here; `POST Watchlist/Import` writes into the caller's own list
-from a body they supplied. Neither reaches another user's list, neither sends
-anything anywhere, and what each answers is in [docs/api.md](api.md).
+from a body they supplied. `GET Watchlist/Shared/Export` hands out the one list the
+whole server shares, unfiltered, and `POST Watchlist/Shared/Import` writes into it;
+both are refused to anybody the server's elevation policy does not answer for. None
+of the four reaches another user's private list, none of them sends anything
+anywhere, and what each answers is in [docs/api.md](api.md).
 
 ## Where it is stored
 
@@ -303,13 +314,14 @@ and the route set is written down and held to what the assembly actually exposes
 
     grep -n 'public void TheRoutesAreTheOnesWrittenDown' \
       Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs
-    48:    public void TheRoutesAreTheOnesWrittenDown()
+    50:    public void TheRoutesAreTheOnesWrittenDown()
 
-Re-taken on the change that landed #87. It has now said 55, then 44, then 46, and
-each of the first two moves went unpasted: first the reader that test calls moved to
-a file of its own, then the export and the import were added to the pinned set. The
-two administrative routes of #87 moved it by two more, and this reading was taken
-with them rather than found afterwards.
+Re-taken on the change that landed the shared list's transfer routes. It has now said
+55, then 44, then 46, then 48, and each of the first two moves went unpasted: first
+the reader that test calls moved to a file of its own, then the export and the import
+were added to the pinned set. The two administrative routes of #87 moved it by two
+more and the two transfer routes of #40 by two after that, and both of those readings
+were taken with the change rather than found afterwards.
 The number is what a reader follows to check the claim rather than the claim itself,
 and a number that has gone wrong twice for the same reason is worth naming as a habit
 rather than repairing quietly.
@@ -322,18 +334,22 @@ Everything above this heading is a user's own list. This section is the other li
 kind, and it answers the same questions differently because it is a different thing:
 one list for the whole server, written by everybody who can reach it.
 
-**No server has one.** This is where the negative statement belongs and it is stated
-before anything else, because every sentence after it describes a list that does not
-exist on anybody's machine yet. The record exists and the endpoints exist; nothing
-creates a list. No setting creates one, no scheduled pass creates one, and there is no
-route that would. Creating it is #87 and it has not been built, so all three endpoints
-answer that there is none, and nothing about any user sits in a shared list today.
+**A SERVER HAS ONE ONLY IF AN ADMINISTRATOR MADE IT, AND THIS PARAGRAPH SAID NOTHING
+COULD MAKE ONE.** That was true until #87 landed the route that does, and the negative
+which survives it is the narrower one, stated before anything else because every
+sentence after it describes a list a server need not have. Nothing here creates a
+shared list on its own. No setting creates one, no scheduled pass creates one, and no
+import creates one: the transfer routes write into a list that is already there and
+answer that there is none when it is not. So a server whose administrator has never
+asked for a shared list has none, and nothing about any user sits in a list nobody
+made.
 
-That is checkable rather than asserted. The controller reads the shared record and
-asks the store to change one, and it never writes a document, which is what a creation
-would be:
+That is checkable rather than asserted. Every route that touches the shared record
+reads it or asks the store to change it, and none of them writes a document by hand,
+which is what a creation nobody asked for would be:
 
     git grep -lE 'WriteShared|ReadShared' -- Jellyfin.Plugin.Watchlist
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentFormat.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
@@ -341,16 +357,16 @@ would be:
     git grep -c 'WriteShared' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs ; echo "exit=$?"
     exit=1
 
-So what follows is what a reader will be able to see once somebody builds the surface
-that makes one, written before that ships rather than after, because a published
+So what follows is what a reader sees on a server whose administrator has made one. It
+was written before that surface shipped rather than after, because a published
 statement about who can see what has already been read by the time it is corrected.
 
 ### Who can read it
 
 **Every user of the server.** Not a set an administrator picks: the list is one object
 and the read endpoint is bound to nothing narrower than being somebody this server
-knows. There are five shared routes and none of them takes a user identifier, exactly
-as the private ones do not:
+knows. There are seven shared routes and none of them takes a user identifier, exactly
+as the private ones do not. Five sit on the controller that carries the item routes:
 
     git grep -n 'HttpGet("Shared\|HttpPost("Shared\|HttpDelete("Shared' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:214:    [HttpGet("Shared/Items")]
@@ -359,10 +375,19 @@ as the private ones do not:
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:332:    [HttpPost("Shared")]
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:378:    [HttpDelete("Shared")]
 
-The paste said three until #87 added the last two. Those two are the list itself
-rather than its contents - making it and taking it away - and they are the only
-routes here an ordinary user cannot reach at all. Neither reads anything: one writes
-an empty record and the other removes it.
+and two on the one that carries the list between servers:
+
+    git grep -n 'HttpGet("Shared\|HttpPost("Shared' -- Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:115:    [HttpGet("Shared/Export")]
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:160:    [HttpPost("Shared/Import")]
+
+The first paste said three until #87 added its last two. Those two are the list itself
+rather than its contents - making it and taking it away - and neither reads anything:
+one writes an empty record and the other removes it. The second paste is the pair from
+#40, which carries the list off this server and back onto one. All four are refused to
+an ordinary user, and the two pastes are read together rather than the first alone,
+because a count over one controller stopped answering for this surface the day a
+second one arrived.
 
 **Anybody with file access to the server**, for the same reason a private list is
 readable that way. It is one plain file under the same folder, and its name is not one
@@ -484,9 +509,10 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Thirty-one places log at all, over six files:
+library. Thirty-eight places log at all, over seven files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:7
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:11
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
     Jellyfin.Plugin.Watchlist/Projection/WatchlistProjector.cs:7
@@ -506,6 +532,13 @@ the controller's. They are the two refusals the administrative endpoints write w
 the server's elevation policy does not answer for a caller: the one about making the
 shared list names that caller's identifier, and the one about removing it names
 nothing at all, because that operation is handed no caller.
+
+It moved to thirty-eight on #40, and all seven new lines are the shared transfer
+controller's. Five are refusals - two about a caller the elevation policy does not
+answer for, one about a body that is not an export, one about a version this plugin
+does not know, and two about a stored document it will not read - and two are the
+lines a finished import writes. Every one of them names the calling user's identifier
+and counts, and none of them names a title or anything else read out of the library.
 
 What they name is the calling user's identifier, an item identifier, the kind the
 library holds an item as, an entry count, a configured maximum, and a schema version.
@@ -666,12 +699,14 @@ request:
 The imports from a `System.Net` namespace are not network access:
 
     git grep -n 'using System.Net' -- Jellyfin.Plugin.Watchlist
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:2:using System.Net.Mime;
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:4:using System.Net.Mime;
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:3:using System.Net.Mime;
 
-Two imports rather than one, and the sentence under this said one until the transfer
-controller's line was taken again. `System.Net.Mime` supplies the name of the media
-type each controller declares it answers in. There is no telemetry, no usage reporting and no update check of this
+Three imports rather than one, and the sentence under this said one until the transfer
+controller's line was taken again, then two until the shared transfer controller
+arrived. `System.Net.Mime` supplies the name of the media type each controller
+declares it answers in. There is no telemetry, no usage reporting and no update check of this
 plugin's own. What updates the plugin is the server reading a manifest, which is the
 server's request made on an administrator's instruction rather than something this
 plugin does.

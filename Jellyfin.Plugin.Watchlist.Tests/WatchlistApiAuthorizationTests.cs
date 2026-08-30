@@ -31,10 +31,11 @@ public class WatchlistApiAuthorizationTests
     /// server's default policy is what an endpoint gets from an attribute naming
     /// nothing, and it is the right one for a list a user keeps for themselves. The
     /// entry below is the administrative surface that line said would bring one -
-    /// making the shared list and taking it away, which are the only two endpoints
-    /// here that demand elevation in their attribute. Anything else appearing in this
-    /// set is a permission demanded by accident, and the two are still told apart by
-    /// somebody editing this line on purpose.
+    /// making the shared list, taking it away, and, since #40, carrying it out of this
+    /// server and back into one. Which endpoints those are is pinned separately below,
+    /// because this set is over POLICIES and does not move when their number does.
+    /// Anything else appearing here is a permission demanded by accident, and the two
+    /// are still told apart by somebody editing this line on purpose.
     /// </summary>
     private static readonly string[] PoliciesTheEndpointsMayName = [Policies.RequiresElevation];
 
@@ -84,10 +85,12 @@ public class WatchlistApiAuthorizationTests
     /// The endpoints that demand elevation in their attribute, pinned by name. The set
     /// above is over POLICIES, so an endpoint losing its attribute while another keeps
     /// the same one moves nothing there - measured by taking the attribute off one of
-    /// the two and watching that test stay green. This is the pin that notices.
+    /// them and watching that test stay green. This is the pin that notices.
     /// </summary>
     private static readonly string[] EndpointsThatDemandElevation =
     [
+        "SharedWatchlistTransferController.ExportSharedWatchlist",
+        "SharedWatchlistTransferController.ImportSharedWatchlist",
         "WatchlistController.CreateSharedWatchlist",
         "WatchlistController.RemoveSharedWatchlist",
     ];

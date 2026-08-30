@@ -146,7 +146,7 @@ and the same on the other line.
 
 ## The set is the set the suite pins
 
-`WatchlistApiRouteTests` holds ten strings, verb and template together:
+`WatchlistApiRouteTests` holds twelve strings, verb and template together:
 
     grep -nE '"(GET|POST|DELETE) Watchlist' Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs
     32:        "DELETE Watchlist/Items/{itemId}",
@@ -154,22 +154,24 @@ and the same on the other line.
     34:        "DELETE Watchlist/Shared/Items/{itemId}",
     35:        "GET Watchlist/Export",
     36:        "GET Watchlist/Items",
-    37:        "GET Watchlist/Shared/Items",
-    38:        "POST Watchlist/Import",
-    39:        "POST Watchlist/Items/{itemId}",
-    40:        "POST Watchlist/Shared",
-    41:        "POST Watchlist/Shared/Items/{itemId}",
-    97:            ["POST Watchlist/Something"],
+    37:        "GET Watchlist/Shared/Export",
+    38:        "GET Watchlist/Shared/Items",
+    39:        "POST Watchlist/Import",
+    40:        "POST Watchlist/Items/{itemId}",
+    41:        "POST Watchlist/Shared",
+    42:        "POST Watchlist/Shared/Import",
+    43:        "POST Watchlist/Shared/Items/{itemId}",
+    99:            ["POST Watchlist/Something"],
 
 It said six, then eight when the export and the import from #40 were taken again
-here, and it says ten with the two administrative routes #87 added. The count is
-stated rather than left to the paste for the reason the paste exists: a reader
-compares the two, and a reader who finds them disagreeing should trust neither and
-re-run the command.
+here, then ten with the two administrative routes #87 added, and it says twelve with
+the two that carry the shared list between servers. The count is stated rather than
+left to the paste for the reason the paste exists: a reader compares the two, and a
+reader who finds them disagreeing should trust neither and re-run the command.
 
 The last of those is not a route. It is the near-miss the pin is proven with, and
 the command is shown unfiltered so a reader who runs it meets it here rather than
-wondering which of eleven lines is the extra one.
+wondering which of thirteen lines is the extra one.
 
 **THE PIN HAS GROWN SINCE THE RUN RECORDED ABOVE, AND THIS SECTION SAID IT HELD
 THREE.** It held three, and the paste under this command showed lines 32, 33 and 34
