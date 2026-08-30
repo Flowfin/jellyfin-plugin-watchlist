@@ -169,10 +169,13 @@ shared list. The rule, the setting that decides it and the moment it runs are in
 The format a list leaves in is fixed, in
 [docs/export-format.md](docs/export-format.md), together with the code that
 writes it and the rule that matches an imported entry onto this server's items,
-and two endpoints carry it: one hands your own list out in that format and one
-reads such a file back onto your own list. A shared list inside such a file is
-counted and left alone, because writing the list everybody reads is an
-administrative operation and there is no administrative surface yet.
+and four endpoints carry it. Two are your own: one hands your list out in that
+format and one reads such a file back onto it, and a shared list inside such a
+file is counted and left alone by both. The other two are the shared list's, and
+an administrator is who they answer for, because reading the whole of a list
+everybody can see and writing into it are not a user's own operations. Who added
+each entry is not in the file, so a shared list that arrives on another server
+carries its titles and not the names beside them.
 
 The projection into a playlist does not run, and it is the part a user would
 notice, because until it does a list is reachable over the API and appears on no
@@ -186,9 +189,10 @@ that would call either.
 
 That is true of both kinds of list, which is the part of the shared list that is
 missing rather than the whole of it: the shared record, the setting that turns it
-on and the endpoints that read and change it are all here, and what is absent is
-the playlist it would appear in and the administrator surface that names and
-removes it. That is why there is no release.
+on, the endpoints that read and change it, the administrative surface that makes
+it and takes it away, and the pair that carries it between servers are all here,
+and what is absent is the playlist it would appear in. That is why there is no
+release.
 
 One of the two server lines above is not built either. The plugin compiles
 against the 10.11 package set, on the framework that line runs, and the packaging

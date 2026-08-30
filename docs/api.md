@@ -31,14 +31,15 @@ that. Authorisation is the server's, under its default policy, so a request
 carries whatever token the server already issued to that user and nothing here
 asks for a permission a watchlist has no reason to ask for.
 
-Two endpoints demand administrator rights to be reached, and they are the two
-that make the shared list and take it away. Everything else on this surface is
-open to any authenticated user of the server, and a third endpoint asks about
-elevation once it has been reached: taking an entry off the shared list is
-allowed to the person who put it there and to an administrator, so the removal
-asks the server's own elevation policy about the caller and refuses on the
-answer. Being an administrator gives no access to anybody's private list, and it
-changes no answer on any endpoint other than the three named here.
+Four endpoints demand administrator rights to be reached: the two that make the
+shared list and take it away, and the two that carry the shared list out of this
+server and back into one. Everything else on this surface is open to any
+authenticated user of the server, and a fifth endpoint asks about elevation once
+it has been reached: taking an entry off the shared list is allowed to the person
+who put it there and to an administrator, so the removal asks the server's own
+elevation policy about the caller and refuses on the answer. Being an
+administrator gives no access to anybody's private list, and it changes no answer
+on any endpoint other than the five named here.
 
 Who is an administrator is the server's question throughout. This plugin carries
 no rule of its own about it and asks the server's elevation policy every time.
@@ -396,6 +397,108 @@ reason: the kind is a claim about who may see the list, and nobody made it.
 
 Importing the same file twice leaves one entry per item and reports the second run
 as `AlreadyOnTheList`, exactly as calling the add endpoint twice does.
+
+## GET Watchlist/Shared/Export
+
+Writes the whole shared list out in the exchange format, so it can be carried to
+another server running this plugin. The format is fixed in
+[export-format.md](export-format.md) and this endpoint hands back exactly what that
+document describes.
+
+Who may: an administrator, and nobody else. The server's elevation policy answers,
+the same way it does for making the shared list and taking it away.
+
+Administrative because it is unfiltered. The ordinary shared read at
+`GET Watchlist/Shared/Items` shows each caller the entries they may see, so two
+people on one server would export two different shared lists under one name and an
+import of either would be a restore missing entries nobody counted. This one reads
+everything on the list, including entries whose media the administrator taking the
+export has no access to, which is what makes it a lossless copy and why it is not
+open to everybody.
+
+No parameters, and nothing about the caller reaches the file. Two administrators of
+one server export the same bytes.
+
+    curl -H 'Authorization: MediaBrowser Token="<token>"' \
+      https://jellyfin.example/Watchlist/Shared/Export
+
+| response | what it means |
+| --- | --- |
+| 200 | The export. A shared list nobody has put anything on gets a list with no entries, which is a valid export of nothing. |
+| 401 | The request carried no user identity this plugin could read. |
+| 403 | The caller is not an administrator. Nothing was read. |
+| 404 | Nobody has made a shared list on this server. |
+| 503 | The shared list exists and this plugin will not read it. |
+
+A server with no shared list answers 404 rather than an empty export. A file
+describing a shared list with no entries would restore onto another server as a
+shared list, on a server whose administrator never asked for one.
+
+Who added each entry is not in the file. The format records no such thing, and a
+user identifier is assigned by the server the file came from, so it would name
+nobody on the server the file is carried to. What that costs is at the import
+below.
+
+No private list is in it, and there is no spelling of this request that puts one
+there. Moving a user's own list is `GET Watchlist/Export` and is that user's own
+operation.
+
+## POST Watchlist/Shared/Import
+
+Reads an exported file against this server and puts what it matched on the shared
+list.
+
+Who may: an administrator, and nobody else, asked the same way as above. It is a
+write to a list everybody on the server reads, which is what makes it
+administrative rather than anybody's own operation.
+
+The body is an export document, and its `FormatVersion` has to be one this plugin
+knows. A version it does not know is refused rather than read as far as it goes,
+for the reason the per-user import carries.
+
+It writes into the shared list this server already has and never makes one. Making
+the shared list is `POST Watchlist/Shared`, and an import that made one would take
+that decision as a side effect of restoring a file.
+
+Entries are matched by provider identifier first and by the exporting server's own
+identifier second, exactly as on the per-user import, and an entry is matched only
+where this administrator may see the item and a watchlist would take it. An entry
+pointing at a library even this caller has no access to comes back unmatched, which
+is the one place this import is narrower than the export above it.
+
+Nothing is dropped in silence. Every entry of every list this endpoint read comes
+back in the report, including the ones nothing here answered to, and a list it did
+not read is counted along with how many entries sat in it.
+
+    curl -X POST -H 'Authorization: MediaBrowser Token="<token>"' \
+      -H 'Content-Type: application/json' \
+      --data-binary @shared-watchlist-export.json \
+      https://jellyfin.example/Watchlist/Shared/Import
+
+| response | what it means |
+| --- | --- |
+| 200 | The report. Entries that matched nothing here are in it too, and so are the counts for lists this endpoint did not read. |
+| 400 | The body is not an export this plugin can read, or it declares a format version this plugin does not know. |
+| 401 | The request carried no user identity this plugin could read. |
+| 403 | The caller is not an administrator. Nothing was written. |
+| 404 | This server has no shared list to write into. |
+| 503 | The shared list exists and this plugin will not write to it. |
+
+A private list in the file is counted and left alone, which is the mirror image of
+what the per-user import does with a shared one. Writing somebody's private list
+out of a file is a write to a list its owner did not ask about, and no route here
+does it.
+
+An imported entry records nobody as having put it there. The file carries no such
+thing to copy, and stamping the importing administrator on it would say they added
+titles they did not. What that costs is worth knowing before a move: taking an
+imported entry off the shared list at `DELETE Watchlist/Shared/Items/{itemId}` is
+allowed to an administrator and to nobody else, until somebody adds it again under
+their own name.
+
+An entry the shared list already holds is reported as `AlreadyOnTheList` and the
+entry that is there is left as it stands, attribution and all, exactly as a second
+add of the same title does.
 
 ## Setting a per-user preference
 

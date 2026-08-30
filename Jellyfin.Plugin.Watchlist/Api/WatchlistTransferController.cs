@@ -238,40 +238,22 @@ public class WatchlistTransferController : ControllerBase
     /// <param name="userId">Whose list is being written.</param>
     /// <param name="export">The export.</param>
     /// <returns>The report.</returns>
+    /// <remarks>
+    /// A shared list, or one whose kind the file did not declare, is not written here:
+    /// the first is a write to a list other people read, which is the administrative
+    /// import on <see cref="SharedWatchlistTransferController"/>, and the second is a
+    /// claim about who may see the list that nobody made. Both are counted with their
+    /// entries by the walk this hands the file to.
+    /// </remarks>
     private WatchlistImportReport Written(Guid userId, WatchlistExport export)
     {
         var importable = new ImportableTo(_providerIndex, _describer, userId);
-        var lines = new List<WatchlistImportEntryReport>();
-        var listsNotImported = 0;
-        var entriesNotImported = 0;
 
-        foreach (var list in export.Lists)
-        {
-            if (list.Kind != ExportedListKind.Private)
-            {
-                // A shared list, or one whose kind the file did not declare. Neither is
-                // written here: the first is a write to a list other people read, and
-                // the second is a claim about who may see the list that nobody made.
-                // Both are counted with their entries, so a file that carried them does
-                // not read back as a file that carried nothing.
-                listsNotImported++;
-                entriesNotImported += list.Entries.Count;
-                continue;
-            }
-
-            foreach (var match in WatchlistImporter.Read(list.Entries, importable, importable).Entries)
-            {
-                lines.Add(Written(userId, match, importable));
-            }
-        }
-
-        var report = new WatchlistImportReport
-        {
-            ListsRead = export.Lists.Count,
-            ListsNotImported = listsNotImported,
-            EntriesNotImported = entriesNotImported,
-            Entries = lines,
-        };
+        var report = ImportedFile.Read(
+            export,
+            ExportedListKind.Private,
+            importable,
+            entry => _store.Add(userId, entry, _configuration.MaxEntriesPerUser));
 
         // Counts and no titles. The log of a server is read by an administrator, and a
         // title is what a user put on a list of their own.
@@ -286,117 +268,5 @@ public class WatchlistTransferController : ControllerBase
             report.ListsRead);
 
         return report;
-    }
-
-    /// <summary>
-    /// One entry of a private list, written to the caller's list, and what came of it.
-    /// </summary>
-    /// <param name="userId">Whose list to write.</param>
-    /// <param name="match">What the matching rule said about the entry.</param>
-    /// <param name="importable">The lookup that already answered for the item.</param>
-    /// <returns>The line the report carries for this entry.</returns>
-    private WatchlistImportEntryReport Written(
-        Guid userId,
-        ImportedEntryMatch match,
-        ImportableTo importable)
-    {
-        if (match.ItemId is not { } itemId)
-        {
-            return LineFor(match, WatchlistImportOutcome.Unmatched);
-        }
-
-        // The bang is carried by the line above it: an entry the rule matched is one
-        // this lookup answered for, and it answered once because it remembers.
-        var result = _store.Add(
-            userId,
-            new WatchlistEntry
-            {
-                ItemId = itemId,
-                Kind = importable.Importable(itemId)!.Kind,
-                AddedAt = match.Entry.AddedAt,
-                Source = WatchlistEntrySource.Import,
-            },
-            _configuration.MaxEntriesPerUser);
-
-        if (result.Outcome == WatchlistAddOutcome.Added)
-        {
-            return LineFor(match, WatchlistImportOutcome.Added);
-        }
-
-        return LineFor(
-            match,
-            result.Outcome == WatchlistAddOutcome.AlreadyOnTheList
-                ? WatchlistImportOutcome.AlreadyOnTheList
-                : WatchlistImportOutcome.Refused);
-    }
-
-    private static WatchlistImportEntryReport LineFor(
-        ImportedEntryMatch match,
-        WatchlistImportOutcome outcome) => new()
-        {
-            ItemId = match.Entry.ItemId,
-            Match = match.Match,
-            Provider = match.Provider,
-            MatchedItemId = match.ItemId,
-            Outcome = outcome,
-        };
-
-    /// <summary>
-    /// The library lookup as this caller may use it: an item answers here only when
-    /// this user may see it and a watchlist would take it.
-    /// </summary>
-    /// <remarks>
-    /// Both halves are one rule rather than two answers. An entry pointing at something
-    /// this caller may not see, and an entry pointing at a music track, both come back
-    /// unmatched, which is what a caller is told about an item that is not here at all.
-    /// So an import cannot be used to ask what sits in a library the caller has no
-    /// access to, and the add endpoint answers the same way for the same reason.
-    /// </remarks>
-    private sealed class ImportableTo : IProviderIdIndex, IWatchlistItemResolver
-    {
-        private readonly Dictionary<Guid, WatchlistItemDescription?> _asked = [];
-        private readonly IProviderIdIndex _index;
-        private readonly IWatchlistItemDescriber _describer;
-        private readonly Guid _userId;
-
-        public ImportableTo(IProviderIdIndex index, IWatchlistItemDescriber describer, Guid userId)
-        {
-            _index = index;
-            _describer = describer;
-            _userId = userId;
-        }
-
-        public Guid? ItemFor(string provider, string id) =>
-            _index.ItemFor(provider, id) is { } itemId && Importable(itemId) is not null
-                ? itemId
-                : null;
-
-        public bool Exists(Guid itemId) => Importable(itemId) is not null;
-
-        /// <summary>
-        /// What this caller may put on a list under that identifier, or null.
-        /// </summary>
-        /// <param name="itemId">The item on this server.</param>
-        /// <returns>The description, or null where the entry may not be written.</returns>
-        /// <remarks>
-        /// It remembers what it was told. Without that the same item is described twice
-        /// per entry, once to decide whether it may be written and once to record what
-        /// kind it is, and the second answer could differ from the first.
-        /// </remarks>
-        public WatchlistItemDescription? Importable(Guid itemId)
-        {
-            if (!_asked.TryGetValue(itemId, out var description))
-            {
-                var answered = _describer.Describe(itemId, _userId);
-
-                description = answered is not null && AcceptedWatchlistItemKinds.Accepts(answered.Kind)
-                    ? answered
-                    : null;
-
-                _asked[itemId] = description;
-            }
-
-            return description;
-        }
     }
 }
