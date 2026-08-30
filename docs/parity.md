@@ -350,29 +350,64 @@ one accepted. #4 and #82 are the two issues that force the question, and neither
 has landed, so no answer is written here yet and the absence is the answer for
 today rather than an oversight.
 
-What a pull request from a fork does. Still not measured, AND THIS CONTEXT IS
-REQUIRED NOW, which is the order this paragraph asked for and did not get.
-Uploading an analysis needs `security-events: write`, and a token on a
-`pull_request` event from a fork does not carry it, so whether this job succeeds
-without uploading or fails outright is a behaviour of the uploader that nobody
-here has watched. It matters exactly because the context is required: a required
-context an outside contribution cannot report is a pull request nobody can
-merge. This paragraph said #63 should read a real fork run before requiring it.
-The requirement landed first, and no such run exists to read: every pull request
-this repository has ever carried was opened from a branch inside it.
+What a pull request from a fork does. Read under the token, not under the head,
+and the difference between those two is what is left. Uploading an analysis needs
+`security-events: write`, and a pull request from a fork runs with a read-only
+`GITHUB_TOKEN`, so whether this job succeeds without uploading or fails outright
+was a behaviour of the uploader nobody here had watched. It matters exactly
+because the context is required: a required context an outside contribution
+cannot report is a pull request nobody can merge. This paragraph said #63 should
+read such a run before requiring it, and the requirement landed first.
+
+THE READING ARRIVED THE SAME DAY, FROM THE OTHER ROUTE THAT RUNS ON A READ-ONLY
+TOKEN. The Dependabot configuration landed on #55 and the automation opened three
+pull requests within two minutes. Every context the mainline requires reported on
+one of them, and every one concluded green:
+
+    gh pr view 273 --repo Flowfin/jellyfin-plugin-watchlist --json statusCheckRollup \
+      --jq '[.statusCheckRollup[] | (.name // .context) + " :: " + (.conclusion // .state)] | sort | unique | .[]'
+    Alone on 10.11 :: SUCCESS
+    Audit workflows (zizmor) :: SUCCESS
+    Code scanning (csharp) :: SUCCESS
+    CodeQL :: SUCCESS
+    Coverage floor :: SUCCESS
+    DCO sign-off :: SUCCESS
+    Deterministic PR-hygiene checks :: SUCCESS
+    Reject Trojan Source Unicode :: SUCCESS
+    Run the suite three times :: SUCCESS
+    Suite on macos-latest :: SUCCESS
+    Suite on ubuntu-latest :: SUCCESS
+    Suite on windows-latest :: SUCCESS
+    Vulnerable dependency listing :: SUCCESS
+    With the family on 10.11 :: SUCCESS
+    call / build :: SUCCESS
+    call / test :: SUCCESS
+    dependency-review :: SUCCESS
+
+Seventeen lines, and sixteen of them are the required set; `CodeQL` is the app's
+half of the pair the section below is about and is not required itself.
+`Code scanning (csharp)` is the one this paragraph was about, it carries no
+condition on who opened the pull request, and it concluded green with no write on
+its token.
+
+WHAT IS STILL NOT READ IS THE HEAD AND NOT THE TOKEN, and it is narrower than
+what stood here. A Dependabot pull request has a read-only token and a head
+branch inside this repository; a fork pull request has the same token and a head
+outside it. The only thing in this tree that reads which of the two it is, is the
+condition on the SARIF upload in `.github/workflows/zizmor.yml`, and that
+condition switches the upload OFF for both cases and carries
+`continue-on-error`, so the job it sits in concludes on its findings either way.
+No other required context reads the head repository at all:
+
+    grep -rn 'head.repo.full_name' .github/workflows/
+    .github/workflows/zizmor.yml:100:        if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]')
+
+So the residual is one step, in one job, written to skip on exactly the case it
+is not read on. Every pull request this repository has carried was still opened
+from a branch inside it, and that is the sentence a fork run replaces:
 
     gh pr list --repo Flowfin/jellyfin-plugin-watchlist --state all --limit 400 --json headRepositoryOwner --jq '[.[] | .headRepositoryOwner.login] | unique'
     ["Flowfin"]
-
-Two things narrow it without closing it. The nearest reading is the same job on
-the sibling board, on a merged Dependabot pull request, which runs with the same
-read-only token a fork pull request runs with, and it concluded green; the paste
-is in the section below. And this repository now carries a Dependabot
-configuration, from #55, so the first pull request that automation opens here
-produces that run on this board rather than on a sibling. Until one of those two
-is read here, the residual is a required context whose behaviour under an
-outside head is inferred and not watched, and it is written down rather than
-counted as settled.
 
 ## Two instruments, each reporting under two names
 
@@ -474,19 +509,22 @@ outside this repository and for one Dependabot opened, and carrying
 `continue-on-error`, so the job's verdict is independent of the upload by
 construction. Here the analysis and its upload are one step and no such
 condition exists, so whether this job concludes green under the read-only token
-such a pull request runs with is not settled by reading this tree. The nearest
-reading is the same job on the sibling board, on a merged Dependabot pull
-request, which runs with the same read-only token:
+such a pull request runs with was not settled by reading this tree. IT IS READ
+NOW, ON THIS BOARD, and the paragraph under `## What the code scan reads, and
+what it does not` carries the whole listing:
 
-    gh pr view 1409 --repo Flowfin/jellyfin-plugin-sso --json statusCheckRollup --jq '[.statusCheckRollup[] | .name + " :: " + .conclusion] | sort | .[]' | grep -iE 'csharp|codeql'
-    Analyze (csharp) :: SUCCESS
+    gh pr view 273 --repo Flowfin/jellyfin-plugin-watchlist --json statusCheckRollup       --jq '[.statusCheckRollup[] | (.name // .context) + " :: " + (.conclusion // .state)] | sort | unique | .[]' | grep -iE 'csharp|codeql'
+    Code scanning (csharp) :: SUCCESS
     CodeQL :: SUCCESS
 
-That is one board's run and not this one's, and no pull request from outside
-this repository has ever been opened here, so it is the nearest reading rather
-than the measurement. The row for the code scan said the workflow's name is the
-one #63 requires before that had been taken on the issue; it has been taken now,
-and the row says what the zizmor row says.
+Both halves of the pair conclude green on a pull request whose token cannot write
+security events, so the shape this paragraph was written against - a required
+context that cannot report and a merge that therefore waits forever - is not the
+shape this pair has. What is left is the head rather than the token, and it is
+one step in the zizmor job written to skip on exactly that case. The row for the
+code scan said the workflow's name is the one #63 requires before that had been
+taken on the issue; it has been taken now, and the row says what the zizmor row
+says.
 
 ## The check that was declared here and never ran, and the one that still does not
 
