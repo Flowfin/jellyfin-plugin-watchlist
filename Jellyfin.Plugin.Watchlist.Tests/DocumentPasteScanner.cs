@@ -158,9 +158,13 @@ internal static class DocumentPasteScanner
         var entries = new List<PasteException>();
         var malformed = new List<string>();
 
-        foreach (var raw in register.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+        var lines = register
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split('\n')
+            .Select(raw => raw.Trim());
+
+        foreach (var line in lines)
         {
-            var line = raw.Trim();
             if (line.Length == 0 || line.StartsWith('#'))
             {
                 continue;

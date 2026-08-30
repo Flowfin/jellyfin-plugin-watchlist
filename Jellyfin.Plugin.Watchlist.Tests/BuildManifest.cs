@@ -315,20 +315,13 @@ internal static class BuildManifest
             throw new InvalidOperationException("The manifest declares no top-level artifacts key.");
         }
 
-        var artifacts = new List<string>();
-
-        foreach (var line in manifestText[(key.Index + key.Length)..].Split('\n').Skip(1))
-        {
-            var entry = ArtifactEntry.Match(line);
-            if (!entry.Success)
-            {
-                break;
-            }
-
-            artifacts.Add(entry.Groups["artifact"].Value);
-        }
-
-        return artifacts;
+        return manifestText[(key.Index + key.Length)..]
+            .Split('\n')
+            .Skip(1)
+            .Select(line => ArtifactEntry.Match(line))
+            .TakeWhile(entry => entry.Success)
+            .Select(entry => entry.Groups["artifact"].Value)
+            .ToList();
     }
 
     /// <summary>
