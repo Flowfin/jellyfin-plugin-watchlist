@@ -97,6 +97,131 @@ Nothing here writes a plugin catalog. A GitHub release is the whole output. If t
 repository previously published through the Jellyfin meta plugins workflow, that path
 is gone and no catalog is fed until a manifest generator is added.
 
+## The package this route builds, and the one the gate builds
+
+Both are made by the same packaging tool at the same pin, on the same runner image,
+against the same framework, and neither hands the tool a version - both read it out
+of `build.yaml`. They are not the same build, and where they differ is written at
+the top of `.github/workflows/build.yaml` rather than here, because a second copy of
+that comparison goes stale against the workflow that decides it:
+
+```
+grep -n 'What differs is the restore' .github/workflows/build.yaml
+```
+
+Read it before treating a green `call / build` as evidence about the archive a user
+receives. The short of it is that the gate's leg lets the packager restore for
+itself and this route restores in locked mode first, so the release archive is built
+from the graph `packages.lock.json` records and the gate's is not.
+
+## What the artifacts are named, and what the name does not say
+
+The packaging tool names the archive, from two values this repository writes and
+nothing else: the `name` key in `build.yaml`, lowercased, then an underscore, then
+the `version` key. Read off a real run of the gate's packaging leg rather than off
+the tool's documentation:
+
+```
+gh run download 33315016709 --repo Flowfin/jellyfin-plugin-watchlist -n build-artifact
+ls
+watchlist_0.1.0.0.zip
+```
+
+Everything else a release carries is named after that archive: the packaging
+metadata is `<archive>.meta.json`, the checksums are `<archive without .zip>.md5`
+and `.sha256`, and the provenance bundle and the inventory take the same stem. So
+there is one name in a release and the rest are derived from it, which is what
+keeps a catalogue reading the checksum by filename from picking the wrong file.
+
+**The name does not say which server line the archive is built for.** That is
+stated here rather than left to be discovered, because the version alone is what
+the name carries. The line is inside the archive, in the packaged metadata, and it
+is the value `build.yaml` declares:
+
+```
+unzip -p watchlist_0.1.0.0.zip meta.json
+    "targetAbi": "10.11.0.0",
+```
+
+**The rule for when there are two.** A release ships one artifact today, so there is
+nothing for a name to distinguish it from and a line marker in it would say nothing
+a reader could act on. The second artifact arrives with #4, which is a second
+manifest with its own `targetAbi` and its own framework, and the day it does the two
+archives cannot both be `watchlist_<version>.zip`. What distinguishes them is
+decided there, with the packaging step and the catalogue that reads it in front of
+whoever decides, rather than guessed here while one of the two does not exist. That
+is the whole remainder, and it is named so that a reader of the paragraph above does
+not take one artifact for a naming scheme that was designed for two.
+
+## What is in the archive
+
+Two files, and neither of them is from the build tree:
+
+```
+unzip -l watchlist_0.1.0.0.zip
+      930  2026-08-30 13:45   meta.json
+   130048  2026-08-30 13:45   Jellyfin.Plugin.Watchlist.dll
+```
+
+The publish output of that project holds four files - the assembly, a `.pdb`, a
+`.deps.json` and an XML documentation file - and the packaging tool takes only the
+ones the `artifacts` sequence in `build.yaml` names, which is the assembly. The
+suite refuses a sequence naming anything this repository does not build, and the
+release route refuses an assembly in the archive that no package in the inventory
+accounts for, so a dependency that started shipping stops the run rather than riding
+along.
+
+## Building the same tag twice
+
+**The assembly is reproducible for a given checkout path and is not reproducible
+across two.** Measured with `sha256sum` over `dotnet publish -c Release -f net9.0`,
+rather than argued from the compiler's defaults:
+
+```
+two clean builds of one commit at ONE path
+  fc4319cef6c11c596dd28277a622c774ff96878212bfdbaec1c141ba308ab9b7 (twice)
+the same commit unpacked at two different paths
+  45a53ba268f88a68037f1c40233ef36e079300bef361be826acf1615d526215d
+  18539d606ae8a2b2959a472ebc9cf652c1c34d49c047e82a2414989e38dd3529
+```
+
+What differs is the checkout path, which the compiler writes into the assembly, and
+nothing about the source. `-p:PathMap=<root>=/_/` removes the difference, measured
+at the same two paths:
+
+```
+eee0137a07269d22eddc4ad963a52a95c0eaeb7621e6aa80426026137324ce9c (both)
+```
+
+**It is not set, and the reason is measured rather than a preference.** With that
+property on the shipped project, the coverage floor stops reporting the module at
+all: coverlet prints an empty table and the run fails at 0% against a floor of 100.
+Both readings are `dotnet test --configuration Release -p:CollectCoverage=true`, on
+the same tree, with and without it:
+
+```
+without           | Jellyfin.Plugin.Watchlist | 100% | 100%   | 100%   |
+with              | Module | Line | Branch | Method |   <- no row at all
+                  error : The minimum line coverage is below the specified 100
+```
+
+`-p:DeterministicReport=true`, which exists for exactly this pairing, moved neither
+reading. So the choice is between an artifact reproducible across machines and a
+coverage floor that reports, and the floor is a required context while cross-machine
+reproducibility is nothing this repository has been asked for.
+
+**The archive can never repeat its bytes, whatever the assembly does**, because the
+packaging tool writes the moment of the run into the metadata it puts inside:
+
+```
+unzip -p watchlist_0.1.0.0.zip meta.json
+    "timestamp": "2026-08-30T13:45:48Z",
+```
+
+So two builds of one tag produce the same assembly on the same path and two
+different archives, always. A reader comparing releases compares the assembly and
+the inventory, not the zip.
+
 ## What fails the run
 
 - The tag does not end in `-stable`, or the workflow was started from something
