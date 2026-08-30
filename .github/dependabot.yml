@@ -1,0 +1,88 @@
+# The dependency update route this repository controls.
+#
+# Nothing is installed on the organisation this repository sits in, which was
+# read on #55 rather than supposed, so the app-based route configured in
+# .github/renovate.json has never run here and no interval produces a pull
+# request from it. Dependabot is native to GitHub and needs no installation, so
+# what this board lacked was the committed configuration and this file is it.
+#
+# WHERE THIS CAME FROM. Not from a decided fleet template: iderex/wache#24 is
+# open and says the agreed shape is not decided. It is adapted from the sibling
+# this family's roster record names as its declared target state,
+# Flowfin/jellyfin-plugin-sso, at blob c50ea5247148f0a3011bb2f87875c7e8edad13c9,
+# with the prose written in this board's own language and the reasons re-read
+# against this tree rather than carried over as claims about it. When that
+# decision lands, this file is what it replaces or ratifies.
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    # Hold a newly published version for 7 days before it may enter a pull
+    # request, so a release compromised between publish and adoption has time to
+    # surface in the advisory feeds first. GitHub's own words on the carve-out:
+    # the cooldown "does not apply to security updates".
+    #
+    # No tier key here, deliberately. NuGet does support semver-*-days, but
+    # shortening the patch tier would speed up only the non-security bumps, and
+    # the patch tier is exactly where a registry compromise publishes. GitHub
+    # has also made 3 days the platform-wide default, so a 3-day patch tier
+    # would buy no margin over configuring nothing at all.
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    # The CodeQL action's steps are one thing and have to move together.
+    #
+    # Dependabot carries github/codeql-action/init and .../analyze as separate
+    # dependencies, and a pull request raising one without the other leaves the
+    # action refusing the run it was raised for, because the configuration a
+    # later version writes is not the one an earlier version reads. This tree
+    # names three of its steps and pins all three at one commit:
+    #
+    #     grep -rn 'codeql-action' .github/workflows/
+    #     .github/workflows/scan-codeql.yaml:71:        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+    #     .github/workflows/scan-codeql.yaml:104:        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+    #     .github/workflows/scorecard.yml:103:        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+    #     .github/workflows/zizmor.yml:102:        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+    #
+    # so a split across three pull requests is what this group exists to stop.
+    # The split itself is a thing that happened on the sibling board this file
+    # is adapted from and is not something this repository has met, which is why
+    # it is written as the reason for the group rather than as a history of it.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
+    # What this hold reaches: a freshly published malicious version of an action,
+    # which then waits 7 days before it can be proposed here. Same carve-out as
+    # above, in GitHub's words - the cooldown "does not apply to security
+    # updates".
+    #
+    # What it does NOT reach, and no comment here should claim otherwise: a
+    # re-pointed tag, where an existing tag is moved onto a malicious commit. The
+    # release keeps its original publication date, so there is no new
+    # publication for a date-based hold to delay. What defends this repository
+    # against that class is that every `uses:` in this tree is pinned to a commit
+    # and that the workflow audit refuses one that is not:
+    #
+    #     grep -rhn 'uses:' .github/workflows/ | grep -v '@[0-9a-f]\{40\}' ; echo "exit=$?"
+    #     exit=1
+    #
+    # A commit pin keeps resolving to the old commit after a tag moves, and
+    # .github/workflows/zizmor.yml is where the audit that refuses an unpinned
+    # ref runs.
+    #
+    # No tier keys here because GitHub's cooldown support table does not list
+    # github-actions for semver-major-days / semver-minor-days /
+    # semver-patch-days. That is the reason, and it is not a statement about how
+    # action tags are versioned: Helm and Terraform are semver and are absent
+    # from the same table, while Maven is not semver and is present.
+    cooldown:
+      default-days: 7
