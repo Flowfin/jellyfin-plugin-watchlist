@@ -216,21 +216,45 @@ surprise, and by answer 8 on #1 an entry on that list carries and shows who put 
 there, so what a user adds is attributable to them in front of everybody on the
 server.
 
-What changes when it moves: turned on, one shared list exists, every user can read
-it and add to it, and removal stays with administrators and with whoever added the
-entry. There is exactly one such list rather than several, by answer 6 on #1,
+What changes when it moves: turned on, this server may have one shared list, and an
+administrator makes it with `POST Watchlist/Shared`; once it is there every user can
+read it and add to it, and removal of an entry stays with administrators and with
+whoever added it. Turning the switch on does not by itself make a list, which is the
+half a reader gets wrong: the switch says the server offers one and the endpoint is
+what makes it. There is exactly one such list rather than several, by answer 6 on #1,
 which is why its name and its bound are settings here and not fields on a record.
 
-When it takes effect: on the next reconciliation. Turning it off stops projecting
-the shared list and deletes nothing stored.
+When it takes effect: immediately for the creation endpoint, which reads it on every
+call, and on the next reconciliation for the projection, which does not exist yet.
+Turning it off deletes nothing stored, so a list that was made stays on disk and is
+removed with `DELETE Watchlist/Shared` rather than by moving this value.
+
+WHAT TURNING IT OFF DOES NOT DO, STATED BECAUSE #87 MADE IT REACHABLE. The endpoints
+over the list's contents key on whether a list exists rather than on this value, so a
+server that turns the switch off with a list already made goes on serving that list to
+every user, and this page says the server offers none. Before #87 nothing could make a
+list, so the gap was documented and could not be reached; it can be reached now. The
+repair is either those endpoints reading this value or the switch being refused while
+a list exists, and both are the contents surface rather than the administrative one.
+#277 is where that is decided, and turning the switch off is not a way to take a
+shared list away until it is.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
-Not read by anything today. The record the shared list is kept in landed on #83
-and the endpoints over it on #85, and neither of them asks this question: what they
-answer is decided by whether a shared list exists on the server, and nothing makes
-one yet. Creating it, and what this switch does to it, is #87. Its projection is
-#84.
+Read by one thing, and this row said it was read by nothing until #87. The endpoint
+that makes the shared list asks it and refuses with a conflict when it says no, so
+the setting and the record cannot disagree: a server whose page says it does not
+offer a shared list cannot be given one behind that page. That is the decision this
+row asked #87 to take, and it is taken this way rather than the other because two
+answers to whether this server offers a shared list is the shape a reader is caught
+by, not a redundancy.
+
+WHAT STILL READS IT IS NOTHING ELSE, and that half of the old sentence stands. The
+record landed on #83 and the endpoints over its contents on #85, and none of those
+asks this question: what they answer is decided by whether a shared list exists.
+Removing the list does not ask it either, because turning the switch off and then
+being unable to undo the list it made would be the worse failure. Its projection is
+#84 and does not exist, so nothing here stops projecting when the switch moves.
 
 ### SharedListName
 

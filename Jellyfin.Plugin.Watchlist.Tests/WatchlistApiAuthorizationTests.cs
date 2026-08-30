@@ -25,15 +25,18 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 public class WatchlistApiAuthorizationTests
 {
     /// <summary>
-    /// The policies this plugin's endpoints are allowed to name, and it is empty.
+    /// The policies this plugin's endpoints are allowed to name, and it holds one.
     ///
-    /// Empty is a statement rather than a blank. The server's default policy is what
-    /// an endpoint gets from an attribute that names nothing, and it is the right one
-    /// for a list a user keeps for themselves. A named policy appearing here is either
-    /// an administrative surface, which #87 would bring, or a permission demanded by
-    /// accident, and the two are told apart by somebody editing this line on purpose.
+    /// It was empty until #87, and empty was a statement rather than a blank: the
+    /// server's default policy is what an endpoint gets from an attribute naming
+    /// nothing, and it is the right one for a list a user keeps for themselves. The
+    /// entry below is the administrative surface that line said would bring one -
+    /// making the shared list and taking it away, which are the only two endpoints
+    /// here that demand elevation in their attribute. Anything else appearing in this
+    /// set is a permission demanded by accident, and the two are still told apart by
+    /// somebody editing this line on purpose.
     /// </summary>
-    private static readonly string[] PoliciesTheEndpointsMayName = [];
+    private static readonly string[] PoliciesTheEndpointsMayName = [Policies.RequiresElevation];
 
     /// <summary>
     /// The rule. Every endpoint this plugin ships is covered by an authorisation
@@ -67,14 +70,48 @@ public class WatchlistApiAuthorizationTests
 
     /// <summary>
     /// The policies that actually reach an endpoint, pinned. This is what keeps the
-    /// second sentence of the rule true: nothing in this plugin requires elevation, and
-    /// the day something does, it is a deliberate edit here rather than a line in a
-    /// controller nobody read twice.
+    /// second sentence of the rule true: what requires elevation in this plugin is the
+    /// set written above, and the day anything else does, it is a deliberate edit here
+    /// rather than a line in a controller nobody read twice.
     /// </summary>
     [Fact]
     public void TheEndpointsNameNoPolicyBeyondTheExpectedSet()
     {
         Assert.Equal(PoliciesTheEndpointsMayName, PoliciesNamedBy(Controllers()));
+    }
+
+    /// <summary>
+    /// The endpoints that demand elevation in their attribute, pinned by name. The set
+    /// above is over POLICIES, so an endpoint losing its attribute while another keeps
+    /// the same one moves nothing there - measured by taking the attribute off one of
+    /// the two and watching that test stay green. This is the pin that notices.
+    /// </summary>
+    private static readonly string[] EndpointsThatDemandElevation =
+    [
+        "WatchlistController.CreateSharedWatchlist",
+        "WatchlistController.RemoveSharedWatchlist",
+    ];
+
+    /// <summary>
+    /// The pin over which endpoints demand elevation, rather than over how many
+    /// distinct policies the surface names.
+    /// </summary>
+    [Fact]
+    public void TheEndpointsThatDemandElevationAreTheOnesWrittenDown()
+    {
+        Assert.Equal(EndpointsThatDemandElevation, EndpointsNamingAPolicyIn(Controllers()));
+    }
+
+    /// <summary>
+    /// The bite for the pin above, over the fixture controller rather than over the
+    /// shipped one, so the reader is watched naming an endpoint.
+    /// </summary>
+    [Fact]
+    public void TheScanNamesTheEndpointThatDemandsAPolicy()
+    {
+        Assert.Equal(
+            ["AControllerThatDemandsElevation.DoSomethingAdministrative"],
+            EndpointsNamingAPolicyIn([typeof(AControllerThatDemandsElevation)]));
     }
 
     /// <summary>
@@ -221,6 +258,21 @@ public class WatchlistApiAuthorizationTests
         .. method.GetCustomAttributes(typeof(IAuthorizeData), inherit: true).Cast<IAuthorizeData>(),
         .. method.DeclaringType!.GetCustomAttributes(typeof(IAuthorizeData), inherit: true).Cast<IAuthorizeData>(),
     ];
+
+    /// <summary>
+    /// The endpoints of these controllers whose reaching attributes name a policy, as
+    /// controller and method. An attribute naming nothing contributes nothing, because
+    /// that is the default policy.
+    /// </summary>
+    /// <param name="controllers">The controllers to read.</param>
+    /// <returns>The endpoint names, ordered so a failure reads the same twice.</returns>
+    private static IReadOnlyList<string> EndpointsNamingAPolicyIn(IReadOnlyList<Type> controllers) => controllers
+        .SelectMany(controller => EndpointsOf(controller).Select(method => (Controller: controller, Method: method)))
+        .Where(endpoint => AuthorisationReaching(endpoint.Method)
+            .Any(authorisation => !string.IsNullOrEmpty(authorisation.Policy)))
+        .Select(endpoint => NameOf(endpoint.Controller, endpoint.Method))
+        .OrderBy(name => name, StringComparer.Ordinal)
+        .ToList();
 
     private static string NameOf(Type controller, MethodInfo method) => controller.Name + "." + method.Name;
 

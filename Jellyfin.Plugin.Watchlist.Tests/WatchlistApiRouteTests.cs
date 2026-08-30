@@ -30,12 +30,14 @@ public class WatchlistApiRouteTests
     private static readonly string[] TheRoutes =
     [
         "DELETE Watchlist/Items/{itemId}",
+        "DELETE Watchlist/Shared",
         "DELETE Watchlist/Shared/Items/{itemId}",
         "GET Watchlist/Export",
         "GET Watchlist/Items",
         "GET Watchlist/Shared/Items",
         "POST Watchlist/Import",
         "POST Watchlist/Items/{itemId}",
+        "POST Watchlist/Shared",
         "POST Watchlist/Shared/Items/{itemId}",
     ];
 

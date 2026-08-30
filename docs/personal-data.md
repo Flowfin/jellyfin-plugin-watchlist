@@ -303,11 +303,13 @@ and the route set is written down and held to what the assembly actually exposes
 
     grep -n 'public void TheRoutesAreTheOnesWrittenDown' \
       Jellyfin.Plugin.Watchlist.Tests/WatchlistApiRouteTests.cs
-    46:    public void TheRoutesAreTheOnesWrittenDown()
+    48:    public void TheRoutesAreTheOnesWrittenDown()
 
-Read again on `331b2af`. It has now said 55 and then 44, and each time the change
-that moved the line did not carry the paste: first the reader that test calls moved
-to a file of its own, then the export and the import were added to the pinned set.
+Re-taken on the change that landed #87. It has now said 55, then 44, then 46, and
+each of the first two moves went unpasted: first the reader that test calls moved to
+a file of its own, then the export and the import were added to the pinned set. The
+two administrative routes of #87 moved it by two more, and this reading was taken
+with them rather than found afterwards.
 The number is what a reader follows to check the claim rather than the claim itself,
 and a number that has gone wrong twice for the same reason is worth naming as a habit
 rather than repairing quietly.
@@ -347,13 +349,20 @@ statement about who can see what has already been read by the time it is correct
 
 **Every user of the server.** Not a set an administrator picks: the list is one object
 and the read endpoint is bound to nothing narrower than being somebody this server
-knows. There are three shared routes and none of them takes a user identifier, exactly
+knows. There are five shared routes and none of them takes a user identifier, exactly
 as the private ones do not:
 
     git grep -n 'HttpGet("Shared\|HttpPost("Shared\|HttpDelete("Shared' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:214:    [HttpGet("Shared/Items")]
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:248:    [HttpPost("Shared/Items/{itemId}")]
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:287:    [HttpDelete("Shared/Items/{itemId}")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:332:    [HttpPost("Shared")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:378:    [HttpDelete("Shared")]
+
+The paste said three until #87 added the last two. Those two are the list itself
+rather than its contents - making it and taking it away - and they are the only
+routes here an ordinary user cannot reach at all. Neither reads anything: one writes
+an empty record and the other removes it.
 
 **Anybody with file access to the server**, for the same reason a private list is
 readable that way. It is one plain file under the same folder, and its name is not one
@@ -379,6 +388,11 @@ everybody else, and the caller is not told it was left out:
 administrator. Whether a caller is an administrator is the server's own answer, asked
 through the server's elevation policy rather than decided by a rule kept in this
 plugin. A removal by anybody else is refused and changes nothing.
+
+**The list itself is an administrator's to make and to remove**, which is narrower
+than either of the two above and is the only place on this surface where that is so.
+Removing it takes the shared record away and nothing else: no private document is read
+or written by it, and this plugin projects no shared playlist for it to take with it.
 
 This is the answer to question 7 on #1, taken on 2026-08-24, and the endpoints
 implement it rather than restating it. What each request answers is in
@@ -470,10 +484,10 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Twenty-nine places log at all, over six files:
+library. Thirty-one places log at all, over six files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:9
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:11
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
     Jellyfin.Plugin.Watchlist/Projection/WatchlistProjector.cs:7
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:6
@@ -486,6 +500,12 @@ controller's five lines arrived with the export and import endpoints and the pas
 was not taken again, so a reader running the command met four files under a sentence
 naming two. The watched handler's one line is the change that made this section have
 to be re-read, and re-reading it is what found the older half.
+
+The count moved again on #87, from twenty-nine to thirty-one, and both new lines are
+the controller's. They are the two refusals the administrative endpoints write when
+the server's elevation policy does not answer for a caller: the one about making the
+shared list names that caller's identifier, and the one about removing it names
+nothing at all, because that operation is handed no caller.
 
 What they name is the calling user's identifier, an item identifier, the kind the
 library holds an item as, an entry count, a configured maximum, and a schema version.
