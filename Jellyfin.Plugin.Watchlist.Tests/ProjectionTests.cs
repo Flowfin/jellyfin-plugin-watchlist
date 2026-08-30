@@ -31,7 +31,7 @@ public sealed class ProjectionTests : IDisposable
 
     private readonly TemporaryDirectory _sandbox = new("watchlist-projection");
 
-    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
+    private string DataFolder => Path.Join(_sandbox.FullPath, "plugin-data");
 
     /// <inheritdoc />
     public void Dispose()

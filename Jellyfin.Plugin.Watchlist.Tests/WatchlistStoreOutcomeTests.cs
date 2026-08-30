@@ -26,7 +26,7 @@ public sealed class WatchlistStoreOutcomeTests : IDisposable
 
     private readonly TemporaryDirectory _sandbox = new("watchlist-outcome");
 
-    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
+    private string DataFolder => Path.Join(_sandbox.FullPath, "plugin-data");
 
     /// <inheritdoc />
     public void Dispose()

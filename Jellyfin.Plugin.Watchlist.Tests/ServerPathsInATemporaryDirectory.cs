@@ -67,7 +67,7 @@ public sealed class ServerPathsInATemporaryDirectory : IApplicationPaths, IDispo
     public string ConfigurationDirectoryPath => Under("configuration");
 
     /// <inheritdoc />
-    public string SystemConfigurationFilePath => Path.Combine(ConfigurationDirectoryPath, "system.xml");
+    public string SystemConfigurationFilePath => Path.Join(ConfigurationDirectoryPath, "system.xml");
 
     /// <inheritdoc />
     public string CachePath => Under("cache");
@@ -88,7 +88,7 @@ public sealed class ServerPathsInATemporaryDirectory : IApplicationPaths, IDispo
     /// Where the plugin's own configuration file is written, spelled the way the
     /// server's base class spells it: the assembly file name with an xml extension.
     /// </summary>
-    public string PluginConfigurationFilePath => Path.Combine(
+    public string PluginConfigurationFilePath => Path.Join(
         PluginConfigurationsPath,
         Path.ChangeExtension(Path.GetFileName(PluginUnderTest.Assembly.Location), ".xml"));
 
@@ -118,5 +118,5 @@ public sealed class ServerPathsInATemporaryDirectory : IApplicationPaths, IDispo
         _root.Dispose();
     }
 
-    private string Under(string name) => Path.Combine(_root.FullPath, name);
+    private string Under(string name) => Path.Join(_root.FullPath, name);
 }

@@ -92,7 +92,7 @@ public sealed class WatchlistDocumentStore
     /// <summary>
     /// Gets where the one shared list lives.
     /// </summary>
-    public string SharedListPath => Path.Combine(_dataFolderPath, SharedListFileName);
+    public string SharedListPath => Path.Join(_dataFolderPath, SharedListFileName);
 
     /// <summary>
     /// Where one user's document lives.
@@ -100,11 +100,11 @@ public sealed class WatchlistDocumentStore
     /// <param name="userId">The user.</param>
     /// <returns>The full path of that user's document.</returns>
     /// <remarks>
-    /// The file name is the identifier in its hexadecimal form and nothing else, so it
-    /// carries no separator, no dot and no parent reference, and the result cannot
-    /// leave the folder whatever the caller passes.
+    /// The path is built with <c>Path.Join</c>, which appends what it is handed and never
+    /// drops an earlier argument, so a rooted later argument cannot replace the folder and
+    /// the result cannot leave it. That bound is the method's rather than the file name's.
     /// </remarks>
-    public string PathFor(Guid userId) => Path.Combine(
+    public string PathFor(Guid userId) => Path.Join(
         _dataFolderPath,
         string.Format(CultureInfo.InvariantCulture, "{0}.json", userId.ToString("N", CultureInfo.InvariantCulture)));
 

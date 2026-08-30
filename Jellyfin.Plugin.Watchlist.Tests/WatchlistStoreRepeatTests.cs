@@ -24,7 +24,7 @@ public sealed class WatchlistStoreRepeatTests : IDisposable
 
     private readonly TemporaryDirectory _sandbox = new("watchlist-store-repeat");
 
-    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
+    private string DataFolder => Path.Join(_sandbox.FullPath, "plugin-data");
 
     /// <inheritdoc />
     public void Dispose()

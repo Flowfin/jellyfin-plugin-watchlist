@@ -16,7 +16,7 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// </summary>
 public sealed class TemporaryDirectory : IDisposable
 {
-    private static readonly string RunRoot = Path.Combine(
+    private static readonly string RunRoot = Path.Join(
         Path.GetTempPath(),
         "jellyfin-plugin-watchlist-tests",
         Guid.NewGuid().ToString("n", CultureInfo.InvariantCulture));
@@ -55,7 +55,7 @@ public sealed class TemporaryDirectory : IDisposable
 
     public TemporaryDirectory(string name)
     {
-        FullPath = Path.Combine(RunRoot, name, Guid.NewGuid().ToString("n", CultureInfo.InvariantCulture));
+        FullPath = Path.Join(RunRoot, name, Guid.NewGuid().ToString("n", CultureInfo.InvariantCulture));
         Directory.CreateDirectory(FullPath);
     }
 
