@@ -60,6 +60,24 @@ artifact follows a stable 12.0 release rather than shipping with 1.0, and a
 server on that line has nothing to install until then. That is a decision taken
 on the tracker, on 2026-08-24, rather than a state of the code.
 
+The artifact a 10.11 server receives is one archive, named for this plugin and the
+version it carries and for nothing else: the `name` key of `build.yaml` in lower
+case, an underscore, then the `version` key. A run of the packaging leg produced
+`watchlist_0.1.0.0.zip` from this tree, and [docs/RELEASING.md](docs/RELEASING.md)
+carries the download that read it. Everything else in a release takes its name from
+that archive - the packaging metadata, the two checksums, the provenance bundle and
+the component inventory - so a release has one name in it and the rest are derived.
+
+The name does not say which line the archive is for. The line is inside it, in the
+packaged metadata, and [docs/RELEASING.md](docs/RELEASING.md) is where the naming,
+the command that reads that metadata and the rule for the day there are two archives
+are all written. A server on the 12.0 line receives no archive at all until the
+artifact above it arrives.
+
+Installing from the manifest you type no archive name at all. The server reads the
+manifest, takes the archive for itself and unpacks it; the name is here for somebody
+checking a release by hand, which is what `Checking a release` below is about.
+
 Which of the two the code in this repository is built for today is a narrower
 answer again, and it is under `What is built so far` below rather than repeated
 here.
