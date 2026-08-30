@@ -537,6 +537,75 @@ public sealed class WatchlistDocumentStore
     }
 
     /// <summary>
+    /// Makes the one shared list, on a server that has none.
+    /// </summary>
+    /// <param name="listId">The identity of the list, which is not its displayed name.</param>
+    /// <param name="ownerUserId">The administrator making it.</param>
+    /// <returns><c>true</c> if this call wrote the list; <c>false</c> if one was already there.</returns>
+    /// <remarks>
+    /// It never overwrites. A create that wrote over an existing list would empty a
+    /// list somebody has been putting titles on, and the second call is the one an
+    /// administrator makes when they cannot remember whether the first one worked.
+    /// So a list that is already there is left exactly as it is, entries and owner
+    /// included, and the answer says which of the two happened.
+    ///
+    /// The identity and the owner are handed in rather than minted here, for the same
+    /// reason the caps are: the store needs no server and no clock to be exercised,
+    /// and what a new list is called by is the caller's decision.
+    /// </remarks>
+    public bool CreateShared(Guid listId, Guid ownerUserId)
+    {
+        lock (SharedGate())
+        {
+            if (File.Exists(SharedListPath))
+            {
+                return false;
+            }
+
+            Commit(Stage(EmptyShared(listId, ownerUserId)));
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Takes the one shared list off this server.
+    /// </summary>
+    /// <returns><c>true</c> if a list was there and is gone; <c>false</c> if there was none.</returns>
+    /// <remarks>
+    /// It removes the record and nothing else, and it takes no caller, so what it does
+    /// cannot depend on who asked. A staged write left behind by a run that died
+    /// between staging and committing is removed with it, because a file named for the
+    /// list this call is removing has no reader once the list is gone and would be
+    /// picked up by nothing but a later crash of the same kind.
+    ///
+    /// This plugin projects no shared playlist today, so there is no such playlist for
+    /// this to take with it. The sentence naming what happens to one belongs here on
+    /// the day the shared list is projected, which is #84.
+    /// </remarks>
+    public bool DeleteShared()
+    {
+        lock (SharedGate())
+        {
+            var path = SharedListPath;
+            var staged = path + PendingSuffix;
+            var removed = File.Exists(path);
+
+            if (File.Exists(staged))
+            {
+                File.Delete(staged);
+            }
+
+            if (removed)
+            {
+                File.Delete(path);
+            }
+
+            return removed;
+        }
+    }
+
+    /// <summary>
     /// Puts one entry on the shared list, unless that would take it past its cap.
     /// </summary>
     /// <param name="entry">The entry to add, carrying who is adding it.</param>

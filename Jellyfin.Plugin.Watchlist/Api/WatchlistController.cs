@@ -307,6 +307,150 @@ public class WatchlistController : ControllerBase
     }
 
     /// <summary>
+    /// Makes the one shared list this server can have.
+    /// </summary>
+    /// <returns>Nothing but the outcome.</returns>
+    /// <response code="204">This server has a shared list. This call made it, or one was already there.</response>
+    /// <response code="401">The request carried no user identity this plugin could read.</response>
+    /// <response code="403">The caller is not an administrator. Nothing was written.</response>
+    /// <response code="409">This server is configured not to offer a shared list. Nothing was written.</response>
+    /// <remarks>
+    /// An administrative operation, and the first this plugin carries. Who is an
+    /// administrator is the server's answer rather than this plugin's, and it is asked
+    /// twice on purpose. The attribute is the server's own gate, refusing the request
+    /// before this method runs; the question in the body is the same question asked
+    /// where a caller that reaches the method can be refused by it. The suite drives
+    /// the second one, so the refusal is a property of this method rather than of a
+    /// pipeline no test here stands up.
+    ///
+    /// It never overwrites an existing list. The second call is the one an
+    /// administrator makes when they cannot remember whether the first one worked, and
+    /// a create that emptied a list people had been adding to would be the worst
+    /// possible answer to that. So both outcomes answer 204: what the caller asked for
+    /// is that this server has a shared list, and it does either way.
+    /// </remarks>
+    [HttpPost("Shared")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult> CreateSharedWatchlist()
+    {
+        var userId = CallingUser.IdOf(User);
+
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var elevated = await _authorisation
+            .AuthorizeAsync(User, Policies.RequiresElevation)
+            .ConfigureAwait(false);
+
+        return CreateSharedListFor(userId.Value, elevated.Succeeded);
+    }
+
+    /// <summary>
+    /// Takes the shared list off this server.
+    /// </summary>
+    /// <returns>Nothing but the outcome.</returns>
+    /// <response code="204">This server has no shared list. This call removed it, or there was none.</response>
+    /// <response code="401">The request carried no user identity this plugin could read.</response>
+    /// <response code="403">The caller is not an administrator. Nothing was removed.</response>
+    /// <remarks>
+    /// Elevation is asked the same way, and for the same reason, as on the creation
+    /// above. What follows the answer takes no caller at all: the removal is handed no
+    /// identity, so it cannot do one thing for one administrator and another for
+    /// another, which is what the second condition of this operation asks for and is
+    /// visible in the signature rather than argued for in a sentence.
+    ///
+    /// What it removes is the shared record and nothing else. This plugin projects no
+    /// shared playlist today, so there is none for the removal to take with it; the
+    /// projection that exists is per user and is not this list. When the shared list
+    /// is projected, which is #84, the sentence naming what happens to that playlist
+    /// belongs here and in the store method underneath.
+    ///
+    /// A list that was not there and a list that has been removed are one answer, as
+    /// everywhere else on this surface. A caller asked for a server without a shared
+    /// list, and that is what they have.
+    /// </remarks>
+    [HttpDelete("Shared")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult> RemoveSharedWatchlist()
+    {
+        if (CallingUser.IdOf(User) is null)
+        {
+            return Unauthorized();
+        }
+
+        var elevated = await _authorisation
+            .AuthorizeAsync(User, Policies.RequiresElevation)
+            .ConfigureAwait(false);
+
+        return RemoveSharedListFor(elevated.Succeeded);
+    }
+
+    /// <summary>
+    /// The whole of the creation, with the caller and the server's answer already in
+    /// hand.
+    /// </summary>
+    /// <param name="userId">Who is making it, which becomes the list's owner.</param>
+    /// <param name="callerIsAnAdministrator">The server's answer about this caller.</param>
+    /// <returns>The result the endpoint returns.</returns>
+    internal ActionResult CreateSharedListFor(Guid userId, bool callerIsAnAdministrator)
+    {
+        if (!callerIsAnAdministrator)
+        {
+            _logger.LogInformation(
+                "Refusing to make the shared watchlist for user {UserId}: the server's elevation policy does not answer for this caller.",
+                userId);
+
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        if (!_configuration.SharedListEnabled)
+        {
+            // docs/settings.md said what this switch does to a creation is decided by
+            // #87, and this is that decision. The setting is the server's answer to
+            // whether it offers a shared list; a record made while it says no would be
+            // a second answer to the same question, and the page would go on telling
+            // an administrator that the server has none while every user could see it.
+            // So the switch is turned on first and this endpoint makes the record the
+            // switch is about, rather than the two being able to disagree.
+            return Conflict();
+        }
+
+        _store.CreateShared(Guid.NewGuid(), userId);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// The whole of the removal, with the server's answer already in hand and no
+    /// caller.
+    /// </summary>
+    /// <param name="callerIsAnAdministrator">The server's answer about this caller.</param>
+    /// <returns>The result the endpoint returns.</returns>
+    internal ActionResult RemoveSharedListFor(bool callerIsAnAdministrator)
+    {
+        if (!callerIsAnAdministrator)
+        {
+            _logger.LogInformation(
+                "Refusing to remove the shared watchlist: the server's elevation policy does not answer for this caller.");
+
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        _store.DeleteShared();
+
+        return NoContent();
+    }
+
+    /// <summary>
     /// The whole of the shared read, with the caller already decided.
     /// </summary>
     /// <param name="userId">Who is asking, which decides what they may see.</param>

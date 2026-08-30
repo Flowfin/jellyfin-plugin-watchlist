@@ -31,12 +31,17 @@ that. Authorisation is the server's, under its default policy, so a request
 carries whatever token the server already issued to that user and nothing here
 asks for a permission a watchlist has no reason to ask for.
 
-No endpoint here demands administrator rights to be reached. One of them asks
-about them once it has been reached: taking an entry off the shared list is
+Two endpoints demand administrator rights to be reached, and they are the two
+that make the shared list and take it away. Everything else on this surface is
+open to any authenticated user of the server, and a third endpoint asks about
+elevation once it has been reached: taking an entry off the shared list is
 allowed to the person who put it there and to an administrator, so the removal
 asks the server's own elevation policy about the caller and refuses on the
-answer. Being an administrator changes nothing about any other endpoint, and it
-gives no access to anybody's private list.
+answer. Being an administrator gives no access to anybody's private list, and it
+changes no answer on any endpoint other than the three named here.
+
+Who is an administrator is the server's question throughout. This plugin carries
+no rule of its own about it and asks the server's elevation policy every time.
 
 Nothing in this plugin takes a user identifier, in a route, in a query or in a
 body. There is deliberately no spelling of any of these requests that names
@@ -254,6 +259,68 @@ to protect by pretending the entry is absent, and a caller told 204 for an entry
 that is still there would report a removal that did not happen.
 
 Removed and never-there stay one answer, as on a private list.
+
+## POST Watchlist/Shared
+
+Makes the one shared list this server can have.
+
+Who may: an administrator, and nobody else. Whether a caller is one is the
+server's answer rather than this plugin's, asked through the server's own
+elevation policy. This endpoint and the removal below are the only two here that
+demand it to be reached at all.
+
+Takes no parameters. There is exactly one shared list on a server, so there is
+nothing to name and nothing to choose.
+
+    curl -X POST -H 'Authorization: MediaBrowser Token="<token>"' \
+      https://jellyfin.example/Watchlist/Shared
+
+| response | what it means |
+| --- | --- |
+| 204 | This server has a shared list. This call made it, or one was already there. |
+| 401 | The request carried no user identity this plugin could read. |
+| 403 | The caller is not an administrator. Nothing was written. |
+| 409 | This server is configured not to offer a shared list. Nothing was written. |
+
+It never overwrites. A call on a server that already has a list leaves that list
+exactly as it is, entries and owner included, and answers 204: what the caller
+asked for is that this server has a shared list, and it does either way. The
+alternative would empty a list people have been adding to, on the call an
+administrator makes when they cannot remember whether the first one worked.
+
+The 409 is the settings page and the record being one answer rather than two.
+`SharedListEnabled` is where a server says whether it offers a shared list, and a
+record made while that says no would leave the page telling an administrator the
+server has none while every user could see one. Turn the setting on, then make
+the list.
+
+## DELETE Watchlist/Shared
+
+Takes the shared list off this server.
+
+Who may: an administrator, and nobody else, asked the same way as above.
+
+Takes no parameters, and it is handed no caller at all once the elevation
+question is answered, so what it does cannot depend on which administrator asked.
+
+    curl -X DELETE -H 'Authorization: MediaBrowser Token="<token>"' \
+      https://jellyfin.example/Watchlist/Shared
+
+| response | what it means |
+| --- | --- |
+| 204 | This server has no shared list. This call removed it, or there was none. |
+| 401 | The request carried no user identity this plugin could read. |
+| 403 | The caller is not an administrator. Nothing was removed. |
+
+Removed and never-there stay one answer, as everywhere else on this surface.
+
+What it removes is the shared record and nothing else. This plugin projects no
+shared playlist today, so there is none for the removal to take with it; the
+projection that exists is per user and is not this list. The sentence naming what
+happens to a shared playlist belongs here on the day there is one, which is #84.
+
+Nothing about a user's own list moves. Removing the shared list is not a way to
+reach anybody's private one, and no private document is read or written by it.
 
 ## GET Watchlist/Export
 
