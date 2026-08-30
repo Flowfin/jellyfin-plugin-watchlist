@@ -25,7 +25,7 @@ public sealed class WatchlistDocumentStoreTests : IDisposable
     /// Gets the folder the store under test is given. It sits inside the sandbox with
     /// room beside it, so a write that escapes has somewhere visible to land.
     /// </summary>
-    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
+    private string DataFolder => Path.Join(_sandbox.FullPath, "plugin-data");
 
     /// <inheritdoc />
     public void Dispose()

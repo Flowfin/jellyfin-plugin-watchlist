@@ -202,15 +202,16 @@ One document per user, in the plugin's own data folder, named after that user's
 identifier and nothing else:
 
     sed -n '107,109p' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
-        public string PathFor(Guid userId) => Path.Combine(
+        public string PathFor(Guid userId) => Path.Join(
             _dataFolderPath,
             string.Format(CultureInfo.InvariantCulture, "{0}.json", userId.ToString("N", CultureInfo.InvariantCulture)));
 
-Re-taken on `6930c4a`. The three lines are the ones this file has always pasted and the
-range that prints them moved, because the shared list's own path went in above them:
+Re-taken on the change that closed #265. The three lines are the ones this file has
+always pasted and the range that prints them has not moved; the call they name has,
+from `Path.Combine` to `Path.Join`. The same substitution moved the line below:
 
     grep -n 'public string SharedListPath' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
-    95:    public string SharedListPath => Path.Combine(_dataFolderPath, SharedListFileName);
+    95:    public string SharedListPath => Path.Join(_dataFolderPath, SharedListFileName);
 
 That file is under the same folder and cannot be named by any identifier a server can
 mint, so it can never be mistaken for somebody's document. No server has one, for the

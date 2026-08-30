@@ -17,7 +17,7 @@ public class WatchlistEntryStampTests
         var clock = new FakeClock(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         var added = clock.UtcNow;
         var entry = new { ItemId = Guid.NewGuid(), Added = added };
-        File.WriteAllText(Path.Combine(directory.FullPath, "entry"), entry.ToString());
+        File.WriteAllText(Path.Join(directory.FullPath, "entry"), entry.ToString());
 
         Assert.Equal(added, entry.Added);
     }

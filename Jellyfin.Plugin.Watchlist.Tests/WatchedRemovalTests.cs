@@ -43,7 +43,7 @@ public sealed class WatchedRemovalTests : IDisposable
 
     private readonly TemporaryDirectory _sandbox = new("watchlist-watched-removal");
 
-    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
+    private string DataFolder => Path.Join(_sandbox.FullPath, "plugin-data");
 
     /// <inheritdoc />
     public void Dispose()

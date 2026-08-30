@@ -29,7 +29,7 @@ public sealed class WatchlistApiReadTests : IDisposable
 
     private readonly TemporaryDirectory _sandbox = new("watchlist-api-read");
 
-    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
+    private string DataFolder => Path.Join(_sandbox.FullPath, "plugin-data");
 
     /// <inheritdoc />
     public void Dispose()

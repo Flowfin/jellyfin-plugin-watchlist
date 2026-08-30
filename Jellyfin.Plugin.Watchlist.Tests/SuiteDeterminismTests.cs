@@ -43,7 +43,7 @@ public class SuiteDeterminismTests
         using (var directory = new TemporaryDirectory("removed-afterwards"))
         {
             path = directory.FullPath;
-            File.WriteAllText(Path.Combine(path, "a-file"), "content");
+            File.WriteAllText(Path.Join(path, "a-file"), "content");
             Assert.True(Directory.Exists(path));
         }
 

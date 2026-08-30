@@ -18,7 +18,7 @@ public class WatchlistEntryStampTests
 
         var added = DateTime.UtcNow;
         var entry = new { ItemId = Guid.NewGuid(), Added = added };
-        File.WriteAllText(Path.Combine(directory.FullPath, "entry"), entry.ToString());
+        File.WriteAllText(Path.Join(directory.FullPath, "entry"), entry.ToString());
 
         Assert.Equal(added, entry.Added);
     }

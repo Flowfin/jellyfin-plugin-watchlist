@@ -28,7 +28,7 @@ public sealed class WatchlistDocumentUpgradeTests : IDisposable
 
     private readonly TemporaryDirectory _sandbox = new("watchlist-upgrade");
 
-    private string DataFolder => Path.Combine(_sandbox.FullPath, "plugin-data");
+    private string DataFolder => Path.Join(_sandbox.FullPath, "plugin-data");
 
     /// <summary>
     /// Gets every version a stored document may declare and still be read.
