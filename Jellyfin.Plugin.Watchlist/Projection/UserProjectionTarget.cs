@@ -147,9 +147,9 @@ public sealed class UserProjectionTarget : IProjectionTarget
     private static List<Guid> WantedFrom(
         IReadOnlyList<WatchlistEntry> entries,
         IWatchlistItemDescriber describer,
-        Guid userId) => entries
+        Guid userId) => WatchlistVisibility
+            .Resolvable(entries, new WhatThisUserMayBeTold(describer, userId), userId)
             .Where(entry => ProjectsAsOneRow(entry.Kind))
-            .Where(entry => describer.Describe(entry.ItemId, userId) is not null)
             .OrderByDescending(entry => entry.AddedAt)
             .ThenBy(entry => entry.ItemId)
             .Select(entry => entry.ItemId)
@@ -220,5 +220,36 @@ public sealed class UserProjectionTarget : IProjectionTarget
         }
 
         return taken;
+    }
+
+    /// <summary>
+    /// The question the gate above is handed: whether this item resolves FOR THIS USER.
+    /// </summary>
+    /// <remarks>
+    /// The rule for an entry whose item does not resolve - skipped on read, left in the
+    /// document, never dropped by one caller and kept by another - is written once, in
+    /// <see cref="WatchlistVisibility.Resolvable"/>, and docs/unresolvable-entries.md
+    /// names the projection as one of its readers. What sits here is the resolver that
+    /// gate is given and not a second copy of the rule: an item deleted from the library
+    /// and an item this user may no longer see are one answer from the describer, so
+    /// asking it is asking both questions at once and neither can be told from the other
+    /// afterwards.
+    ///
+    /// It is a shape of its own rather than a lambda so the sentence above has somewhere
+    /// to live. It caches nothing, because a target is made for one pass and each entry
+    /// is asked about once inside it.
+    /// </remarks>
+    private sealed class WhatThisUserMayBeTold : IWatchlistItemResolver
+    {
+        private readonly IWatchlistItemDescriber _describer;
+        private readonly Guid _userId;
+
+        public WhatThisUserMayBeTold(IWatchlistItemDescriber describer, Guid userId)
+        {
+            _describer = describer;
+            _userId = userId;
+        }
+
+        public bool Exists(Guid itemId) => _describer.Describe(itemId, _userId) is not null;
     }
 }
