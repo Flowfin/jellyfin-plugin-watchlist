@@ -4,6 +4,7 @@ using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Export;
+using Jellyfin.Plugin.Watchlist.Projection;
 using Jellyfin.Plugin.Watchlist.Store;
 using Jellyfin.Plugin.Watchlist.Users;
 using Jellyfin.Plugin.Watchlist.Watched;
@@ -49,13 +50,14 @@ public class PluginServiceRegistratorTests
 
         new PluginServiceRegistrator().RegisterServices(services, null!);
 
-        Assert.Equal(11, services.Count);
+        Assert.Equal(12, services.Count);
         Assert.Contains(services, d => d.ServiceType == typeof(IWatchlistItemDescriber));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdSource));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdIndex));
         Assert.Contains(services, d => d.ServiceType == typeof(TimeProvider));
         Assert.Contains(services, d => d.ServiceType == typeof(PluginConfiguration));
         Assert.Contains(services, d => d.ServiceType == typeof(WatchlistDocumentStore));
+        Assert.Contains(services, d => d.ServiceType == typeof(ISeriesEpisodes));
         Assert.Contains(services, d => d.ServiceType == typeof(ISeriesCompletion));
         Assert.Contains(services, d => d.ServiceType == typeof(WatchedRemovalHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(IHostedService));

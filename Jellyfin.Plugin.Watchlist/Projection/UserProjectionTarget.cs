@@ -77,14 +77,13 @@ public sealed class UserProjectionTarget : IProjectionTarget
     /// added to it.
     /// </para>
     /// <para>
-    /// A KIND A PLAYLIST CANNOT HOLD IS LEFT OUT, AND THAT IS TODAY'S ANSWER RATHER
-    /// THAN THE INTENDED ONE. A series is on the accepted set of the store and cannot
-    /// be a playlist row: a server handed a folder adds its non-folder children, so an
-    /// entry for a show would become every episode of it. What a show should project as
-    /// is one episode, and that rule is issue #18 and is not in this tree. Until it
-    /// lands a show sits on the list, is served by the endpoints, and appears in no
-    /// playlist. That is a gap and it is stated here rather than hidden behind a
-    /// projection that puts a whole show into a list.
+    /// A SHOW IS ONE ROW AND NOT EVERY EPISODE OF IT. A series is on the accepted set
+    /// of the store and cannot be a playlist row: a server handed a folder adds its
+    /// non-folder children. So a series entry is turned into a single episode before it
+    /// reaches the set, and which episode that is, and why, is
+    /// <see cref="SeriesRow"/>. A show the library holds no episode of for this user
+    /// contributes nothing, which is the only case where a show on the list appears in
+    /// no playlist.
     /// </para>
     /// </remarks>
     public IReadOnlyList<Guid> Wanted { get; }
@@ -102,6 +101,8 @@ public sealed class UserProjectionTarget : IProjectionTarget
     /// <param name="configuration">The server's settings, which carry this list's name
     /// and the bound it is added under.</param>
     /// <param name="describer">What a library item is, for this user.</param>
+    /// <param name="episodes">What a series holds, for this user, which is what the one
+    /// row a show projects as is chosen out of.</param>
     /// <param name="clock">The clock an adopted entry is stamped from.</param>
     /// <param name="userId">The user, who is both the owner of the playlist and the
     /// holder of the record.</param>
@@ -116,12 +117,14 @@ public sealed class UserProjectionTarget : IProjectionTarget
         WatchlistDocumentStore store,
         PluginConfiguration configuration,
         IWatchlistItemDescriber describer,
+        ISeriesEpisodes episodes,
         TimeProvider clock,
         Guid userId)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(describer);
+        ArgumentNullException.ThrowIfNull(episodes);
         ArgumentNullException.ThrowIfNull(clock);
 
         var read = store.Read(userId);
@@ -134,7 +137,7 @@ public sealed class UserProjectionTarget : IProjectionTarget
             userId,
             read.IsAvailable,
             read.Document?.Projection,
-            WantedFrom(read.Document?.Entries ?? [], describer, userId));
+            WantedFrom(read.Document?.Entries ?? [], describer, episodes, userId));
     }
 
     /// <summary>
@@ -142,33 +145,73 @@ public sealed class UserProjectionTarget : IProjectionTarget
     /// </summary>
     /// <param name="entries">The entries as the document holds them.</param>
     /// <param name="describer">What a library item is, for this user.</param>
+    /// <param name="episodes">What a series holds, for this user.</param>
     /// <param name="userId">The user the question is asked for.</param>
     /// <returns>The items to project, newest addition first.</returns>
+    /// <remarks>
+    /// THE ORDER IS DECIDED OVER THE ENTRIES AND THE ROW IS CHOSEN AFTERWARDS, so a
+    /// show sits where the user put the show rather than where the episode it happens
+    /// to point at today would fall. The duplicate check moved with it, onto the rows,
+    /// because two entries can now ask for one row: a user holding a series and also
+    /// the very episode it projects as names the same item twice, and the earlier of
+    /// the two in the order is the one that stands.
+    /// </remarks>
     private static List<Guid> WantedFrom(
         IReadOnlyList<WatchlistEntry> entries,
         IWatchlistItemDescriber describer,
-        Guid userId) => WatchlistVisibility
+        ISeriesEpisodes episodes,
+        Guid userId)
+    {
+        var rows = new List<Guid>();
+        var held = new HashSet<Guid>();
+
+        var ordered = WatchlistVisibility
             .Resolvable(entries, new WhatThisUserMayBeTold(describer, userId), userId)
-            .Where(entry => ProjectsAsOneRow(entry.Kind))
             .OrderByDescending(entry => entry.AddedAt)
-            .ThenBy(entry => entry.ItemId)
-            .Select(entry => entry.ItemId)
-            .Distinct()
-            .ToList();
+            .ThenBy(entry => entry.ItemId);
+
+        foreach (var entry in ordered)
+        {
+            var row = RowFor(entry, episodes, userId);
+
+            if (row is not null && held.Add(row.Value))
+            {
+                rows.Add(row.Value);
+            }
+        }
+
+        return rows;
+    }
 
     /// <summary>
-    /// Whether an entry of this kind is one playlist row.
+    /// The one playlist row an entry becomes, or null where it becomes none.
     /// </summary>
-    /// <param name="kind">The kind the entry was recorded under.</param>
-    /// <returns>True where the item can be a row as it stands.</returns>
+    /// <param name="entry">The entry as the document holds it.</param>
+    /// <param name="episodes">What a series holds, for this user.</param>
+    /// <param name="userId">The user the question is asked for.</param>
+    /// <returns>The library item to put in the playlist, or null.</returns>
     /// <remarks>
-    /// A film and an episode are single items and are rows. A show is not, and what it
-    /// becomes is #18. Anything else never reached the list: the accepted set the
-    /// endpoints enforce holds these three and nothing more, so an entry of another
-    /// kind is one written by a plugin that is not this one.
+    /// A film and an episode are single items and are the row they name. A show is not,
+    /// and <see cref="SeriesRow"/> is where the episode it appears as is chosen and
+    /// where the reason for choosing that one is written.
+    ///
+    /// A show the library holds no episode of for this user is null here and no row.
+    /// That is a show sitting on the list, served by the endpoints and absent from the
+    /// playlist, in the one case where there is nothing to put there; it is this
+    /// issue's own condition rather than the gap that stood here before, which left
+    /// every show out whatever the library held.
+    ///
+    /// Anything else never reached the list: the accepted set the endpoints enforce
+    /// holds these three kinds and nothing more, so an entry of another kind is one
+    /// written by a plugin that is not this one.
     /// </remarks>
-    private static bool ProjectsAsOneRow(WatchlistItemKind kind) =>
-        kind is WatchlistItemKind.Movie or WatchlistItemKind.Episode;
+    private static Guid? RowFor(WatchlistEntry entry, ISeriesEpisodes episodes, Guid userId) =>
+        entry.Kind switch
+        {
+            WatchlistItemKind.Movie or WatchlistItemKind.Episode => entry.ItemId,
+            WatchlistItemKind.Series => SeriesRow.OneEpisodeOf(episodes.Of(entry.ItemId, userId)),
+            _ => null,
+        };
 
     /// <inheritdoc />
     public bool Remember(WatchlistProjectionState projection) =>
