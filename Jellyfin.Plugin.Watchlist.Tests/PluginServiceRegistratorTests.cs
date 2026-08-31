@@ -6,6 +6,7 @@ using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Export;
+using Jellyfin.Plugin.Watchlist.Library;
 using Jellyfin.Plugin.Watchlist.Projection;
 using Jellyfin.Plugin.Watchlist.Store;
 using Jellyfin.Plugin.Watchlist.Users;
@@ -53,7 +54,7 @@ public class PluginServiceRegistratorTests
 
         new PluginServiceRegistrator().RegisterServices(services, null!);
 
-        Assert.Equal(18, services.Count);
+        Assert.Equal(20, services.Count);
         Assert.Contains(services, d => d.ServiceType == typeof(IWatchlistItemDescriber));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdSource));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdIndex));
@@ -70,6 +71,7 @@ public class PluginServiceRegistratorTests
         Assert.Contains(services, d => d.ServiceType == typeof(WatchlistProjectionPass));
         Assert.Contains(services, d => d.ServiceType == typeof(IScheduledTask));
         Assert.Contains(services, d => d.ServiceType == typeof(IHostedService));
+        Assert.Contains(services, d => d.ServiceType == typeof(LibraryRemovalHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(DeletedUserHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(IEventConsumer<UserDeletedEventArgs>));
     }
@@ -182,10 +184,17 @@ public class PluginServiceRegistratorTests
 
         new PluginServiceRegistrator().RegisterServices(services, null!);
 
-        var hosted = services.Where(d => d.ServiceType == typeof(IHostedService)).ToList();
+        var hosted = services
+            .Where(d => d.ServiceType == typeof(IHostedService))
+            .Select(d => d.ImplementationType)
+            .ToList();
 
-        Assert.Single(hosted);
-        Assert.Equal(typeof(UserDataWatchedSubscription), hosted[0].ImplementationType);
+        // Two, and both are subscriptions to something the server raises. The set is
+        // asserted rather than the count, so a third hosted registration is a failing
+        // test naming what arrived rather than a number somebody edits.
+        Assert.Equal(
+            new[] { typeof(UserDataWatchedSubscription), typeof(LibraryRemovalSubscription) },
+            hosted);
     }
 
     /// <summary>

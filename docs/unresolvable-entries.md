@@ -87,6 +87,26 @@ The reverse choice has one real advantage, which is that a list cannot fill up
 with entries nobody will ever see again. The cap is what bounds that, and an
 entry that is skipped on every read is invisible to the user in the meantime.
 
+## What a removal moves, which is the playlist and never the document
+
+An item leaving the library raises an event, and this plugin listens to it. What it
+does with it is ask for a reconciliation of every projected playlist, and nothing
+else: no document is opened for writing on that route, and a bulk removal writes no
+document either, which the suite measures at the bytes on disk rather than at a
+counter inside the store.
+
+So the visible half of the rule above happens promptly rather than eventually. A
+user whose film was deleted stops being offered it in their playlist within a pass
+instead of waiting for the scheduled one, and their stored entry is exactly where it
+was. A rescan that takes everything out and puts it back leaves the document whole
+throughout, and the playlist empties and refills as the entries stop and start
+resolving.
+
+A scan raises that event thousands of times and it costs a handful of passes, not one
+per item: a pass already running absorbs every event that arrives during it into one
+more run. A removal of a kind no list can hold - a music track, an image, a folder -
+asks for nothing at all.
+
 ## What gets said about it
 
 One line per pass, and only when something was skipped, so a server with nothing
