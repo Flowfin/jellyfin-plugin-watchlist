@@ -51,6 +51,8 @@ internal sealed class ALibraryOf : ILibraryManager
 
     private readonly List<(Guid SeriesId, Episode Item, bool Played)> _episodeItems = [];
 
+    private EventHandler<ItemChangeEventArgs>? _removed;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ALibraryOf"/> class.
     /// </summary>
@@ -230,7 +232,29 @@ internal sealed class ALibraryOf : ILibraryManager
 
     public event EventHandler<ItemChangeEventArgs>? ItemUpdated { add { } remove { } }
 
-    public event EventHandler<ItemChangeEventArgs>? ItemRemoved { add { } remove { } }
+    /// <summary>
+    /// The one event this plugin listens to on a library. It is a real event rather than
+    /// a swallowed one, and the handlers on it are counted, because two of the rules that
+    /// stand over it are about a handler NOT being there: nothing is subscribed before the
+    /// subscription is started and nothing is left subscribed after it is stopped.
+    /// </summary>
+    public event EventHandler<ItemChangeEventArgs>? ItemRemoved
+    {
+        add => _removed += value;
+        remove => _removed -= value;
+    }
+
+    /// <summary>
+    /// Gets how many handlers are attached to the removal event right now.
+    /// </summary>
+    public int RemovalListeners => _removed?.GetInvocationList().Length ?? 0;
+
+    /// <summary>
+    /// Raises the removal event, as the server does when an item has left the library.
+    /// </summary>
+    /// <param name="item">The item that left.</param>
+    public void RaiseRemoval(BaseItem? item) =>
+        _removed?.Invoke(this, new ItemChangeEventArgs { Item = item! });
 
     public AggregateFolder RootFolder => throw Unasked();
 

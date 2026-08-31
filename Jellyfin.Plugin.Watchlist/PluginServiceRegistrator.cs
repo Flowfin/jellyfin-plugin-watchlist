@@ -3,6 +3,7 @@ using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Export;
+using Jellyfin.Plugin.Watchlist.Library;
 using Jellyfin.Plugin.Watchlist.Projection;
 using Jellyfin.Plugin.Watchlist.Store;
 using Jellyfin.Plugin.Watchlist.Users;
@@ -124,6 +125,13 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             provider.GetRequiredService<Func<PluginConfiguration>>(),
             provider.GetRequiredService<ILogger<WatchlistProjectionPass>>()));
         serviceCollection.AddSingleton<IScheduledTask, WatchlistReconciliationTask>();
+
+        // The library's ear. A removal makes an entry stop resolving, which the store
+        // deliberately does not write down, so the only thing that has to move is the
+        // playlist showing it - and without this it would not move until the scheduled
+        // pass came round, up to the configured interval later.
+        serviceCollection.AddSingleton<LibraryRemovalHandler>();
+        serviceCollection.AddHostedService<LibraryRemovalSubscription>();
 
         // What happens to a deleted user's list, and how the server says so. The
         // deletion arrives through the event manager rather than as an event on the

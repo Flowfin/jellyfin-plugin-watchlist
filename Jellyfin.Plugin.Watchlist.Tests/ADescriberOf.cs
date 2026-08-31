@@ -34,6 +34,28 @@ internal sealed class ADescriberOf : IWatchlistItemDescriber
         }
     }
 
+    /// <summary>
+    /// Takes one row out, which is what a library removal looks like from above this
+    /// interface: the item stops resolving for that user and nothing says why.
+    /// </summary>
+    /// <param name="itemId">The item.</param>
+    /// <param name="userId">The user it stops resolving for.</param>
+    public void NoLongerSees(Guid itemId, Guid userId) => _table.Remove((itemId, userId));
+
+    /// <summary>
+    /// Puts one back, which is a rescan that found the same media again under the same
+    /// identifier.
+    /// </summary>
+    /// <param name="itemId">The item.</param>
+    /// <param name="userId">The user it resolves for again.</param>
+    /// <param name="kind">What the library says it is.</param>
+    public void SeesAgain(Guid itemId, Guid userId, WatchlistItemKind kind) =>
+        _table[(itemId, userId)] = new WatchlistItemDescription
+        {
+            Name = "not read by the projection",
+            Kind = kind,
+        };
+
     /// <inheritdoc />
     public WatchlistItemDescription? Describe(Guid itemId, Guid userId) =>
         _table.TryGetValue((itemId, userId), out var description) ? description : null;
