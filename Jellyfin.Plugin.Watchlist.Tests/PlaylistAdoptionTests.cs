@@ -116,6 +116,7 @@ public sealed class PlaylistAdoptionTests : IDisposable
                 new ADescriberOf(
                     (AFilm, AUser, WatchlistItemKind.Movie),
                     (aSong, AUser, WatchlistItemKind.Other)),
+                new ASeriesLibraryOf(),
                 AStoppedClock(),
                 AUser),
             CancellationToken.None);
@@ -312,6 +313,7 @@ public sealed class PlaylistAdoptionTests : IDisposable
             new ADescriberOf(
                 (AFilm, AUser, WatchlistItemKind.Movie),
                 (AShow, AUser, WatchlistItemKind.Series)),
+            new ASeriesLibraryOf(),
             AStoppedClock(),
             AUser);
 

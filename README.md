@@ -26,6 +26,17 @@ show up.
 Adding an item to that playlist from a client puts it on the list, and removing
 it takes it off, so the list can be worked from the same place it is read.
 
+**A show on your list appears in the playlist under an episode name, not the name
+of the show.** A playlist cannot hold a show: a server handed a folder puts every
+non-folder thing inside it into the list, so a single show would become every
+episode of it. Instead the show becomes one row, and that row is the earliest
+episode you have not played - the first episode of a show you have not started.
+Play it and the next pass moves the row to the next episode you have not played,
+so the entry follows the show. A show the server holds no episodes of for you
+stays on your list and appears in the playlist as nothing, because there is
+nothing to point at. Which episode is chosen, and why that one, is in
+[docs/storage-decision.md](docs/storage-decision.md).
+
 **If you already made a playlist with that name, it is taken over rather than
 duplicated.** The workaround people use before a plugin like this exists is a
 hand-made playlist called something like Watchlist, and creating a second one

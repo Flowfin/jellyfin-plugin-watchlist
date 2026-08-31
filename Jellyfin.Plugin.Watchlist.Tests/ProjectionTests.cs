@@ -311,13 +311,15 @@ public sealed class ProjectionTests : IDisposable
         var store = new WatchlistDocumentStore(DataFolder, new RecordingLogger());
 
         Assert.Throws<ArgumentNullException>(
-            () => UserProjectionTarget.For(null!, new PluginConfiguration(), new ADescriberOf(), AStoppedClock(), AUser));
+            () => UserProjectionTarget.For(null!, new PluginConfiguration(), new ADescriberOf(), new ASeriesLibraryOf(), AStoppedClock(), AUser));
         Assert.Throws<ArgumentNullException>(
-            () => UserProjectionTarget.For(store, null!, new ADescriberOf(), AStoppedClock(), AUser));
+            () => UserProjectionTarget.For(store, null!, new ADescriberOf(), new ASeriesLibraryOf(), AStoppedClock(), AUser));
         Assert.Throws<ArgumentNullException>(
-            () => UserProjectionTarget.For(store, new PluginConfiguration(), null!, AStoppedClock(), AUser));
+            () => UserProjectionTarget.For(store, new PluginConfiguration(), null!, new ASeriesLibraryOf(), AStoppedClock(), AUser));
         Assert.Throws<ArgumentNullException>(
-            () => UserProjectionTarget.For(store, new PluginConfiguration(), new ADescriberOf(), null!, AUser));
+            () => UserProjectionTarget.For(store, new PluginConfiguration(), new ADescriberOf(), null!, AStoppedClock(), AUser));
+        Assert.Throws<ArgumentNullException>(
+            () => UserProjectionTarget.For(store, new PluginConfiguration(), new ADescriberOf(), new ASeriesLibraryOf(), null!, AUser));
     }
 
     /// <summary>
@@ -420,7 +422,7 @@ public sealed class ProjectionTests : IDisposable
     }
 
     private static UserProjectionTarget TargetFor(WatchlistDocumentStore store, Guid userId) =>
-        UserProjectionTarget.For(store, new PluginConfiguration(), new ADescriberOf(), AStoppedClock(), userId);
+        UserProjectionTarget.For(store, new PluginConfiguration(), new ADescriberOf(), new ASeriesLibraryOf(), AStoppedClock(), userId);
 
     private static StoppedClock AStoppedClock() =>
         new(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero));

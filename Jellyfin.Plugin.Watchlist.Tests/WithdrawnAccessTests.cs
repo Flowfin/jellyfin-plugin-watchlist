@@ -164,6 +164,7 @@ public sealed class WithdrawnAccessTests : IDisposable
             store,
             new PluginConfiguration(),
             new ADescriberOf([.. visible.Select(itemId => (itemId, AUser, WatchlistItemKind.Movie))]),
+            new ASeriesLibraryOf(),
             clock,
             AUser);
 

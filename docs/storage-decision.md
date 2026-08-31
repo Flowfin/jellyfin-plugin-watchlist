@@ -127,8 +127,15 @@ Two costs, in plain words, and neither of them goes away later.
 
 **A series appears in the playlist as one episode.** The store can hold a series
 as one entry; the playlist cannot, because the server expands a folder into its
-non-folder children on the way in, as measured above. Which episode is shown, or
-whether a series is shown at all, is decided in M3.
+non-folder children on the way in, as measured above. Which episode that is was
+decided in M3 and is the earliest one the user has not played, by season and then
+by episode number, which is the first episode of a show nobody has started. The
+projection re-points that row on the pass after the episode is played, so the row
+follows the show rather than the day it was added. A show the library holds no
+episode of for that user - deleted media, or a library they were never given -
+contributes no row at all, and it stays on the list and is served by the
+endpoints. The rule and the reason each part of it was chosen are in
+`SeriesRow`.
 
 **A user who deletes the playlist loses the surface but not the list.** The
 record is the plugin's own document, so the entries survive. What the user loses
