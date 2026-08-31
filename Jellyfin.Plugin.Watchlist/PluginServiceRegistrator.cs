@@ -1,6 +1,7 @@
 using System;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
+using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Export;
 using Jellyfin.Plugin.Watchlist.Projection;
 using Jellyfin.Plugin.Watchlist.Store;
@@ -64,6 +65,19 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // would hand every later request the cap that was set when the server started.
         serviceCollection.AddScoped(_ => Plugin.Instance!.Configuration);
 
+        // The same settings as a QUESTION rather than as a value, and it is registered
+        // because of how the server builds a scheduled task. It does not resolve the
+        // IScheduledTask registration below: it finds the type by scanning this assembly
+        // and activates it against its own container, so every constructor parameter has
+        // to be resolvable on its own. The scoped registration above cannot serve that -
+        // the activation happens on the root container, where a scoped service is not
+        // available - and a task holding a captured configuration would carry the one in
+        // force when the server started. Measured rather than reasoned: without this line
+        // the server logs "Error creating ... WatchlistReconciliationTask" at start-up and
+        // lists the plugin as Malfunctioned, which the interoperability boot caught and no
+        // unit test could.
+        serviceCollection.AddSingleton<Func<PluginConfiguration>>(_ => () => Plugin.Instance!.Configuration);
+
         serviceCollection.AddSingleton(provider => new WatchlistDocumentStore(
             Plugin.Instance!.DataFolderPath,
             provider.GetRequiredService<ILogger<WatchlistDocumentStore>>()));
@@ -85,15 +99,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
         serviceCollection.AddHostedService<UserDataWatchedSubscription>();
 
-        // What happens to a deleted user's list, and how the server says so. The
-        // deletion arrives through the event manager rather than as an event on the
-        // user manager, and the server resolves the consumers of a type out of its
-        // own container when it publishes, so this line is the whole of the
-        // attachment.
-        // The scheduled pass, and the task the server finds it by. The server scans the
-        // plugin assembly for IScheduledTask and resolves what it finds out of its own
-        // container, so this registration is the whole of the attachment; without it the
-        // dashboard shows no entry and nothing converges what the events missed.
+        // The scheduled pass and the task the dashboard shows. The server finds a task
+        // by scanning this assembly for the interface and ACTIVATES the type against its
+        // own container rather than resolving the registration, so what makes the entry
+        // appear is every constructor parameter being resolvable and not this line. The
+        // line is here anyway, because a registration is what says which implementation
+        // is meant and it is what a test can read.
         //
         // The pass is registered separately from the task because it is what the suite
         // drives. The task holds no rule of its own.
@@ -107,12 +118,15 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             provider.GetRequiredService<IWatchlistItemDescriber>(),
             provider.GetRequiredService<ISeriesEpisodes>(),
             provider.GetRequiredService<TimeProvider>(),
-            () => Plugin.Instance!.Configuration,
+            provider.GetRequiredService<Func<PluginConfiguration>>(),
             provider.GetRequiredService<ILogger<WatchlistProjectionPass>>()));
-        serviceCollection.AddSingleton<IScheduledTask>(provider => new WatchlistReconciliationTask(
-            provider.GetRequiredService<WatchlistProjectionPass>(),
-            () => Plugin.Instance!.Configuration));
+        serviceCollection.AddSingleton<IScheduledTask, WatchlistReconciliationTask>();
 
+        // What happens to a deleted user's list, and how the server says so. The
+        // deletion arrives through the event manager rather than as an event on the
+        // user manager, and the server resolves the consumers of a type out of its
+        // own container when it publishes, so this line is the whole of the
+        // attachment.
         serviceCollection.AddSingleton<DeletedUserHandler>();
         serviceCollection.AddSingleton<IEventConsumer<UserDeletedEventArgs>, UserDeletedSubscription>();
     }

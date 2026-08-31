@@ -701,9 +701,9 @@ registered, and the scheduled pass that drives them is too:
     Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
 
     git grep -nE 'PlaylistGateway|WatchlistProjector' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs ; echo "exit=$?"
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:100:        serviceCollection.AddSingleton<WatchlistProjector>();
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:102:        serviceCollection.AddSingleton<IPlaylistGateway, ServerPlaylistGateway>();
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:105:            provider.GetRequiredService<WatchlistProjector>(),
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:111:        serviceCollection.AddSingleton<WatchlistProjector>();
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:113:        serviceCollection.AddSingleton<IPlaylistGateway, ServerPlaylistGateway>();
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:116:            provider.GetRequiredService<WatchlistProjector>(),
     exit=0
 
 So everything above about what a projection reads and writes is now what a server

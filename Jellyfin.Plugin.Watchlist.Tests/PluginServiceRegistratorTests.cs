@@ -53,12 +53,13 @@ public class PluginServiceRegistratorTests
 
         new PluginServiceRegistrator().RegisterServices(services, null!);
 
-        Assert.Equal(17, services.Count);
+        Assert.Equal(18, services.Count);
         Assert.Contains(services, d => d.ServiceType == typeof(IWatchlistItemDescriber));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdSource));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdIndex));
         Assert.Contains(services, d => d.ServiceType == typeof(TimeProvider));
         Assert.Contains(services, d => d.ServiceType == typeof(PluginConfiguration));
+        Assert.Contains(services, d => d.ServiceType == typeof(Func<PluginConfiguration>));
         Assert.Contains(services, d => d.ServiceType == typeof(WatchlistDocumentStore));
         Assert.Contains(services, d => d.ServiceType == typeof(ISeriesEpisodes));
         Assert.Contains(services, d => d.ServiceType == typeof(ISeriesCompletion));
@@ -119,10 +120,20 @@ public class PluginServiceRegistratorTests
 
         Assert.NotNull(provider.GetRequiredService<WatchlistProjectionPass>());
 
-        var task = Assert.Single(provider.GetServices<IScheduledTask>());
+        // ACTIVATED THE WAY THE SERVER ACTIVATES IT, which is not the way the
+        // registration above is resolved. The server finds the type by scanning this
+        // assembly and builds it against its own ROOT container, so a constructor
+        // parameter that is only resolvable inside a scope, or not registered at all,
+        // is a plugin the server lists as Malfunctioned with one line in its startup
+        // log. That is what happened, and it happened with this file green: the
+        // interoperability boot caught it and nothing here could, because resolving the
+        // registration takes a route the server does not take.
+        var task = ActivatorUtilities.CreateInstance<WatchlistReconciliationTask>(provider);
 
         Assert.Equal("WatchlistReconciliation", task.Key);
         Assert.Single(task.GetDefaultTriggers());
+
+        Assert.IsType<WatchlistReconciliationTask>(Assert.Single(provider.GetServices<IScheduledTask>()));
 
         // Nobody has used the plugin on this server, so the run walks no user and makes
         // no playlist call at all. What this executes is the two lambdas above it.

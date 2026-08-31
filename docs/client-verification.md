@@ -23,8 +23,8 @@ The pass that reconciles every user's projection is registered, and the server f
 what runs it by scanning this assembly for the scheduled-task interface:
 
     git grep -n 'IScheduledTask' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:94:        // plugin assembly for IScheduledTask and resolves what it finds out of its own
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:112:        serviceCollection.AddSingleton<IScheduledTask>(provider => new WatchlistReconciliationTask(
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:70:        // IScheduledTask registration below: it finds the type by scanning this assembly
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:123:        serviceCollection.AddSingleton<IScheduledTask, WatchlistReconciliationTask>();
 
 So the reason this table is empty has moved and is now the plainer one: no server has
 ever loaded this plugin. Nothing has been published from this repository, and nothing
