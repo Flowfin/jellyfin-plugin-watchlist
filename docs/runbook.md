@@ -243,6 +243,16 @@ the server wrote.
     {"Name": "Watchlist", "Version": "0.1.0.1",
      "ConfigurationFileName": "Jellyfin.Plugin.Watchlist.xml", ... "Status": "Active"}
 
+**What the projection does across this, and it was NOT observed in the run below.** The
+runs recorded in this section predate the projection. When they were taken nothing in the
+plugin ran on its own, so a disable stopped nothing and an enable started nothing. It does
+now: the scheduled pass and the two subscriptions stop when the server stops the plugin
+and start when it starts it, no stored document is touched while it is off, and the first
+pass after it comes back reconciles from the store and takes onto the list whatever was
+done to the playlist in the meantime. That is the ordinary pass rather than a route of its
+own, which is why nothing in the plugin knows it was ever disabled. It is held by
+`DisabledPluginTests` in the suite, and no server has been watched doing it.
+
 The lists are the same bytes they were before the disable, and the same value the
 `status` field is written back to:
 
