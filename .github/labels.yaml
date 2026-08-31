@@ -72,9 +72,9 @@
 #
 # WHAT A MEMBER NAMES IS THE KIND OF THING WAITED ON, never how long the wait
 # is. There are three because three kinds were read across this board's open
-# issues and no fourth was: another issue here, the maintainer, and an event
-# outside this repository. A fourth member is added the day a fourth kind is
-# read, in the same change that first applies it.
+# issues and no fourth was: another issue here, a decision nobody has taken,
+# and an event outside this repository. A fourth member is added the day a
+# fourth kind is read, in the same change that first applies it.
 #
 # MORE THAN ONE MEMBER IS LEGAL AND IS NOT A MISTAKE. An issue held by two
 # kinds of wait carries both, because dropping either one makes the issue read
@@ -108,12 +108,37 @@
   # them. The names live in the issue rather than in the label, so removing it
   # is a reading of those issues' states and not a memory of them.
 
-- name: blocked-on-maintainer
+- name: blocked-on-decision
   color: 'd4c5f9'
-  description: Waiting on the maintainer, not on a piece of work
-  # Removed by whoever writes the maintainer's answer onto the board, in the
-  # same act. The name and the description are the ones the fleet's own tracker
-  # uses for this wait, so an issue carrying it means there what it means here.
+  description: Waiting on a decision, not on a piece of work
+  # Removed when the decision has been taken and written onto the board, in the
+  # same act. What the member names is the kind of wait and never who ends it,
+  # so a decision I have not taken and one taken somewhere else hold an issue
+  # the same way, and which of the two it is belongs in the issue's own words.
+  #
+  # THIS ENTRY NAMED A LABEL THE BOARD DOES NOT CARRY. The member written
+  # above is the one the board holds; the entry named a member describing a
+  # person from outside, which is what #284 removes, and the declaration went
+  # on standing after the board had moved:
+  #
+  #     gh label list --repo Flowfin/jellyfin-plugin-watchlist --limit 100 \
+  #       --json name --jq '[.[].name | select(startswith("blocked-on-"))]'
+  #     ["blocked-on-issue","blocked-on-decision","blocked-on-upstream"]
+  #
+  # What that cost is the header's own rule pointed back at this file:
+  # `delete-other-labels` removes a label neither configuration names, so the
+  # next scheduled run would have deleted the board's member off every issue
+  # holding it and created an unused one under the name this entry declared
+  # before #284:
+  #
+  #     gh issue list --repo Flowfin/jellyfin-plugin-watchlist --state all \
+  #       --limit 300 --label blocked-on-decision --json number,state \
+  #       --jq '.[] | "\(.number) \(.state)"'
+  #     277 OPEN
+  #     134 OPEN
+  #
+  # Nothing here reads a declared name back against the board, so the next
+  # divergence is found the way this one was, by somebody looking.
 
 - name: blocked-on-upstream
   color: 'd4c5f9'
