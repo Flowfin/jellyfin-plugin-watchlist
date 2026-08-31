@@ -121,13 +121,17 @@ public class PluginServiceRegistratorTests
         Assert.NotNull(provider.GetRequiredService<WatchlistProjectionPass>());
 
         // ACTIVATED THE WAY THE SERVER ACTIVATES IT, which is not the way the
-        // registration above is resolved. The server finds the type by scanning this
-        // assembly and builds it against its own ROOT container, so a constructor
-        // parameter that is only resolvable inside a scope, or not registered at all,
-        // is a plugin the server lists as Malfunctioned with one line in its startup
-        // log. That is what happened, and it happened with this file green: the
-        // interoperability boot caught it and nothing here could, because resolving the
-        // registration takes a route the server does not take.
+        // registration below is resolved. The server finds the type by scanning this
+        // assembly and builds it against its own container, so a constructor parameter
+        // that is not registered is a plugin the server lists as Malfunctioned with one
+        // line in its startup log. That is what happened, and it happened with this file
+        // green: the interoperability boot caught it and nothing here could, because
+        // every test resolved the registration and the server does not.
+        //
+        // What this reaches is an unregistered parameter. Whether a parameter registered
+        // in the wrong LIFETIME would fail on a server is not separated here: this
+        // provider serves a scoped registration from its root, so a scoped delegate
+        // passes this line.
         var task = ActivatorUtilities.CreateInstance<WatchlistReconciliationTask>(provider);
 
         Assert.Equal("WatchlistReconciliation", task.Key);

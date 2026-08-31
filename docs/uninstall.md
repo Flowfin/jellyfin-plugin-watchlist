@@ -105,11 +105,11 @@ and the registrator hands it the plugin's own data folder, so the two are wired
 together:
 
     git grep -n 'DataFolderPath' -- Jellyfin.Plugin.Watchlist/
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:82:            Plugin.Instance!.DataFolderPath,
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:85:            Plugin.Instance!.DataFolderPath,
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:90:    public string DataFolderPath => _dataFolderPath;
 
 Read again on the change that landed the scheduled pass. The first line said 67 and
-moved to 82, and it said 60, 57 and 47 before that. The reason is the same every time
+moved to 85, and it said 60, 57 and 47 before that. The reason is the same every time
 and is worth stating once rather than counted again: registrations go in above that one,
 so what changes is how far down the hook it sits and never what it does.
 

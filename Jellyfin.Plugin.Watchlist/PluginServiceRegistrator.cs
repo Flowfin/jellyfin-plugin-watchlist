@@ -65,17 +65,20 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // would hand every later request the cap that was set when the server started.
         serviceCollection.AddScoped(_ => Plugin.Instance!.Configuration);
 
-        // The same settings as a QUESTION rather than as a value, and it is registered
-        // because of how the server builds a scheduled task. It does not resolve the
-        // IScheduledTask registration below: it finds the type by scanning this assembly
-        // and activates it against its own container, so every constructor parameter has
-        // to be resolvable on its own. The scoped registration above cannot serve that -
-        // the activation happens on the root container, where a scoped service is not
-        // available - and a task holding a captured configuration would carry the one in
-        // force when the server started. Measured rather than reasoned: without this line
-        // the server logs "Error creating ... WatchlistReconciliationTask" at start-up and
-        // lists the plugin as Malfunctioned, which the interoperability boot caught and no
-        // unit test could.
+        // The same settings as a QUESTION rather than as a value, and it is a
+        // registration of its own because of how the server builds a scheduled task. It
+        // does not resolve the IScheduledTask registration below: it finds the type by
+        // scanning this assembly and ACTIVATES it, so every constructor parameter has to
+        // be resolvable on its own. A task holding a captured configuration would carry
+        // the one in force when the server started, which is why the parameter is a Func
+        // rather than the object the line above registers.
+        //
+        // Measured rather than reasoned. Without this line the server logged
+        // "Error creating ... WatchlistReconciliationTask" at start-up and listed the
+        // plugin as Malfunctioned; the interoperability boot caught that and no test here
+        // could, because every test resolved the registration and the server does not.
+        // Whether a SCOPED registration of this delegate would fail the same way was not
+        // evaluated on a server, and the test beside it does not separate the two.
         serviceCollection.AddSingleton<Func<PluginConfiguration>>(_ => () => Plugin.Instance!.Configuration);
 
         serviceCollection.AddSingleton(provider => new WatchlistDocumentStore(

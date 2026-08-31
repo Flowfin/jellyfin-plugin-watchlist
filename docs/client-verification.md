@@ -22,9 +22,9 @@ A RUNNING SERVER DOES MAKE PLAYLISTS NOW, AND THIS PARAGRAPH SAID IT MAKES NONE.
 The pass that reconciles every user's projection is registered, and the server finds
 what runs it by scanning this assembly for the scheduled-task interface:
 
-    git grep -n 'IScheduledTask' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:70:        // IScheduledTask registration below: it finds the type by scanning this assembly
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:123:        serviceCollection.AddSingleton<IScheduledTask, WatchlistReconciliationTask>();
+    git grep -l 'IScheduledTask' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs
+    Jellyfin.Plugin.Watchlist/Projection/WatchlistReconciliationTask.cs
 
 So the reason this table is empty has moved and is now the plainer one: no server has
 ever loaded this plugin. Nothing has been published from this repository, and nothing
