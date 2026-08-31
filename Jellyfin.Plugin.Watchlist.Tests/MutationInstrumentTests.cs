@@ -26,11 +26,12 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// </remarks>
 public sealed class MutationInstrumentTests
 {
-    // The separator inside the recursive part of the logical name is the one the
-    // build put there, which on this tree's own item group is a backslash. It is
-    // written as it is rather than normalised, because what this reads is a resource
-    // name and not a path.
-    private const string WorkflowResource = @"tree/.github/workflows\mutation.yaml";
+    // Written with forward slashes and MATCHED with either, because the separator
+    // inside the recursive part of a logical name is the one the build put there and
+    // that is the host's: a backslash on Windows and a slash on Linux and macOS. A
+    // name spelled one way is a test that passes on the machine it was written on and
+    // reds the other two, which is how this was found.
+    private const string WorkflowResource = "tree/.github/workflows/mutation.yaml";
 
     private const string ConfigResource = "Jellyfin.Plugin.Watchlist.Tests.stryker-config.json";
 
@@ -151,13 +152,19 @@ public sealed class MutationInstrumentTests
     {
         var assembly = typeof(MutationInstrumentTests).GetTypeInfo().Assembly;
 
-        using var stream = assembly.GetManifestResourceStream(resource)
+        var name = assembly
+            .GetManifestResourceNames()
+            .FirstOrDefault(candidate => Normalise(candidate) == Normalise(resource))
             ?? throw new InvalidOperationException(
                 resource + " is not embedded in the test assembly. The assembly carries: "
                 + string.Join(", ", assembly.GetManifestResourceNames()));
 
+        using var stream = assembly.GetManifestResourceStream(name)!;
         using var reader = new StreamReader(stream);
 
         return reader.ReadToEnd();
     }
+
+    private static string Normalise(string resource) =>
+        resource.Replace('\\', '/');
 }
