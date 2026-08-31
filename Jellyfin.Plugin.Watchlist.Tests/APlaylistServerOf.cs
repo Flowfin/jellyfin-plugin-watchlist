@@ -33,11 +33,34 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
     private readonly List<string> _calls = [];
 
     private int _minted;
+    private int _rowsMinted;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this stands for the server line that
+    /// honours an insert position.
+    /// </summary>
+    /// <remarks>
+    /// Both answers are real lines rather than a switch invented for the suite. The
+    /// 10.11 interface takes no position and the next one does, and the same test set
+    /// runs against this fake under each answer so the reconciler is driven down both
+    /// paths from one store state.
+    /// </remarks>
+    public bool CanInsertAtAPosition { get; set; }
 
     /// <summary>
     /// Gets every call this was asked to make, in order.
     /// </summary>
     public IReadOnlyList<string> Calls => _calls;
+
+    /// <summary>
+    /// Gets how many write calls were made, which is the number the difference
+    /// calculation is judged by.
+    /// </summary>
+    public int Writes => _calls.Count(call =>
+        call.StartsWith("create ", StringComparison.Ordinal)
+        || call.StartsWith("rename ", StringComparison.Ordinal)
+        || call.StartsWith("add ", StringComparison.Ordinal)
+        || call.StartsWith("remove ", StringComparison.Ordinal));
 
     /// <summary>
     /// Gets how many playlists were created through this.
@@ -77,6 +100,15 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
 
         _rows[playlistId] = rows;
     }
+
+    /// <summary>
+    /// The items one playlist holds, in the order it holds them, so a test can assert
+    /// the ORDER a pass arrived at rather than the calls it made to get there.
+    /// </summary>
+    /// <param name="playlistId">The playlist.</param>
+    /// <returns>The items, in order.</returns>
+    public IReadOnlyList<Guid> ItemsOn(Guid playlistId) =>
+        _rows.TryGetValue(playlistId, out var rows) ? rows.Select(row => row.ItemId).ToList() : [];
 
     /// <summary>
     /// Takes a playlist off the server the way a user deleting it from a client would,
@@ -137,11 +169,37 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// It APPLIES the call rather than only counting it, which is what lets a test read
+    /// the order a pass produced. A position is honoured only where this stands for the
+    /// line that honours one; on the other line it is discarded and the items go on the
+    /// end, which is what the 10.11 adapter does with one and is the behaviour the
+    /// ordering rule has to survive.
+    /// </remarks>
     public Task AddAsync(Guid playlistId, Guid userId, IReadOnlyCollection<Guid> itemIds, int? position, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(itemIds);
 
-        _calls.Add(string.Format(CultureInfo.InvariantCulture, "add {0} {1}", playlistId, itemIds.Count));
+        _calls.Add(string.Format(
+            CultureInfo.InvariantCulture,
+            "add {0} {1} {2}",
+            playlistId,
+            itemIds.Count,
+            position is null ? "end" : position.Value.ToString(CultureInfo.InvariantCulture)));
+
+        var rows = RowsOf(playlistId);
+        var at = CanInsertAtAPosition && position is not null ? Math.Min(position.Value, rows.Count) : rows.Count;
+
+        foreach (var itemId in itemIds)
+        {
+            _rowsMinted++;
+            rows.Insert(at, new ProjectedPlaylistEntry
+            {
+                EntryId = string.Format(CultureInfo.InvariantCulture, "made-{0}", _rowsMinted),
+                ItemId = itemId,
+            });
+            at++;
+        }
 
         return Task.CompletedTask;
     }
@@ -153,12 +211,25 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
 
         _calls.Add(string.Format(CultureInfo.InvariantCulture, "remove {0} {1}", playlistId, entryIds.Count));
 
+        RowsOf(playlistId).RemoveAll(row => entryIds.Contains(row.EntryId));
+
         return Task.CompletedTask;
     }
 
     private void Record(string verb, Guid subject)
     {
         _calls.Add(string.Format(CultureInfo.InvariantCulture, "{0} {1}", verb, subject));
+    }
+
+    private List<ProjectedPlaylistEntry> RowsOf(Guid playlistId)
+    {
+        if (!_rows.TryGetValue(playlistId, out var rows))
+        {
+            rows = [];
+            _rows[playlistId] = rows;
+        }
+
+        return rows;
     }
 
     private List<ProjectedPlaylist> Owned(Guid ownerUserId)

@@ -509,13 +509,14 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Thirty-eight places log at all, over seven files:
+library. Thirty-nine places log at all, over eight files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:7
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:11
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
     Jellyfin.Plugin.Watchlist/Projection/WatchlistProjector.cs:7
+    Jellyfin.Plugin.Watchlist/Projection/WatchlistReconciler.cs:1
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:6
     Jellyfin.Plugin.Watchlist/Users/DeletedUserHandler.cs:1
     Jellyfin.Plugin.Watchlist/Watched/WatchedRemovalHandler.cs:1
@@ -532,6 +533,11 @@ the controller's. They are the two refusals the administrative endpoints write w
 the server's elevation policy does not answer for a caller: the one about making the
 shared list names that caller's identifier, and the one about removing it names
 nothing at all, because that operation is handed no caller.
+
+It moved to thirty-nine on #19, and the one new line is the reconciler's. It is
+written where a playlist has to be emptied and written back because its rows are in an
+order no add can reach, and it names the playlist, the user it belongs to and how many
+rows were there - no title, and nothing out of the rows themselves.
 
 It moved to thirty-eight on #40, and all seven new lines are the shared transfer
 controller's. Five are refusals - two about a caller the elevation policy does not
@@ -607,7 +613,7 @@ server for a playlist by that user's identifier and by a name, and it names no o
 user and no public flag:
 
     grep -n 'CreatePlaylist(new PlaylistCreationRequest' Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
-    87:            .CreatePlaylist(new PlaylistCreationRequest { Name = name, UserId = userId })
+    95:            .CreatePlaylist(new PlaylistCreationRequest { Name = name, UserId = userId })
 
 What the server does with a request that names neither is a reading of the server
 rather than of this tree, taken in a jellyfin checkout at the line this artifact
@@ -626,7 +632,8 @@ declares:
 So the shares are empty and the list is not open. There is no route through this plugin
 that shares one afterwards either: the seam it speaks to the server through declares
 listing a user's playlists, reading one's rows, creating, renaming, adding and
-removing, and nothing that changes who a playlist is shared with.
+removing, one question about whether an add can name a position, and nothing that
+changes who a playlist is shared with.
 
     grep -c 'Task\|IReadOnlyList' Jellyfin.Plugin.Watchlist/Projection/IPlaylistGateway.cs
     7
@@ -652,14 +659,14 @@ what is recorded is what the library says that item is FOR THAT USER, and a row 
 may not see is left off:
 
     grep -n '_describer.Describe' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
-    134:            var described = _describer.Describe(itemId, OwnerUserId);
+    198:            var described = _describer.Describe(itemId, OwnerUserId);
 
 An entry that arrived that way records that it came from a playlist edit rather than
 from an endpoint, which is one of the four values this page already says an entry
 carries:
 
     grep -n 'Source = WatchlistEntrySource.PlaylistEdit' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
-    148:                    Source = WatchlistEntrySource.PlaylistEdit,
+    212:                    Source = WatchlistEntrySource.PlaylistEdit,
 
 Adoption does not change who can see the playlist. It is the user's own list, made by
 them, and the plugin takes over managing it rather than sharing it.

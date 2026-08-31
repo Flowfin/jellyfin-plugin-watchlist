@@ -42,6 +42,14 @@ public sealed class ServerPlaylistGateway : IPlaylistGateway
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// False on this line, and the constant is the whole of the answer. The 10.11
+    /// playlist interface takes no insert position, so nothing this implementation
+    /// could do with one would put an item anywhere but the end.
+    /// </remarks>
+    public bool CanInsertAtAPosition => false;
+
+    /// <inheritdoc />
     public IReadOnlyList<ProjectedPlaylist> PlaylistsOf(Guid userId) => _playlists
         .GetPlaylists(userId)
         .Select(playlist => new ProjectedPlaylist

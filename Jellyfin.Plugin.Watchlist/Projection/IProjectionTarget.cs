@@ -40,6 +40,41 @@ public interface IProjectionTarget
     string ConfiguredName { get; }
 
     /// <summary>
+    /// Gets the library items this list should be projected as, in the order they
+    /// should appear in the playlist.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// THIS IS WHERE THE TWO KINDS OF LIST DIFFER AND THE RECONCILER DOES NOT. What a
+    /// target puts here has already been through the rules that are ITS: which entries
+    /// are on the list, who may see them, and what an entry of a kind a playlist cannot
+    /// hold becomes. The reconciler takes the answer and computes a difference against
+    /// the playlist, and it asks no question that could have a second answer on a
+    /// shared list.
+    /// </para>
+    /// <para>
+    /// Distinct, because a playlist row and a list entry are not the same thing and a
+    /// wanted set holding one item twice would ask for a second row that no later pass
+    /// could tell from a duplicate somebody made by hand.
+    /// </para>
+    /// <para>
+    /// THE ORDER IS THE NEWEST ADDITION FIRST, and it is decided here rather than in
+    /// the reconciler so that one order holds for every target. A watchlist is a record
+    /// of an intention, and the intention a person had a minute ago is the one they are
+    /// looking for when they open the list; a client shows a playlist from its head, so
+    /// the head is where the newest entry belongs. The rule is total - entries added in
+    /// the same instant fall back to the item identifier - because an order that is
+    /// merely usually the same makes a rebuild happen for no reason.
+    /// </para>
+    /// <para>
+    /// Read once, when the target is made for one pass, for the same reason the record
+    /// is: two reads inside a pass would let the difference be computed against one
+    /// state and written against another.
+    /// </para>
+    /// </remarks>
+    IReadOnlyList<Guid> Wanted { get; }
+
+    /// <summary>
     /// Gets a value indicating whether the record that remembers this target's
     /// playlist could be read at all.
     /// </summary>

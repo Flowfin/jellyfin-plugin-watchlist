@@ -331,6 +331,10 @@ public sealed class PlaylistAdoptionTests : IDisposable
 
         public string ConfiguredName { get; }
 
+        // No entries: these targets exist for what the PROJECTOR does with a record,
+        // and the wanted set is the reconciler's question.
+        public IReadOnlyList<Guid> Wanted => [];
+
         public bool IsRecordAvailable => true;
 
         public WatchlistProjectionState? Remembered => null;
