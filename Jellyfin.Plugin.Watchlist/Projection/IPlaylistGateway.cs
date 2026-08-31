@@ -30,6 +30,24 @@ namespace Jellyfin.Plugin.Watchlist.Projection;
 public interface IPlaylistGateway
 {
     /// <summary>
+    /// Gets a value indicating whether <see cref="AddAsync"/> honours a position on
+    /// this line, so a caller can be told rather than have to guess.
+    /// </summary>
+    /// <remarks>
+    /// This is the answer the reconciler takes. Where it is true an item can be put
+    /// where it belongs and the order is reached by inserting; where it is false the
+    /// only way to an order that differs from the current one is to build the list
+    /// again, and that is a cost the reconciler pays deliberately and rarely rather
+    /// than on every pass.
+    ///
+    /// It is on the interface rather than derived from a server version, because the
+    /// thing a caller needs to know is what THIS implementation does with a position.
+    /// A line whose interface takes one and drops it would answer false here and be
+    /// right; the version number would not.
+    /// </remarks>
+    bool CanInsertAtAPosition { get; }
+
+    /// <summary>
     /// The playlists this user has, so one carrying the configured name can be adopted
     /// rather than a second one created beside it.
     /// </summary>

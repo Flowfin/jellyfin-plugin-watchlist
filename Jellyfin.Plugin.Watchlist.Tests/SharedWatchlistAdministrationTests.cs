@@ -422,6 +422,8 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
 
         public string ConfiguredName => string.Empty;
 
+        public IReadOnlyList<Guid> Wanted => [];
+
         public bool IsRecordAvailable => false;
 
         public WatchlistProjectionState? Remembered => null;

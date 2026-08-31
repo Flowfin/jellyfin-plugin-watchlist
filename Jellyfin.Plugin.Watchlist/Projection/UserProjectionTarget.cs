@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Store;
@@ -42,7 +43,8 @@ public sealed class UserProjectionTarget : IProjectionTarget
         TimeProvider clock,
         Guid userId,
         bool isRecordAvailable,
-        WatchlistProjectionState? remembered)
+        WatchlistProjectionState? remembered,
+        IReadOnlyList<Guid> wanted)
     {
         _store = store;
         _configuration = configuration;
@@ -51,6 +53,7 @@ public sealed class UserProjectionTarget : IProjectionTarget
         OwnerUserId = userId;
         IsRecordAvailable = isRecordAvailable;
         Remembered = remembered;
+        Wanted = wanted;
     }
 
     /// <inheritdoc />
@@ -58,6 +61,33 @@ public sealed class UserProjectionTarget : IProjectionTarget
 
     /// <inheritdoc />
     public string ConfiguredName => _configuration.ProjectedListName;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// Two rules make this set out of the document, and both of them are this target's
+    /// rather than the reconciler's.
+    /// </para>
+    /// <para>
+    /// THE ITEM IS ASKED ABOUT FOR THIS USER, and an entry the describer says nothing
+    /// about is left out. That is one answer for an item that has been deleted and for
+    /// an item this user may not see - a rating they are above, a library they were
+    /// never given - because the describer gives one answer for both on purpose. So an
+    /// item a user cannot see is not merely hidden from their playlist, it is never
+    /// added to it.
+    /// </para>
+    /// <para>
+    /// A KIND A PLAYLIST CANNOT HOLD IS LEFT OUT, AND THAT IS TODAY'S ANSWER RATHER
+    /// THAN THE INTENDED ONE. A series is on the accepted set of the store and cannot
+    /// be a playlist row: a server handed a folder adds its non-folder children, so an
+    /// entry for a show would become every episode of it. What a show should project as
+    /// is one episode, and that rule is issue #18 and is not in this tree. Until it
+    /// lands a show sits on the list, is served by the endpoints, and appears in no
+    /// playlist. That is a gap and it is stated here rather than hidden behind a
+    /// projection that puts a whole show into a list.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<Guid> Wanted { get; }
 
     /// <inheritdoc />
     public bool IsRecordAvailable { get; }
@@ -103,8 +133,42 @@ public sealed class UserProjectionTarget : IProjectionTarget
             clock,
             userId,
             read.IsAvailable,
-            read.Document?.Projection);
+            read.Document?.Projection,
+            WantedFrom(read.Document?.Entries ?? [], describer, userId));
     }
+
+    /// <summary>
+    /// Turns one user's entries into the rows their playlist should hold, in order.
+    /// </summary>
+    /// <param name="entries">The entries as the document holds them.</param>
+    /// <param name="describer">What a library item is, for this user.</param>
+    /// <param name="userId">The user the question is asked for.</param>
+    /// <returns>The items to project, newest addition first.</returns>
+    private static List<Guid> WantedFrom(
+        IReadOnlyList<WatchlistEntry> entries,
+        IWatchlistItemDescriber describer,
+        Guid userId) => entries
+            .Where(entry => ProjectsAsOneRow(entry.Kind))
+            .Where(entry => describer.Describe(entry.ItemId, userId) is not null)
+            .OrderByDescending(entry => entry.AddedAt)
+            .ThenBy(entry => entry.ItemId)
+            .Select(entry => entry.ItemId)
+            .Distinct()
+            .ToList();
+
+    /// <summary>
+    /// Whether an entry of this kind is one playlist row.
+    /// </summary>
+    /// <param name="kind">The kind the entry was recorded under.</param>
+    /// <returns>True where the item can be a row as it stands.</returns>
+    /// <remarks>
+    /// A film and an episode are single items and are rows. A show is not, and what it
+    /// becomes is #18. Anything else never reached the list: the accepted set the
+    /// endpoints enforce holds these three and nothing more, so an entry of another
+    /// kind is one written by a plugin that is not this one.
+    /// </remarks>
+    private static bool ProjectsAsOneRow(WatchlistItemKind kind) =>
+        kind is WatchlistItemKind.Movie or WatchlistItemKind.Episode;
 
     /// <inheritdoc />
     public bool Remember(WatchlistProjectionState projection) =>
