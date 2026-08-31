@@ -1,0 +1,58 @@
+// The near miss the counting arm cannot see.
+//
+// The same scheduled pass again, and this time it does call the gate. The read is given
+// a name first, because the pass wants the stored count for its log line and reading the
+// document twice would be worse; the name goes to the gate; and then the name is used
+// again for the answer, because it is the one already in hand and the difference between
+// the two variables is one word.
+//
+// One read and one call, so a guard that compares those two numbers sees a file that
+// gates everything it reads. What comes back to the caller is the ungated collection,
+// which is the failure this arm exists for. It was not imagined: a bypass of exactly
+// this shape was made in the controller and the suite stayed green, which is how the
+// arm beside the count came to be written.
+//
+// This file is a fixture and is never compiled.
+
+public sealed class ScheduledWatchlistReconciliation
+{
+    private readonly WatchlistDocumentStore _store;
+    private readonly IWatchlistItemDescriber _describer;
+    private readonly ILogger _logger;
+
+    public ScheduledWatchlistReconciliation(
+        WatchlistDocumentStore store,
+        IWatchlistItemDescriber describer,
+        ILogger logger)
+    {
+        _store = store;
+        _describer = describer;
+        _logger = logger;
+    }
+
+    public IReadOnlyList<Guid> WantedFor(Guid userId)
+    {
+        var read = _store.Read(userId);
+
+        if (read.Document is null)
+        {
+            return [];
+        }
+
+        var everything = read.Document.Entries;
+
+        var visible = WatchlistVisibility.Resolvable(
+            everything,
+            new WhatThisUserMayBeTold(_describer, userId),
+            userId,
+            _logger);
+
+        _logger.LogInformation(
+            "The stored list of user {UserId} holds {StoredCount} entries and {VisibleCount} of them resolve",
+            userId,
+            everything.Count,
+            visible.Count);
+
+        return everything.Select(entry => entry.ItemId).ToList();
+    }
+}

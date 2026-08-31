@@ -10,10 +10,64 @@ decided in #11, so an identifier that stops resolving is all the store ever sees
 document.** It is never dropped, and never dropped by one caller and kept by
 another.
 
-It is written once, in `WatchlistVisibility.Resolvable`, and every read path goes
-through that one function. The API, the projection and the scheduled
-reconciliation are three readers, and three copies of this rule are three chances
-to keep two of them in step and lose the third.
+It is written once, in `WatchlistVisibility.Resolvable`, and a read that shows the
+list goes through that one function. The API and the projection are its two
+readers today and the scheduled reconciliation is the third when it lands, and
+three copies of this rule would be three chances to keep two of them in step and
+lose the third.
+
+## What a read means here, and what is outside it
+
+THIS SECTION REPLACES A SENTENCE SAYING EVERY READ PATH GOES THROUGH THE GATE. That
+sentence was wider than the tree it described. Three parts of this plugin take the
+entries off a stored document without calling the gate, and each of them is right
+to:
+
+- The export writes a copy of the stored document. An entry that has stopped
+  resolving on this server has to survive the round trip to the one the file is
+  restored on, and a gated export would silently drop exactly the entries the rule
+  above exists to keep.
+- Watched removal reads the entries to decide which of them a play retires, and it
+  shows nobody anything. Gating it would make an unresolvable entry permanently
+  unretirable rather than merely hidden.
+- The store owns the document, and its own reads are the cap, the duplicate check
+  and the removal.
+
+So the rule is about a read that PRESENTS the list. Which file is which, and the
+reason for each one, is in
+`Jellyfin.Plugin.Watchlist.Tests/VISIBILITY-GATE-READERS.txt`. It declares six
+readers, and the gate is named in three files:
+
+    git grep -c 'WatchlistVisibility' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:2
+    Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs:2
+    Jellyfin.Plugin.Watchlist/Store/WatchlistVisibility.cs:1
+
+The gap between the six and the three is the point of the register rather than a
+defect in it: three of the six read the document for something other than showing
+a list, and the register is where each of them says which.
+
+## What refuses a bypass
+
+`VisibilityGateTests` in the suite, so the paragraphs above stopped being prose on
+the change that added it. It reads the plugin's own sources out of the test
+assembly and reds the run, naming the file and the line, when a source takes the
+entries off a stored document and no line of that register declares it, when a file
+the register calls gated takes more reads than it makes gate calls or parks a read
+in a local the rest of it can reach past the gate, when a file the register calls
+outside reaches the gate anyway, and when a declaration covers no read at all.
+
+WHAT IT WAS BUILT AGAINST is not a hypothetical. The projection became the third
+reader this page names and did not go through the gate: it asked the describer
+itself, which is the same predicate written a second time, and it landed in the
+change that made the projection a reader at all with nothing red for it.
+
+WHERE IT STOPS is written in the register's own header rather than here, because
+that is the file somebody opens when the guard refuses them. The short of it is
+that the scan reads one line at a time and matches the two spellings this tree uses,
+so a read through a local under a third name, a read split across two lines, and
+what a helper does with a collection it was handed are outside what it sees. A
+green run is a floor and not a proof that every read of a stored list is gated.
 
 ## Why skipping rather than dropping
 

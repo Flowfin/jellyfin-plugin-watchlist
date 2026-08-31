@@ -1,0 +1,65 @@
+# The readers of a stored document's entries, one per line, with what each one is.
+#
+#   <source file name> | gated or outside | <why>
+#
+# Read by VisibilityGateTests against the plugin's own sources. The file name is the
+# name the scan reports, which keeps the directory it sits in, because two files with
+# one name in two folders are two files.
+#
+# WHAT THIS REGISTER IS FOR. docs/unresolvable-entries.md says the rule for an entry
+# whose item does not resolve is written once, in WatchlistVisibility.Resolvable, and
+# that a read of the list goes through that one function. Nothing read that claim
+# until this file existed. The projection became a third reader and did not go through
+# the gate: it asked the describer itself, which is the same predicate written a second
+# time, and every check stayed green. The scheduled pass of #24 is a fourth reader and
+# is not written yet.
+#
+# THE TWO KINDS ARE NOT INTERCHANGEABLE AND THAT IS THE POINT OF TYPING THEM.
+#
+#   gated   - the file reads the entries in order to show them, so every read it takes
+#             is handed to WatchlistVisibility.Resolvable. Two arms judge one of these.
+#             The first counts: a file that takes more reads than it makes gate calls
+#             reds the run, so a second read added beside a gated one cannot arrive
+#             silently. The second refuses a read that is given a NAME, because a local
+#             can be read again past the gate and the counts stay equal while it is.
+#             The second arm is there because the first one alone let a real bypass
+#             through: the read in the controller was hoisted into a local, the local
+#             was handed to the gate, and the answer was built from the local instead
+#             of from what came back. One read, one call, suite green.
+#
+#   outside - the file's subject is the stored document rather than the list a person
+#             is shown, so the rule about skipping does not apply to it and the reason
+#             below says why. A file declared outside that names the gate reds the run
+#             as well, because a file that is half gated is one whose declaration is
+#             wrong rather than one that found a third way.
+#
+# The reason is required, and it is written for whoever meets this file next.
+#
+# THIS REGISTER FAILS IN BOTH DIRECTIONS. An entry naming a file that takes no read is
+# stale and reds the run, so a declaration cannot outlive the code that needed it.
+#
+# WHERE THE GUARD CANNOT SEE A BYPASS. This is the bound rather than a caveat, and a
+# green run here is not a proof that every read of a stored list is gated.
+#
+# The scan is a regular expression over one line at a time, and what it matches is the
+# two spellings this tree uses for taking the entries off a document: off the store's
+# read result, whose member is capitalised, and off a local holding a document. Three
+# shapes are outside that and none of them reds this run:
+#
+#   - a read through a local under a third name, as in taking the document into a
+#     variable on one line and its entries off that variable on the next;
+#   - a read split across two lines, so neither line carries both halves;
+#   - what a helper does with a collection it was handed. The read is seen at the call
+#     site and the file is judged there, which is why one of the gated entries below
+#     reaches the gate inside a private method rather than at the line that reads.
+#
+# And the kind in the middle field is a person's judgement. A file declared outside with
+# a wrong reason passes; what the guard refuses is an undeclared reader, an unaccounted
+# read and a declaration the file contradicts.
+
+Api/WatchlistController.cs | gated | the two list endpoints read the document and hand the entries straight to the gate, once each, and describe only what comes back
+Projection/UserProjectionTarget.cs | gated | the target reads the document once when it is made and hands the entries to the gate before anything is projected; the resolver it passes is the describer for one user, which is the question the gate asks rather than a second copy of the rule
+Api/SharedWatchlistTransferController.cs | outside | an export is a copy of the stored document rather than a read of the list, and an entry that stops resolving on this server has to survive the round trip to the one it is restored on
+Export/WatchlistExporter.cs | outside | the exporter is handed the document's entries by the endpoint above and writes them out; its subject is the same copy and it decides nothing about what a person is shown
+Watched/WatchedRemovalHandler.cs | outside | this reads the entries to decide which of them a play retires, and it shows nobody anything; gating it would make an entry whose item does not resolve permanently unretirable rather than merely hidden
+Store/WatchlistDocumentStore.cs | outside | the store owns the document, and its reads are the cap, the duplicate check and the removal - bookkeeping over what is held rather than a read of what to show

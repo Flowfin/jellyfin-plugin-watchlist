@@ -57,6 +57,7 @@ public class DocumentPasteTests
         (ResourcePrefix + "HEADLESS-EXCEPTIONS.txt", "Jellyfin.Plugin.Watchlist.Tests/HEADLESS-EXCEPTIONS.txt"),
         (ResourcePrefix + "Invariants.txt", "Jellyfin.Plugin.Watchlist.Tests/Invariants.txt"),
         (ResourcePrefix + "INVARIANT-EXCEPTIONS.txt", "Jellyfin.Plugin.Watchlist.Tests/INVARIANT-EXCEPTIONS.txt"),
+        (ResourcePrefix + "VISIBILITY-GATE-READERS.txt", "Jellyfin.Plugin.Watchlist.Tests/VISIBILITY-GATE-READERS.txt"),
         (BoundResource, "Jellyfin.Plugin.Watchlist.Tests/DOCUMENT-PASTES.md"),
         (RegisterResource, "Jellyfin.Plugin.Watchlist.Tests/DOCUMENT-PASTE-EXCEPTIONS.txt"),
     ];

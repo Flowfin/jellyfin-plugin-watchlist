@@ -1,0 +1,44 @@
+// The near miss for the visibility gate.
+//
+// Nobody bypasses the gate on purpose. They bypass it because the scheduled pass of #24
+// has to walk one user's entries, the describer is already on the constructor because
+// the pass needs a name for its log line, and asking it whether an item answers is one
+// expression. Calling the gate means importing the store's namespace into a scheduled
+// task and handing it a resolver, which is three lines to save one.
+//
+// What it does is write the rule about an entry whose item does not resolve a fourth
+// time. It is the same predicate as the gate's today, and it stops being the same the
+// first time either side is edited: this one drops nothing and skips nothing that the
+// describer answers for, and a reader who changes what the gate does about a series, an
+// item behind a parental rating or an item on a detached drive changes it in one place
+// out of two. What comes back is a list that is merely a bit wrong, for one user, on
+// one route.
+//
+// This file is a fixture and is never compiled.
+
+public sealed class ScheduledWatchlistReconciliation
+{
+    private readonly WatchlistDocumentStore _store;
+    private readonly IWatchlistItemDescriber _describer;
+
+    public ScheduledWatchlistReconciliation(WatchlistDocumentStore store, IWatchlistItemDescriber describer)
+    {
+        _store = store;
+        _describer = describer;
+    }
+
+    public IReadOnlyList<Guid> WantedFor(Guid userId)
+    {
+        var read = _store.Read(userId);
+
+        if (read.Document is null)
+        {
+            return [];
+        }
+
+        return read.Document.Entries
+            .Where(entry => _describer.Describe(entry.ItemId, userId) is not null)
+            .Select(entry => entry.ItemId)
+            .ToList();
+    }
+}
