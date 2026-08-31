@@ -49,6 +49,8 @@ internal sealed class ALibraryOf : ILibraryManager
 
     private readonly List<(Guid SeriesId, bool Played)> _episodes = [];
 
+    private readonly List<(Guid SeriesId, Episode Item, bool Played)> _episodeItems = [];
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ALibraryOf"/> class.
     /// </summary>
@@ -79,6 +81,11 @@ internal sealed class ALibraryOf : ILibraryManager
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        if (query.HasAnyProviderId is null)
+        {
+            return EpisodesOfOneSeries(query);
+        }
+
         var wanted = query.HasAnyProviderId ?? [];
 
         return _items.Values
@@ -86,6 +93,40 @@ internal sealed class ALibraryOf : ILibraryManager
             .Where(item => wanted.Any(pair =>
                 item.ProviderIds.TryGetValue(pair.Key, out var held)
                 && string.Equals(held, pair.Value, StringComparison.Ordinal)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The episodes of one series, which is the other query this library is asked.
+    /// </summary>
+    /// <param name="query">The query.</param>
+    /// <returns>The episodes, in the order this library was given them.</returns>
+    /// <remarks>
+    /// Every part of the query the adapter sets is read rather than assumed, the same
+    /// way the count below reads it, so a query that stopped naming a user, stopped
+    /// bounding itself to episodes or stopped being recursive is refused here instead
+    /// of being answered as though it had. The order is the order the episodes were
+    /// stated in, deliberately unsorted: the rule above this seam owes a total order of
+    /// its own, and a library that handed back a sorted list would hide a rule that had
+    /// stopped sorting.
+    /// </remarks>
+    private IReadOnlyList<BaseItem> EpisodesOfOneSeries(InternalItemsQuery query)
+    {
+        if (query.User is null
+            || !query.Recursive
+            || query.AncestorIds.Length != 1
+            || query.IncludeItemTypes.Length != 1
+            || query.IncludeItemTypes[0] != BaseItemKind.Episode)
+        {
+            throw Unasked();
+        }
+
+        var series = query.AncestorIds[0];
+
+        return _episodeItems
+            .Where(episode => episode.SeriesId == series
+                && (query.IsPlayed is null || episode.Played == query.IsPlayed.Value))
+            .Select(episode => (BaseItem)episode.Item)
             .ToList();
     }
 
@@ -112,6 +153,40 @@ internal sealed class ALibraryOf : ILibraryManager
     public ALibraryOf WithEpisode(Guid seriesId, bool played)
     {
         _episodes.Add((seriesId, played));
+
+        return this;
+    }
+
+    /// <summary>
+    /// Records one episode of a series as an item, with the two numbers an order is
+    /// taken from and whether this library's user has played it.
+    /// </summary>
+    /// <param name="seriesId">The series the episode belongs to.</param>
+    /// <param name="itemId">The episode.</param>
+    /// <param name="season">The season it sits in, or null.</param>
+    /// <param name="number">Its number inside that season, or null.</param>
+    /// <param name="played">Whether it has been played.</param>
+    /// <returns>This library, so a show can be stated in one expression.</returns>
+    /// <remarks>
+    /// The counted form above and this one are two tables rather than one, because they
+    /// answer two different questions and one of them needs no items at all: the
+    /// completion rule asks how many, and nothing it does could tell two episodes
+    /// apart. Recording here also records for the count, so a series stated this way
+    /// answers both.
+    /// </remarks>
+    public ALibraryOf WithEpisode(Guid seriesId, Guid itemId, int? season, int? number, bool played)
+    {
+        _episodes.Add((seriesId, played));
+        _episodeItems.Add((
+            seriesId,
+            new Episode
+            {
+                Id = itemId,
+                SeriesId = seriesId,
+                ParentIndexNumber = season,
+                IndexNumber = number,
+            },
+            played));
 
         return this;
     }

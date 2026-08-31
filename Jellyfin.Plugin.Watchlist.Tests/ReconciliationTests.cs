@@ -255,7 +255,7 @@ public sealed class ReconciliationTests : IDisposable
         // The describer answers for one of the two, which is what an item behind a
         // rating this user is under, or in a library they were never given, looks like.
         var describer = new ADescriberOf((First, AUser, WatchlistItemKind.Movie));
-        var target = UserProjectionTarget.For(store, new PluginConfiguration(), describer, clock, AUser);
+        var target = UserProjectionTarget.For(store, new PluginConfiguration(), describer, new ASeriesLibraryOf(), clock, AUser);
         var server = new APlaylistServerOf();
 
         var result = await Reconcile(server, target);
@@ -280,7 +280,7 @@ public sealed class ReconciliationTests : IDisposable
         clock.Advance(TimeSpan.FromMinutes(1));
         Put(store, clock, Third, WatchlistItemKind.Movie);
 
-        var target = UserProjectionTarget.For(store, new PluginConfiguration(), Sees(First, Second, Third), clock, AUser);
+        var target = UserProjectionTarget.For(store, new PluginConfiguration(), Sees(First, Second, Third), new ASeriesLibraryOf(), clock, AUser);
 
         Assert.Equal([Third, Second, First], target.Wanted);
 
@@ -305,7 +305,7 @@ public sealed class ReconciliationTests : IDisposable
         Put(store, clock, First, WatchlistItemKind.Series);
         Put(store, clock, Second, WatchlistItemKind.Movie);
 
-        var target = UserProjectionTarget.For(store, new PluginConfiguration(), Sees(First, Second), clock, AUser);
+        var target = UserProjectionTarget.For(store, new PluginConfiguration(), Sees(First, Second), new ASeriesLibraryOf(), clock, AUser);
 
         Assert.Equal([Second], target.Wanted);
         Assert.Equal(2, store.Read(AUser).Document!.Entries.Count);
@@ -337,7 +337,7 @@ public sealed class ReconciliationTests : IDisposable
         clock.Advance(TimeSpan.FromMinutes(1));
         Put(store, clock, Second, WatchlistItemKind.Movie);
 
-        var own = UserProjectionTarget.For(store, new PluginConfiguration(), Sees(First, Second), clock, AUser);
+        var own = UserProjectionTarget.For(store, new PluginConfiguration(), Sees(First, Second), new ASeriesLibraryOf(), clock, AUser);
         Assert.Equal([Second, First], own.Wanted);
 
         var mine = AServerHolding(false, SomethingElse);

@@ -337,6 +337,7 @@ public sealed class ProjectedListNameTests : IDisposable
             store,
             new PluginConfiguration { ProjectedListName = configuredName },
             new ADescriberOf(),
+            new ASeriesLibraryOf(),
             new StoppedClock(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero)),
             userId);
 

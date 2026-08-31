@@ -2,6 +2,7 @@ using System;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Export;
+using Jellyfin.Plugin.Watchlist.Projection;
 using Jellyfin.Plugin.Watchlist.Store;
 using Jellyfin.Plugin.Watchlist.Users;
 using Jellyfin.Plugin.Watchlist.Watched;
@@ -36,6 +37,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         serviceCollection.AddSingleton<IWatchlistItemDescriber, LibraryItemDescriber>();
+
+        // What a series holds, for one user, which is what the single row a show
+        // projects as is chosen out of. Registered under its interface for the same
+        // reason the describer is: everything above it is then a function of what it
+        // answers, and the suite drives the whole rule with no library present.
+        serviceCollection.AddSingleton<ISeriesEpisodes, LibrarySeriesEpisodes>();
 
         // The two provider questions, both answered by the one class that knows a
         // library can be searched. It is registered by type under each interface

@@ -18,12 +18,13 @@ absence to be visible.
 
 ## Why there is nothing to record yet
 
-Nothing on a running server makes a playlist. The projection is built and it is
-constructed by no route the server takes: the plugin registers nothing of it, and
-nothing in the plugin builds either half.
+Nothing on a running server makes a playlist. Both halves of the projection are
+built and no route the server takes constructs either of them. What the plugin
+registers out of that namespace is one seam, the one answering what a series holds
+for a user, which the read rule asks and which makes no playlist:
 
-    git grep -c 'Projection' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs ; echo "exit=$?"
-    exit=1
+    git grep -n 'Projection' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:5:using Jellyfin.Plugin.Watchlist.Projection;
 
     git grep -n 'new WatchlistProjector(\|new WatchlistReconciler(' -- Jellyfin.Plugin.Watchlist/ ; echo "exit=$?"
     exit=1

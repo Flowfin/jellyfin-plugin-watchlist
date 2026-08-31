@@ -661,15 +661,15 @@ the second is the other direction of the same question - what the playlist shoul
 for this user, asked through the gate every read path goes through:
 
     grep -n '_describer.Describe' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
-    198:            var described = _describer.Describe(itemId, OwnerUserId);
-    253:        public bool Exists(Guid itemId) => _describer.Describe(itemId, _userId) is not null;
+    241:            var described = _describer.Describe(itemId, OwnerUserId);
+    296:        public bool Exists(Guid itemId) => _describer.Describe(itemId, _userId) is not null;
 
 An entry that arrived that way records that it came from a playlist edit rather than
 from an endpoint, which is one of the four values this page already says an entry
 carries:
 
     grep -n 'Source = WatchlistEntrySource.PlaylistEdit' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
-    212:                    Source = WatchlistEntrySource.PlaylistEdit,
+    255:                    Source = WatchlistEntrySource.PlaylistEdit,
 
 Adoption does not change who can see the playlist. It is the user's own list, made by
 them, and the plugin takes over managing it rather than sharing it.
