@@ -1,0 +1,37 @@
+// The one-change neighbour of NearMissVisibilityGate.txt.
+//
+// The same scheduled pass, reading the same document, doing the same work for the same
+// user. What moved is the filter: the entries go to the gate, and the describer answers
+// the gate's question instead of the pass's own. The pass no longer holds a copy of the
+// rule, so a change to what "does not resolve" means reaches it without anybody
+// remembering that it exists.
+//
+// It is here so the test above it proves that the guard reads the call rather than that
+// the fixture beside it is unusual. This file is a fixture and is never compiled.
+
+public sealed class ScheduledWatchlistReconciliation
+{
+    private readonly WatchlistDocumentStore _store;
+    private readonly IWatchlistItemDescriber _describer;
+
+    public ScheduledWatchlistReconciliation(WatchlistDocumentStore store, IWatchlistItemDescriber describer)
+    {
+        _store = store;
+        _describer = describer;
+    }
+
+    public IReadOnlyList<Guid> WantedFor(Guid userId)
+    {
+        var read = _store.Read(userId);
+
+        if (read.Document is null)
+        {
+            return [];
+        }
+
+        return WatchlistVisibility
+            .Resolvable(read.Document.Entries, new WhatThisUserMayBeTold(_describer, userId), userId)
+            .Select(entry => entry.ItemId)
+            .ToList();
+    }
+}

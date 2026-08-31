@@ -208,6 +208,18 @@
   </ItemGroup>
 
   <!--
+    The visibility gate's register, in the same shape as the pairs above: one line per
+    plugin source that takes the entries off a stored document, saying whether it hands
+    every read to the gate or reads the document for something other than showing a
+    list. Its own header carries where the scan stops. Embedded for the reason the
+    others are - nothing else in this tree would notice it being deleted or renamed,
+    and VisibilityGateTests reads it.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="VISIBILITY-GATE-READERS.txt" />
+  </ItemGroup>
+
+  <!--
     The plugin's own sources, for the invariant guard to read. Same wildcard
     treatment as the suite's sources below, and under a prefix of their own so the
     two scans cannot read each other's files: the headless table judges test code
