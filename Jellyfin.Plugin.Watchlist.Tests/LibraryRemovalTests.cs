@@ -454,6 +454,7 @@ public sealed class LibraryRemovalTests : IDisposable
             store,
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
             describer ?? new ADescriberOf(
                 (AFilm, AUser, WatchlistItemKind.Movie),
                 (AnotherFilm, AUser, WatchlistItemKind.Movie)),

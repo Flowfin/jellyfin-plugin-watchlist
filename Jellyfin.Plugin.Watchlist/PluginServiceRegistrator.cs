@@ -119,6 +119,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             provider.GetRequiredService<WatchlistDocumentStore>(),
             provider.GetRequiredService<WatchlistProjector>(),
             provider.GetRequiredService<WatchlistReconciler>(),
+            provider.GetRequiredService<IPlaylistGateway>(),
             provider.GetRequiredService<IWatchlistItemDescriber>(),
             provider.GetRequiredService<ISeriesEpisodes>(),
             provider.GetRequiredService<TimeProvider>(),

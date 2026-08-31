@@ -40,6 +40,7 @@ public static class WatchlistDocumentUpgrades
             [0] = FromVersionZeroToVersionOne,
             [1] = FromVersionOneToVersionTwo,
             [2] = FromVersionTwoToVersionThree,
+            [3] = FromVersionThreeToVersionFour,
         };
 
     /// <summary>
@@ -238,4 +239,42 @@ public static class WatchlistDocumentUpgrades
     /// against rather than as one nobody has made.
     /// </remarks>
     private static JsonObject FromVersionTwoToVersionThree(JsonObject document) => document;
+
+    /// <summary>
+    /// Version 3 to version 4, which fills in two members on a projection block that
+    /// already exists.
+    /// </summary>
+    /// <param name="document">The document at version 3.</param>
+    /// <returns>The version 4 shape.</returns>
+    /// <remarks>
+    /// THIS IS THE FIRST STEP THAT CHANGES A DOCUMENT, and the value it writes is a
+    /// statement of not knowing rather than a guess. Version 4 records what the plugin
+    /// last wrote into the playlist, which is what separates a row somebody added on a
+    /// client from a row no pass has projected yet. A version 3 document has no such
+    /// record and there is nothing on disk to recover it from.
+    ///
+    /// So the set is EMPTY and the instant is NULL. Read against the rule above them,
+    /// that says every row now in the playlist is one this plugin did not write, so the
+    /// pass after the upgrade adopts them onto the list. That is the safe direction and
+    /// it is the direction the first-pass adoption already takes: the reading that could
+    /// be wrong adds an entry to somebody's list rather than deleting one from it. The
+    /// opposite filling - claiming the list's own entries were written - would make the
+    /// first pass after an upgrade read every entry the playlist does not hold as a
+    /// removal, and delete them.
+    ///
+    /// A document with no projection block gains nothing, because there is no playlist
+    /// to have written anything into.
+    /// </remarks>
+    private static JsonObject FromVersionThreeToVersionFour(JsonObject document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (document["Projection"] is JsonObject projection)
+        {
+            projection["ProjectedItemIds"] = new JsonArray();
+            projection["WrittenAt"] = null;
+        }
+
+        return document;
+    }
 }

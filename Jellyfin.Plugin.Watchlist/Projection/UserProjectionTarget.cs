@@ -265,6 +265,61 @@ public sealed class UserProjectionTarget : IProjectionTarget
         return taken;
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// The removal half runs first, and it goes through the store's own removal rather
+    /// than through anything of its own, so an entry taken off from a client leaves by
+    /// exactly the route an entry taken off through the endpoint leaves by.
+    /// </para>
+    /// <para>
+    /// A REMOVAL THAT NAMES NO ENTRY CHANGES NOTHING, AND THAT IS THE SHOW CASE. A
+    /// series projects as one episode, so the row in the playlist carries the episode's
+    /// identifier and the list holds the show's. Somebody taking that row away is
+    /// removing an episode this list has no entry for, the store finds nothing to
+    /// remove, and the show stays. That is the answer rather than an oversight: what
+    /// they put on the list was the show, taking an episode out of a playlist is not a
+    /// statement about the show, and the next pass puts the row back - re-pointed at the
+    /// same episode, because playing is what moves it and this was not that.
+    /// </para>
+    /// <para>
+    /// The addition half is <see cref="Adopt"/>, which is the same route a first-pass
+    /// adoption takes, so a row somebody added on a client goes through the accepted-kind
+    /// rule and the list's bound exactly as one adopted from a playlist that was taken
+    /// over does.
+    /// </para>
+    /// <para>
+    /// EVERY ROW IS OFFERED TO IT, INCLUDING THE ONES THE PROJECTOR WROTE, and that is
+    /// deliberate rather than sloppy. A row the projector wrote is already an entry, so
+    /// the store refuses it as a duplicate and the count comes back as nothing. Filtering
+    /// them out first was written and then taken away again: it changed no outcome any
+    /// test could see, which makes it a second copy of the store's duplicate rule living
+    /// where a reader would take it for a rule of its own.
+    /// </para>
+    /// </remarks>
+    public PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+
+        var projected = Remembered?.ProjectedItemIds ?? [];
+        var held = rows.ToHashSet();
+        var removed = 0;
+
+        foreach (var itemId in projected)
+        {
+            if (!held.Contains(itemId) && _store.Remove(OwnerUserId, itemId).Removed)
+            {
+                removed++;
+            }
+        }
+
+        return new PlaylistEditsTaken
+        {
+            Added = Adopt(rows),
+            Removed = removed,
+        };
+    }
+
     /// <summary>
     /// The question the gate above is handed: whether this item resolves FOR THIS USER.
     /// </summary>

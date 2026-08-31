@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Jellyfin.Plugin.Watchlist.Store;
 
@@ -41,4 +42,41 @@ public sealed record WatchlistProjectionState
     /// Gets the name this plugin last wrote for that playlist.
     /// </summary>
     public required string LastNameWritten { get; init; }
+
+    /// <summary>
+    /// Gets the library items this plugin last wrote into that playlist.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// THIS IS WHAT SEPARATES AN EDIT SOMEBODY MADE FROM A PROJECTION THAT HAS NOT
+    /// HAPPENED YET, and without it the two are indistinguishable. A row in the playlist
+    /// that this plugin did not put there is somebody adding on a client. A row this
+    /// plugin DID put there and that is now gone is somebody removing on a client. An
+    /// entry on the list that is in neither is one no pass has projected yet. The three
+    /// look identical to a reader comparing only the list against the playlist, and one
+    /// of them means delete.
+    /// </para>
+    /// <para>
+    /// Empty is not the same as nothing having been written. It is what an upgraded
+    /// document carries, and it means this plugin does not know what it last wrote, so
+    /// every row it meets is read as somebody's addition. That is the safe direction:
+    /// the reading that could be wrong adds to a list rather than taking from one.
+    /// </para>
+    /// </remarks>
+    public required IReadOnlyList<Guid> ProjectedItemIds { get; init; }
+
+    /// <summary>
+    /// Gets when this plugin last wrote that set, or null where it does not know.
+    /// </summary>
+    /// <remarks>
+    /// It is recorded because the rule above has one weakness and this is the only thing
+    /// that could ever narrow it: an edit made while the server was down arrives looking
+    /// exactly like one made through the plugin, and nothing on either side carries a
+    /// time to compare. Nothing reads this today, and it is written rather than left out
+    /// so the instant exists on disk when something can use it.
+    ///
+    /// Null on a document that was upgraded, beside the empty set above, for the same
+    /// reason: not knowing is a state, and a zero instant would be a claim.
+    /// </remarks>
+    public required DateTimeOffset? WrittenAt { get; init; }
 }

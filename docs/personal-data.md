@@ -141,26 +141,37 @@ settings, and it is readable by whoever can read the file, exactly as the entrie
 are. Nothing in it is derived from the library or from what they watched.
 
 And one more block, there only for a user whose list has been projected into a
-playlist. It records which playlist that is and the name this plugin last wrote for
-it:
+playlist. It records which playlist that is, the name this plugin last wrote for it,
+and what this plugin last put in it:
 
     grep -n 'public required' Jellyfin.Plugin.Watchlist/Store/WatchlistProjectionState.cs
-    38:    public required Guid PlaylistId { get; init; }
-    43:    public required string LastNameWritten { get; init; }
+    39:    public required Guid PlaylistId { get; init; }
+    44:    public required string LastNameWritten { get; init; }
+    66:    public required IReadOnlyList<Guid> ProjectedItemIds { get; init; }
+    81:    public required DateTimeOffset? WrittenAt { get; init; }
 
-Two values, and neither is about the person. The first is an identifier the server
-minted for a playlist; the second is a name an administrator configured for every
-user on the server. What the pair says about this user is that a playlist was made
-for them, which is a thing they can already see on any client they log in to. A user
-who has never had one has no such block in their document at all, for the same reason
-the preferences block is absent for a user who answered nothing.
+THE THIRD OF THOSE IS ABOUT THE PERSON AND THE OTHER THREE ARE NOT, and the
+difference is worth stating rather than leaving to be worked out. The first is an
+identifier the server minted for a playlist. The second is a name an administrator
+configured for every user on the server. The fourth is an instant.
+
+The third is a set of library identifiers, and it is a copy of what this user's list
+projected as at the last pass. That is the same class of fact as the entries above it,
+one file away from being the same bytes, and a reader who can read one can read the
+other: it is in the same document, under the same permissions, and there is no reading
+of it that a reading of the entries does not already give. It is stored because
+without it a row added on a client and a row not yet projected are indistinguishable,
+and one of those two readings means delete.
+
+A user who has never had a playlist made has no such block in their document at all,
+for the same reason the preferences block is absent for a user who answered nothing.
 
 The whole of it on disk for a user who has answered nothing and had no playlist made,
 as the suite's own fixture holds it:
 
-    cat Jellyfin.Plugin.Watchlist.Tests/Fixtures/watchlist-document-v3.json
+    cat Jellyfin.Plugin.Watchlist.Tests/Fixtures/watchlist-document-v4.json
     {
-      "SchemaVersion": 3,
+      "SchemaVersion": 4,
       "UserId": "11111111-1111-1111-1111-111111111111",
       "Entries": [
         {
@@ -272,7 +283,7 @@ disk:
 
     grep -n 'public void TheUpgradedFormIsWrittenOnlyWhenSomethingElseChangesTheDocument' \
       Jellyfin.Plugin.Watchlist.Tests/WatchlistDocumentUpgradeTests.cs
-    327:    public void TheUpgradedFormIsWrittenOnlyWhenSomethingElseChangesTheDocument()
+    381:    public void TheUpgradedFormIsWrittenOnlyWhenSomethingElseChangesTheDocument()
 
 An uninstall leaves every document where it is; that was measured rather than assumed
 and the measurement is in [docs/uninstall.md](uninstall.md), together with what a
@@ -672,7 +683,7 @@ for this user, asked through the gate every read path goes through:
 
     grep -n '_describer.Describe' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
     241:            var described = _describer.Describe(itemId, OwnerUserId);
-    296:        public bool Exists(Guid itemId) => _describer.Describe(itemId, _userId) is not null;
+    351:        public bool Exists(Guid itemId) => _describer.Describe(itemId, _userId) is not null;
 
 An entry that arrived that way records that it came from a playlist edit rather than
 from an endpoint, which is one of the four values this page already says an entry

@@ -237,6 +237,8 @@ public sealed class ProjectedListNameTests : IDisposable
         {
             PlaylistId = playlistId,
             LastNameWritten = TheOldName,
+            ProjectedItemIds = [],
+            WrittenAt = null,
         });
 
         var result = await projector.EnsurePlaylistAsync(target, CancellationToken.None);
@@ -262,6 +264,8 @@ public sealed class ProjectedListNameTests : IDisposable
         {
             PlaylistId = playlistId,
             LastNameWritten = TheOldName,
+            ProjectedItemIds = [],
+            WrittenAt = null,
         });
 
         var result = await projector.EnsurePlaylistAsync(target, CancellationToken.None);
@@ -387,5 +391,8 @@ public sealed class ProjectedListNameTests : IDisposable
         public bool Remember(WatchlistProjectionState projection) => false;
 
         public int Adopt(IReadOnlyList<Guid> itemIds) => 0;
+
+        public PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows) =>
+            new() { Added = 0, Removed = 0 };
     }
 }

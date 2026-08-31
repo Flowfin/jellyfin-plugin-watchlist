@@ -60,4 +60,7 @@ internal sealed class AListProjectedInto : IProjectionTarget
 
     /// <inheritdoc />
     public int Adopt(IReadOnlyList<Guid> itemIds) => 0;
+
+    public PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows) =>
+        new() { Added = 0, Removed = 0 };
 }
