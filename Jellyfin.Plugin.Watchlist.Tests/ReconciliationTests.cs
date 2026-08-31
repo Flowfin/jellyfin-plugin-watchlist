@@ -291,13 +291,23 @@ public sealed class ReconciliationTests : IDisposable
     }
 
     /// <summary>
-    /// A show is on the list and is in no playlist, which is the gap #18 closes. A
-    /// server handed a folder adds its non-folder children, so projecting a show as
-    /// itself would put every episode of it into the list; until the rule that makes a
-    /// show one episode exists, the entry is kept and not projected.
+    /// A show whose episodes this library holds none of is kept on the list and appears
+    /// in no playlist.
     /// </summary>
+    /// <remarks>
+    /// THIS TEST USED TO SAY EVERY SHOW DOES THAT, and it named the gap it was waiting
+    /// on. The gap is closed: a show projects as one episode now, chosen by
+    /// <see cref="SeriesRow"/>, and what is left here is the one case where there is
+    /// nothing to choose from. The library this drives is empty of episodes, which is
+    /// what makes the assertion below true, and the rest of the rule is covered where it
+    /// lives rather than here.
+    ///
+    /// The entry staying on the list is the half that did not move: a show the library
+    /// cannot answer for is still served by the endpoints, and nothing on this route
+    /// deletes it.
+    /// </remarks>
     [Fact]
-    public async Task AShowIsKeptOnTheListAndProjectedIntoNothing()
+    public async Task AShowWithNoEpisodesIsKeptOnTheListAndProjectedIntoNothing()
     {
         var store = new WatchlistDocumentStore(DataFolder, new RecordingLogger());
         var clock = AStoppedClock();
