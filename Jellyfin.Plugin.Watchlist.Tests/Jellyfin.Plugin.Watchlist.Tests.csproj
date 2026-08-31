@@ -185,6 +185,18 @@
   </ItemGroup>
 
   <!--
+    The mutation instrument's two files: the scope the run is given, and the register
+    of what survived it with a verdict each. Embedded for the reason HEADLESS.md is -
+    a document that carries the verdicts is worth as much as the run, and nothing else
+    in this tree would notice either of them being deleted or renamed. MutationInstrumentTests
+    reads both.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="stryker-config.json" />
+    <EmbeddedResource Include="MUTATION.md" />
+  </ItemGroup>
+
+  <!--
     The invariant guard's table and register, in the same three-field shape as the
     headless pair above and read by the same scanner. They are data rather than
     source for the same reason: a .cs file holding these literals would be matched
