@@ -11,8 +11,10 @@
 # that a read of the list goes through that one function. Nothing read that claim
 # until this file existed. The projection became a third reader and did not go through
 # the gate: it asked the describer itself, which is the same predicate written a second
-# time, and every check stayed green. The scheduled pass of #24 is a fourth reader and
-# is not written yet.
+# time, and every check stayed green. The scheduled pass of #24 is written and is NOT
+# a fourth reader: it walks the users the store holds a document for and hands each one
+# to the projection target, which is the gated reader already declared below, so the
+# only read of a stored list on that route is the one this register already covers.
 #
 # THE TWO KINDS ARE NOT INTERCHANGEABLE AND THAT IS THE POINT OF TYPING THEM.
 #

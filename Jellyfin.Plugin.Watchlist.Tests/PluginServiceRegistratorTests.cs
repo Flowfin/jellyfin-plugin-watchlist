@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
@@ -9,6 +11,7 @@ using Jellyfin.Plugin.Watchlist.Store;
 using Jellyfin.Plugin.Watchlist.Users;
 using Jellyfin.Plugin.Watchlist.Watched;
 using MediaBrowser.Controller.Events;
+using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -50,7 +53,7 @@ public class PluginServiceRegistratorTests
 
         new PluginServiceRegistrator().RegisterServices(services, null!);
 
-        Assert.Equal(12, services.Count);
+        Assert.Equal(17, services.Count);
         Assert.Contains(services, d => d.ServiceType == typeof(IWatchlistItemDescriber));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdSource));
         Assert.Contains(services, d => d.ServiceType == typeof(IProviderIdIndex));
@@ -60,9 +63,72 @@ public class PluginServiceRegistratorTests
         Assert.Contains(services, d => d.ServiceType == typeof(ISeriesEpisodes));
         Assert.Contains(services, d => d.ServiceType == typeof(ISeriesCompletion));
         Assert.Contains(services, d => d.ServiceType == typeof(WatchedRemovalHandler));
+        Assert.Contains(services, d => d.ServiceType == typeof(WatchlistProjector));
+        Assert.Contains(services, d => d.ServiceType == typeof(WatchlistReconciler));
+        Assert.Contains(services, d => d.ServiceType == typeof(IPlaylistGateway));
+        Assert.Contains(services, d => d.ServiceType == typeof(WatchlistProjectionPass));
+        Assert.Contains(services, d => d.ServiceType == typeof(IScheduledTask));
         Assert.Contains(services, d => d.ServiceType == typeof(IHostedService));
         Assert.Contains(services, d => d.ServiceType == typeof(DeletedUserHandler));
         Assert.Contains(services, d => d.ServiceType == typeof(IEventConsumer<UserDeletedEventArgs>));
+    }
+
+    /// <summary>
+    /// The scheduled pass and the task the dashboard shows are both resolvable out of a
+    /// container built the way the server builds one, and the task runs the pass.
+    /// </summary>
+    /// <remarks>
+    /// The two lambdas inside those registrations are the part a call alone does not
+    /// reach, for the reason this file gives at the top: registering a lambda does not
+    /// run it, and both of these read <c>Plugin.Instance</c>. So the provider is built
+    /// and the task is executed here rather than left as lines nothing runs.
+    ///
+    /// The playlist seam is resolved as well, because it is registered by type and its
+    /// constructor takes the server's playlist manager: a registration that named a type
+    /// the container cannot build is a dashboard entry that throws the first time an
+    /// administrator presses it.
+    /// </remarks>
+    [Fact]
+    public async Task TheScheduledTaskResolvesAndRunsThePass()
+    {
+        using var paths = new ServerPathsInATemporaryDirectory();
+        var plugin = new Plugin(paths, new PluginConfigurationFile(), new RecordingPluginLogger());
+        var services = new ServiceCollection();
+
+        new PluginServiceRegistrator().RegisterServices(services, null!);
+        services.AddSingleton<ILogger<WatchlistDocumentStore>>(new RecordingLogger());
+        services.AddSingleton<ILogger<WatchlistProjectionPass>>(new RecordingPassLogger());
+        services.AddSingleton<ILogger<WatchlistProjector>>(new RecordingProjectorLogger());
+        services.AddSingleton<ILogger<WatchlistReconciler>>(new RecordingReconcilerLogger());
+        services.AddSingleton<MediaBrowser.Controller.Library.ILibraryManager>(new ALibraryOf());
+        services.AddSingleton<MediaBrowser.Controller.Library.IUserManager>(new AUserDirectoryOf());
+
+        // The seam the registrator names is asserted as a registration rather than
+        // resolved, and then replaced. Building the real adapter means building the
+        // server's playlist manager, which is exactly the width the adapter exists to
+        // keep out of everything above it; what the registration owes is that the
+        // server's container is told which implementation to use, and that is a fact
+        // about the descriptor.
+        Assert.Equal(
+            typeof(ServerPlaylistGateway),
+            Assert.Single(services, d => d.ServiceType == typeof(IPlaylistGateway)).ImplementationType);
+
+        services.AddSingleton<IPlaylistGateway>(new APlaylistServerOf());
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetRequiredService<WatchlistProjectionPass>());
+
+        var task = Assert.Single(provider.GetServices<IScheduledTask>());
+
+        Assert.Equal("WatchlistReconciliation", task.Key);
+        Assert.Single(task.GetDefaultTriggers());
+
+        // Nobody has used the plugin on this server, so the run walks no user and makes
+        // no playlist call at all. What this executes is the two lambdas above it.
+        await task.ExecuteAsync(new NobodyIsWatching(), CancellationToken.None);
+
+        Assert.Equal(PluginConfiguration.DefaultReconciliationIntervalHours, plugin.Configuration.ReconciliationIntervalHours);
     }
 
     /// <summary>
@@ -259,4 +325,16 @@ public class PluginServiceRegistratorTests
 
         Assert.Equal(new WatchlistDocumentStore(plugin.DataFolderPath).DataFolderPath, store.DataFolderPath);
     }
+
+    /// <summary>
+    /// A progress sink that keeps nothing, for the one run here that has no user to
+    /// report on.
+    /// </summary>
+    private sealed class NobodyIsWatching : IProgress<double>
+    {
+        public void Report(double value)
+        {
+        }
+    }
 }
+

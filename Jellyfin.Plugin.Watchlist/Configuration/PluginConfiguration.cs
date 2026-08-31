@@ -135,8 +135,8 @@ public class PluginConfiguration : BasePluginConfiguration
     /// shows a user nothing until somebody finds this. Turning it off stops the
     /// projection and the scheduled pass and changes no stored document, which is the
     /// promise #38 makes about a disabled plugin and is the same promise made one
-    /// setting smaller. The projection itself is M3 and is not built yet, so today this
-    /// value is read by nothing.
+    /// setting smaller. It is read by the scheduled pass, which does nothing at all when
+    /// this is off, and a test drives that rather than the sentence carrying it.
     /// </remarks>
     public bool ProjectionEnabled { get; set; }
 
@@ -168,8 +168,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     /// <remarks>
     /// The default and the reason for that number are at
-    /// <see cref="DefaultReconciliationIntervalHours"/>. The task this drives is #24
-    /// and is not built yet, so today this value is read by nothing.
+    /// <see cref="DefaultReconciliationIntervalHours"/>. It is read where the scheduled
+    /// task declares its default trigger, so this is the number of hours between runs on
+    /// a server whose administrator has not set a trigger of their own.
     /// </remarks>
     public int ReconciliationIntervalHours { get; set; }
 

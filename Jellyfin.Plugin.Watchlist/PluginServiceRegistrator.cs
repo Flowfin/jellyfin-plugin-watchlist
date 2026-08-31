@@ -9,6 +9,7 @@ using Jellyfin.Plugin.Watchlist.Watched;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -89,6 +90,29 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // user manager, and the server resolves the consumers of a type out of its
         // own container when it publishes, so this line is the whole of the
         // attachment.
+        // The scheduled pass, and the task the server finds it by. The server scans the
+        // plugin assembly for IScheduledTask and resolves what it finds out of its own
+        // container, so this registration is the whole of the attachment; without it the
+        // dashboard shows no entry and nothing converges what the events missed.
+        //
+        // The pass is registered separately from the task because it is what the suite
+        // drives. The task holds no rule of its own.
+        serviceCollection.AddSingleton<WatchlistProjector>();
+        serviceCollection.AddSingleton<WatchlistReconciler>();
+        serviceCollection.AddSingleton<IPlaylistGateway, ServerPlaylistGateway>();
+        serviceCollection.AddSingleton(provider => new WatchlistProjectionPass(
+            provider.GetRequiredService<WatchlistDocumentStore>(),
+            provider.GetRequiredService<WatchlistProjector>(),
+            provider.GetRequiredService<WatchlistReconciler>(),
+            provider.GetRequiredService<IWatchlistItemDescriber>(),
+            provider.GetRequiredService<ISeriesEpisodes>(),
+            provider.GetRequiredService<TimeProvider>(),
+            () => Plugin.Instance!.Configuration,
+            provider.GetRequiredService<ILogger<WatchlistProjectionPass>>()));
+        serviceCollection.AddSingleton<IScheduledTask>(provider => new WatchlistReconciliationTask(
+            provider.GetRequiredService<WatchlistProjectionPass>(),
+            () => Plugin.Instance!.Configuration));
+
         serviceCollection.AddSingleton<DeletedUserHandler>();
         serviceCollection.AddSingleton<IEventConsumer<UserDeletedEventArgs>, UserDeletedSubscription>();
     }

@@ -509,12 +509,13 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Thirty-nine places log at all, over eight files:
+library. Forty-one places log at all, over nine files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:7
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:11
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
+    Jellyfin.Plugin.Watchlist/Projection/WatchlistProjectionPass.cs:2
     Jellyfin.Plugin.Watchlist/Projection/WatchlistProjector.cs:7
     Jellyfin.Plugin.Watchlist/Projection/WatchlistReconciler.cs:1
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs:6
@@ -538,6 +539,15 @@ It moved to thirty-nine on #19, and the one new line is the reconciler's. It is
 written where a playlist has to be emptied and written back because its rows are in an
 order no add can reach, and it names the playlist, the user it belongs to and how many
 rows were there - no title, and nothing out of the rows themselves.
+
+It moved to forty-one on #24, in a ninth file, and both new lines are the scheduled
+pass's. THIS IS THE FIRST LINE THIS PLUGIN WRITES WITHOUT ANYBODY HAVING ASKED IT
+ANYTHING, which is why it is worth reading rather than counting. One is the summary a
+run owes: four numbers, being how many users it looked at, how many playlists it made,
+how many playlist writes it took and how many users it stepped over. It names no user
+and no item, and a test asserts the absence rather than the presence. The other says
+that a run did nothing because the projection is turned off, and carries nothing at
+all.
 
 It moved to thirty-eight on #40, and all seven new lines are the shared transfer
 controller's. Five are refusals - two about a caller the elevation policy does not
@@ -570,10 +580,10 @@ plugin refuses to read is reported with its path, and the file name is the user'
 identifier, so a refused read puts that identifier in the server log:
 
     grep -n 'Refusing to read {Path}' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
-    152:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
-    167:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
-    499:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
-    510:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    201:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+    216:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+    548:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    559:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
 
 Re-taken on the change that landed the deleted-user handler, where the last two moved
 from 414 and 425 because the deletion path went into the store above them, and again
@@ -681,21 +691,26 @@ record would appear in is #84 and is not built, so nothing on the shared list is
 visible on any client, and what that section says about who can read it is about the
 endpoints rather than about a playlist.
 
-### NONE OF THIS RUNS ON ANY SERVER
+### THIS RUNS ON A SERVER NOW, AND THIS SECTION SAID IT RUNS NOWHERE
 
-Neither the seam nor the projector is registered, so nothing in a running server can
-resolve either:
+It said neither the seam nor the projector is registered and that no playlist is
+created, renamed, read or adopted on any server running this plugin. Both are
+registered, and the scheduled pass that drives them is too:
 
     git grep -l 'IPlaylistManager' -- Jellyfin.Plugin.Watchlist
     Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
 
     git grep -nE 'PlaylistGateway|WatchlistProjector' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs ; echo "exit=$?"
-    exit=1
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:100:        serviceCollection.AddSingleton<WatchlistProjector>();
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:102:        serviceCollection.AddSingleton<IPlaylistGateway, ServerPlaylistGateway>();
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:105:            provider.GetRequiredService<WatchlistProjector>(),
+    exit=0
 
-No playlist is created, renamed, read or adopted on any server running this plugin
-today. What stands above is what the code does when something calls it, and the thing
-that would call it is the reconciliation pass, which is #19 and #24. This sentence is
-the one to re-read first when either of those lands.
+So everything above about what a projection reads and writes is now what a server
+actually does, four times a day by default, without anybody asking. What a run of it
+puts in the log is the summary under `## What reaches the server log`: four counts and
+nothing else. The shared list is still the exception - it has no playlist at all, which
+is #84 - and that is the sentence in this section that has not moved.
 
 ## What leaves the server
 
