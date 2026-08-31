@@ -56,8 +56,10 @@ scheduled pass. Turning it off does not remove a playlist that is already there.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
-Not read by anything today. The projection is M3 and is not built, so this value
-is saved and kept and drives nothing yet.
+Read by the scheduled pass, which walks no user and makes no playlist call at all
+when this is off. That is the server-wide value; the per-user preference of the same
+name is a different setting and is still read by nothing, which the section on
+per-user settings below says in its own words.
 
 ### ProjectedListName
 
@@ -204,7 +206,9 @@ its own setting.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
-Not read by anything today. The scheduled task is #24 and is not built.
+Read by the scheduled task, where it becomes the default trigger's interval. An
+administrator who sets a trigger of their own in the dashboard keeps theirs; this is
+what the server uses when it has none stored for the task.
 
 ### SharedListEnabled
 

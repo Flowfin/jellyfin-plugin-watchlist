@@ -18,21 +18,19 @@ absence to be visible.
 
 ## Why there is nothing to record yet
 
-Nothing on a running server makes a playlist. Both halves of the projection are
-built and no route the server takes constructs either of them. What the plugin
-registers out of that namespace is one seam, the one answering what a series holds
-for a user, which the read rule asks and which makes no playlist:
+A RUNNING SERVER DOES MAKE PLAYLISTS NOW, AND THIS PARAGRAPH SAID IT MAKES NONE.
+The pass that reconciles every user's projection is registered, and the server finds
+what runs it by scanning this assembly for the scheduled-task interface:
 
-    git grep -n 'Projection' -- Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs
-    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs:5:using Jellyfin.Plugin.Watchlist.Projection;
+    git grep -l 'IScheduledTask' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/PluginServiceRegistrator.cs
+    Jellyfin.Plugin.Watchlist/Projection/WatchlistReconciliationTask.cs
 
-    git grep -n 'new WatchlistProjector(\|new WatchlistReconciler(' -- Jellyfin.Plugin.Watchlist/ ; echo "exit=$?"
-    exit=1
-
-So a person opening any client against a server carrying this plugin would find no
-list, and a row here saying so would describe the absence of the scheduled pass
-rather than the client. What changes that is the pass that runs the projection,
-which is #24.
+So the reason this table is empty has moved and is now the plainer one: no server has
+ever loaded this plugin. Nothing has been published from this repository, and nothing
+here starts a server of its own - the harness that boots a stock one in a container is
+#52 and where it runs is #62. A row written today would have to be written from a
+screen nobody has seen, which is the substitution this register exists against.
 
 The endpoints are a different matter and are not what this page is about. They are
 covered by the suite and by the server the interoperability job boots; a client

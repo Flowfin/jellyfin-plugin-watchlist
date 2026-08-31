@@ -1,6 +1,7 @@
 using System;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Watchlist.Api;
+using Jellyfin.Plugin.Watchlist.Configuration;
 using Jellyfin.Plugin.Watchlist.Export;
 using Jellyfin.Plugin.Watchlist.Projection;
 using Jellyfin.Plugin.Watchlist.Store;
@@ -9,6 +10,7 @@ using Jellyfin.Plugin.Watchlist.Watched;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -63,6 +65,22 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // would hand every later request the cap that was set when the server started.
         serviceCollection.AddScoped(_ => Plugin.Instance!.Configuration);
 
+        // The same settings as a QUESTION rather than as a value, and it is a
+        // registration of its own because of how the server builds a scheduled task. It
+        // does not resolve the IScheduledTask registration below: it finds the type by
+        // scanning this assembly and ACTIVATES it, so every constructor parameter has to
+        // be resolvable on its own. A task holding a captured configuration would carry
+        // the one in force when the server started, which is why the parameter is a Func
+        // rather than the object the line above registers.
+        //
+        // Measured rather than reasoned. Without this line the server logged
+        // "Error creating ... WatchlistReconciliationTask" at start-up and listed the
+        // plugin as Malfunctioned; the interoperability boot caught that and no test here
+        // could, because every test resolved the registration and the server does not.
+        // Whether a SCOPED registration of this delegate would fail the same way was not
+        // evaluated on a server, and the test beside it does not separate the two.
+        serviceCollection.AddSingleton<Func<PluginConfiguration>>(_ => () => Plugin.Instance!.Configuration);
+
         serviceCollection.AddSingleton(provider => new WatchlistDocumentStore(
             Plugin.Instance!.DataFolderPath,
             provider.GetRequiredService<ILogger<WatchlistDocumentStore>>()));
@@ -83,6 +101,29 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             provider.GetRequiredService<ILogger<WatchedRemovalHandler>>()));
 
         serviceCollection.AddHostedService<UserDataWatchedSubscription>();
+
+        // The scheduled pass and the task the dashboard shows. The server finds a task
+        // by scanning this assembly for the interface and ACTIVATES the type against its
+        // own container rather than resolving the registration, so what makes the entry
+        // appear is every constructor parameter being resolvable and not this line. The
+        // line is here anyway, because a registration is what says which implementation
+        // is meant and it is what a test can read.
+        //
+        // The pass is registered separately from the task because it is what the suite
+        // drives. The task holds no rule of its own.
+        serviceCollection.AddSingleton<WatchlistProjector>();
+        serviceCollection.AddSingleton<WatchlistReconciler>();
+        serviceCollection.AddSingleton<IPlaylistGateway, ServerPlaylistGateway>();
+        serviceCollection.AddSingleton(provider => new WatchlistProjectionPass(
+            provider.GetRequiredService<WatchlistDocumentStore>(),
+            provider.GetRequiredService<WatchlistProjector>(),
+            provider.GetRequiredService<WatchlistReconciler>(),
+            provider.GetRequiredService<IWatchlistItemDescriber>(),
+            provider.GetRequiredService<ISeriesEpisodes>(),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<Func<PluginConfiguration>>(),
+            provider.GetRequiredService<ILogger<WatchlistProjectionPass>>()));
+        serviceCollection.AddSingleton<IScheduledTask, WatchlistReconciliationTask>();
 
         // What happens to a deleted user's list, and how the server says so. The
         // deletion arrives through the event manager rather than as an event on the

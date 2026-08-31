@@ -109,6 +109,55 @@ public sealed class WatchlistDocumentStore
         string.Format(CultureInfo.InvariantCulture, "{0}.json", userId.ToString("N", CultureInfo.InvariantCulture)));
 
     /// <summary>
+    /// Every user this store holds a document for.
+    /// </summary>
+    /// <returns>Their identifiers, in no stated order.</returns>
+    /// <remarks>
+    /// <para>
+    /// THE POPULATION IS THE STORE'S AND NOT THE SERVER'S, and that is the whole reason
+    /// this is here rather than a caller asking the user manager. A user who has never
+    /// used the plugin has nothing to project, so a pass driven from the server's user
+    /// list would read a document, find nothing and move on, once per user per run, on
+    /// a server where the plugin is installed and unused. Driven from here it does no
+    /// work at all.
+    /// </para>
+    /// <para>
+    /// It is on the store because the store is the only part of this plugin that
+    /// touches the file system, which is an invariant a guard refuses a second file
+    /// under. The name of a document is its user's identifier, so this reads the folder
+    /// and parses the names rather than holding a second index that could disagree with
+    /// what is on disk.
+    /// </para>
+    /// <para>
+    /// A folder that is not there is no users, which is a server where nothing has been
+    /// written yet rather than an error. A name that is not an identifier is skipped:
+    /// the shared list's document sits in the same folder under a name of its own, and
+    /// so would anything else somebody dropped there.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<Guid> UsersWithADocument()
+    {
+        if (!Directory.Exists(_dataFolderPath))
+        {
+            return [];
+        }
+
+        var users = new List<Guid>();
+
+        foreach (var path in Directory.EnumerateFiles(_dataFolderPath, "*.json"))
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+
+            if (Guid.TryParseExact(name, "N", out var userId))
+            {
+                users.Add(userId);
+            }
+        }
+
+        return users;
+    }
+
+    /// <summary>
     /// Reads one user's document.
     /// </summary>
     /// <param name="userId">The user.</param>
