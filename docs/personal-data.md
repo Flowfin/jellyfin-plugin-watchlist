@@ -656,10 +656,13 @@ under where the list appears. Two things follow for this page.
 Its rows are READ INTO the store, so items somebody put on a hand-made playlist become
 entries on their watchlist. Each goes through the same describer the endpoints use, so
 what is recorded is what the library says that item is FOR THAT USER, and a row they
-may not see is left off:
+may not see is left off. The describer is asked in exactly two places in that file, and
+the second is the other direction of the same question - what the playlist should hold
+for this user, asked through the gate every read path goes through:
 
     grep -n '_describer.Describe' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
     198:            var described = _describer.Describe(itemId, OwnerUserId);
+    253:        public bool Exists(Guid itemId) => _describer.Describe(itemId, _userId) is not null;
 
 An entry that arrived that way records that it came from a playlist edit rather than
 from an endpoint, which is one of the four values this page already says an entry
