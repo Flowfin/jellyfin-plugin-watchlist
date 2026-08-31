@@ -75,6 +75,24 @@ public interface IProjectionTarget
     IReadOnlyList<Guid> Wanted { get; }
 
     /// <summary>
+    /// Gets a value indicating whether every user of the server may see this target's
+    /// playlist.
+    /// </summary>
+    /// <remarks>
+    /// False for a list of one person's own, which is what a private watchlist is, and
+    /// true for the one list the whole server shares. It is a property of the TARGET
+    /// rather than a question the pass answers, because whose list it is is the only
+    /// thing that decides it, and the pass would otherwise have to know which kind of
+    /// target it was handed - which is the knowledge this interface exists to take away
+    /// from it.
+    ///
+    /// READ VISIBILITY AND NOTHING ELSE. Nothing here says anybody may EDIT the
+    /// playlist, and the seam that acts on this says why in its own words: who may add to
+    /// a shared list and who may take from it is a pair a playlist share cannot express.
+    /// </remarks>
+    bool IsOpenToEveryone { get; }
+
+    /// <summary>
     /// Gets a value indicating whether the record that remembers this target's
     /// playlist could be read at all.
     /// </summary>
@@ -155,4 +173,21 @@ public interface IProjectionTarget
     /// </para>
     /// </remarks>
     PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows);
+
+    /// <summary>
+    /// Reads the record again and answers a target standing for what it says now.
+    /// </summary>
+    /// <returns>A target for the same list, made afresh.</returns>
+    /// <remarks>
+    /// A target is a snapshot taken when it is made, which is what stops one pass seeing
+    /// two states of one document. Taking the edits a client made changes that document,
+    /// so what is reconciled afterwards has to be a target made after them, and this is
+    /// how a caller asks for one without knowing which kind of list it is holding.
+    ///
+    /// It is TOTAL. A record that has gone between the two reads answers a target whose
+    /// record is unavailable rather than nothing at all, because the alternative is a
+    /// branch at every call site for a case no test can reach and every reader has to
+    /// think about.
+    /// </remarks>
+    IProjectionTarget Reread();
 }

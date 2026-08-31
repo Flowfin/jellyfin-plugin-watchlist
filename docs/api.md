@@ -315,10 +315,14 @@ question is answered, so what it does cannot depend on which administrator asked
 
 Removed and never-there stay one answer, as everywhere else on this surface.
 
-What it removes is the shared record and nothing else. This plugin projects no
-shared playlist today, so there is none for the removal to take with it; the
-projection that exists is per user and is not this list. The sentence naming what
-happens to a shared playlist belongs here on the day there is one, which is #84.
+What it removes is the shared record and nothing else, and since #84 there IS something
+else it does not remove. The shared list is projected into a playlist now, and taking the
+record away leaves that playlist on the server: the identifier of it was held in the
+record, so once the record is gone nothing in this plugin knows which playlist it was.
+What every user of the server is left with is a playlist they can still see, under the
+name the shared list had, that nothing manages any more - an administrator removes it the
+way they would remove any playlist. That is a consequence of this route rather than a
+decision taken here, it is #301, and it is written down rather than left to be met.
 
 Nothing about a user's own list moves. Removing the shared list is not a way to
 reach anybody's private one, and no private document is read or written by it.

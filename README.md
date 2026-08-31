@@ -222,12 +222,19 @@ repository, and the harness that would boot a stock server in a container is not
 built. [docs/client-verification.md](docs/client-verification.md) is the register
 where a row would go, it is empty, and it says so first.
 
-The shared list is where the projection stops. The shared record, the setting that
-turns it on, the endpoints that read and change it, the administrative surface that
-makes it and takes it away, and the pair that carries it between servers are all
-here, and what is absent is the playlist it would appear in - so a shared list is
-reachable over the API and appears on no client. That, and the verification above,
-is why there is no release.
+The shared list is projected too, and this paragraph said that is where the projection
+stops. Where an administrator has turned it on and made one, it appears as a playlist
+owned by them that the server shows to every user, and the plugin never gives anybody
+permission to edit it: adding to the shared list and taking things off it go through
+the plugin's own endpoints, where who is asking is known.
+
+Two things about it are worth knowing before turning it on. What goes on it is decided
+by what the administrator whose list it is can see, so a user may meet the name of
+something they cannot play - a playlist holds the same rows for everybody. And removing
+the shared list leaves its playlist behind on the server for everybody, which is
+[#301](https://github.com/Flowfin/jellyfin-plugin-watchlist/issues/301).
+
+The verification above is why there is no release.
 
 One of the two server lines above is not built either. The plugin compiles
 against the 10.11 package set, on the framework that line runs, and the packaging

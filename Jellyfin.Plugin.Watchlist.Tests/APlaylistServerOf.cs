@@ -31,6 +31,7 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
     private readonly Dictionary<Guid, List<ProjectedPlaylist>> _byOwner = [];
     private readonly Dictionary<Guid, List<ProjectedPlaylistEntry>> _rows = [];
     private readonly List<string> _calls = [];
+    private readonly HashSet<Guid> _openToEveryone = [];
 
     private int _minted;
     private int _rowsMinted;
@@ -60,7 +61,8 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
         call.StartsWith("create ", StringComparison.Ordinal)
         || call.StartsWith("rename ", StringComparison.Ordinal)
         || call.StartsWith("add ", StringComparison.Ordinal)
-        || call.StartsWith("remove ", StringComparison.Ordinal));
+        || call.StartsWith("remove ", StringComparison.Ordinal)
+        || call.StartsWith("open ", StringComparison.Ordinal));
 
     /// <summary>
     /// Gets how many playlists were created through this.
@@ -212,6 +214,26 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
         _calls.Add(string.Format(CultureInfo.InvariantCulture, "remove {0} {1}", playlistId, entryIds.Count));
 
         RowsOf(playlistId).RemoveAll(row => entryIds.Contains(row.EntryId));
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public bool IsOpenToEveryone(Guid playlistId, Guid ownerUserId) =>
+        Owned(ownerUserId).Any(playlist => playlist.PlaylistId == playlistId)
+        && _openToEveryone.Contains(playlistId);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// It APPLIES the call as well as counting it, so a second pass asks the question
+    /// above and gets the answer the first pass produced. A fake that only counted would
+    /// let a projection that opens the playlist on every run look exactly like one that
+    /// opens it once.
+    /// </remarks>
+    public Task OpenToEveryoneAsync(Guid playlistId, Guid ownerUserId, CancellationToken cancellationToken)
+    {
+        _calls.Add(string.Format(CultureInfo.InvariantCulture, "open {0}", playlistId));
+        _openToEveryone.Add(playlistId);
 
         return Task.CompletedTask;
     }

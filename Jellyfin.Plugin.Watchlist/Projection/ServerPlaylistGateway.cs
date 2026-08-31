@@ -110,6 +110,35 @@ public sealed class ServerPlaylistGateway : IPlaylistGateway
 
     /// <inheritdoc />
     /// <remarks>
+    /// The server's own word for it is that the playlist is public, and its visibility
+    /// rule reads that first: a public playlist is visible to every user, and only a
+    /// playlist that is not public falls through to the list of named shares. So one
+    /// value answers this and nothing here walks a share list.
+    ///
+    /// A playlist this user does not own answers false, because the read that finds it
+    /// is asked as them.
+    /// </remarks>
+    public bool IsOpenToEveryone(Guid playlistId, Guid ownerUserId) =>
+        _playlists.GetPlaylistForUser(playlistId, ownerUserId)?.OpenAccess == true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// One field on the update the rename already uses. The users of the playlist are
+    /// not named in this request and are therefore not changed, which is the half that
+    /// matters: this makes a playlist readable by everybody and gives nobody permission
+    /// to edit it.
+    /// </remarks>
+    public async Task OpenToEveryoneAsync(Guid playlistId, Guid ownerUserId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await _playlists
+            .UpdatePlaylist(new PlaylistUpdateRequest { Id = playlistId, UserId = ownerUserId, Public = true })
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// THIS LINE CANNOT HONOUR A POSITION AND IT APPENDS INSTEAD: the 10.11 playlist
     /// interface takes no insert position, so a position handed to this implementation
     /// is discarded and the items go on the end. What that costs for ordering is #19's,

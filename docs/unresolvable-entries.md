@@ -35,17 +35,27 @@ to:
 
 So the rule is about a read that PRESENTS the list. Which file is which, and the
 reason for each one, is in
-`Jellyfin.Plugin.Watchlist.Tests/VISIBILITY-GATE-READERS.txt`. It declares six
-readers, and the gate is named in three files:
+`Jellyfin.Plugin.Watchlist.Tests/VISIBILITY-GATE-READERS.txt`. It declares seven
+readers, and the gate is named in four files:
 
     git grep -c 'WatchlistVisibility' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:2
+    Jellyfin.Plugin.Watchlist/Projection/SharedProjectionTarget.cs:1
     Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs:2
     Jellyfin.Plugin.Watchlist/Store/WatchlistVisibility.cs:1
 
-The gap between the six and the three is the point of the register rather than a
-defect in it: three of the six read the document for something other than showing
+The gap between the seven and the four is the point of the register rather than a
+defect in it: three of the seven read the document for something other than showing
 a list, and the register is where each of them says which.
+
+THE SHARED LIST ASKS THE GATE ABOUT A DIFFERENT PERSON, and that is worth reading
+twice. A private list is gated for the user whose list it is. The shared one is gated
+for its OWNER, the administrator who made it, because a playlist holds the same rows
+for everybody who can see it and there is no per-reader answer for it to carry. What
+that means for a reader who cannot open one of those items is that they see the row
+and the server refuses them at play time. The rule about skipping is the same
+function either way; whose eyes it is asked for is the difference, and it is argued
+in `SharedProjectionTarget`.
 
 ## What refuses a bypass
 

@@ -492,6 +492,10 @@ public sealed class ProjectionTests : IDisposable
 
         public bool IsRecordAvailable => true;
 
+        public bool IsOpenToEveryone => false;
+
+        public IProjectionTarget Reread() => this;
+
         public WatchlistProjectionState? Remembered { get; private set; }
 
         public IReadOnlyList<Guid> Adopted { get; private set; } = [];
@@ -536,6 +540,10 @@ public sealed class ProjectionTests : IDisposable
         public IReadOnlyList<Guid> Wanted => [];
 
         public bool IsRecordAvailable => true;
+
+        public bool IsOpenToEveryone => false;
+
+        public IProjectionTarget Reread() => this;
 
         public WatchlistProjectionState? Remembered => null;
 

@@ -339,6 +339,10 @@ public sealed class PlaylistAdoptionTests : IDisposable
 
         public bool IsRecordAvailable => true;
 
+        public bool IsOpenToEveryone => false;
+
+        public IProjectionTarget Reread() => this;
+
         public WatchlistProjectionState? Remembered => null;
 
         public IReadOnlyList<Guid> Adopted { get; private set; } = [];

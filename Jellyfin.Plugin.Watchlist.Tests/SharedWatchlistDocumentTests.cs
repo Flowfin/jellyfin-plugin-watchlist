@@ -314,14 +314,14 @@ public sealed class SharedWatchlistDocumentTests : IDisposable
         var logger = new RecordingLogger();
         var store = new WatchlistDocumentStore(DataFolder, logger);
 
-        var fromBelow = StoredAtVersion(SharedWatchlistDocument.CurrentSchemaVersion - 1);
+        var fromBelow = StoredAtVersion(WatchlistDocumentUpgrades.OldestReadableSharedSchemaVersion - 1);
         WriteSharedTextDirectly(store, fromBelow);
 
         var read = store.ReadShared();
 
         Assert.True(read.Exists);
         Assert.False(read.IsAvailable);
-        Assert.Equal(SharedWatchlistDocument.CurrentSchemaVersion - 1, read.StoredSchemaVersion);
+        Assert.Equal(WatchlistDocumentUpgrades.OldestReadableSharedSchemaVersion - 1, read.StoredSchemaVersion);
         Assert.Equal(fromBelow, File.ReadAllText(store.SharedListPath), StringComparer.Ordinal);
         Assert.Contains(
             logger.Lines,
@@ -333,16 +333,53 @@ public sealed class SharedWatchlistDocumentTests : IDisposable
     }
 
     /// <summary>
-    /// The chain the version rule asks, read directly. It reaches the version this
-    /// plugin writes and nothing below it, and it refuses a version above.
+    /// The one step this record's chain carries, and what it does to a version 1
+    /// document: nothing, because the block version 2 added is written only once a
+    /// projection has been made and a version 1 document was written before this plugin
+    /// could make one.
     /// </summary>
+    /// <remarks>
+    /// The step is named as well as run. A chain that reached the current version by some
+    /// other route would satisfy the reachability test above and not this one.
+    /// </remarks>
     [Fact]
-    public void TheSharedChainReachesTheCurrentVersionAndNothingElse()
+    public void TheOneSharedStepComesFromVersionOneAndChangesNothing()
+    {
+        Assert.Equal([1], WatchlistDocumentUpgrades.SharedSteps.Keys.OrderBy(key => key).ToArray());
+
+        var stored = System.Text.Json.Nodes.JsonNode
+            .Parse(StoredAtVersion(WatchlistDocumentUpgrades.OldestReadableSharedSchemaVersion))!
+            .AsObject();
+
+        var brought = WatchlistDocumentUpgrades.BringSharedForward(
+            stored,
+            WatchlistDocumentUpgrades.OldestReadableSharedSchemaVersion);
+
+        Assert.Equal(SharedWatchlistDocument.CurrentSchemaVersion, brought["SchemaVersion"]!.GetValue<int>());
+        Assert.False(brought.ContainsKey("Projection"));
+    }
+
+    /// <summary>
+    /// The chain the version rule asks, read directly. It reaches the version this plugin
+    /// writes from the oldest version this record ever had, and it refuses a version
+    /// below that one and a version above the current one.
+    /// </summary>
+    /// <remarks>
+    /// THIS ASSERTED THE CHAIN WAS EMPTY, WHICH WAS A FACT ABOUT THE DAY RATHER THAN A
+    /// RULE. It also asked whether one version below the current one is reachable and
+    /// expected no; while there were no steps that was the same question as the one below
+    /// the oldest readable version, and it stopped being so the moment a step existed.
+    /// Both halves are asked of the constants that decide them now.
+    /// </remarks>
+    [Fact]
+    public void TheSharedChainReachesTheCurrentVersionFromTheOldestReadableOne()
     {
         Assert.True(WatchlistDocumentUpgrades.CanBringSharedForward(SharedWatchlistDocument.CurrentSchemaVersion));
-        Assert.False(WatchlistDocumentUpgrades.CanBringSharedForward(SharedWatchlistDocument.CurrentSchemaVersion - 1));
+        Assert.True(WatchlistDocumentUpgrades.CanBringSharedForward(
+            WatchlistDocumentUpgrades.OldestReadableSharedSchemaVersion));
+        Assert.False(WatchlistDocumentUpgrades.CanBringSharedForward(
+            WatchlistDocumentUpgrades.OldestReadableSharedSchemaVersion - 1));
         Assert.False(WatchlistDocumentUpgrades.CanBringSharedForward(SharedWatchlistDocument.CurrentSchemaVersion + 1));
-        Assert.Empty(WatchlistDocumentUpgrades.SharedSteps);
     }
 
     /// <summary>
@@ -367,7 +404,7 @@ public sealed class SharedWatchlistDocumentTests : IDisposable
 
         Assert.Throws<InvalidOperationException>(() => WatchlistDocumentUpgrades.BringSharedForward(
             stored,
-            SharedWatchlistDocument.CurrentSchemaVersion - 1));
+            WatchlistDocumentUpgrades.OldestReadableSharedSchemaVersion - 1));
     }
 
     /// <summary>
