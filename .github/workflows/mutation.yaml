@@ -1,0 +1,126 @@
+# Mutation testing over the store, the reconciler and the series rule.
+#
+# Coverage says a line ran. This says the suite would have NOTICED it being wrong,
+# which is a different question and the only instrument that asks it. The three
+# subjects are chosen rather than the tree: a difference calculation, an on-disk
+# format and a completion rule are where an off-by-one hides behind a green
+# coverage number, and running the instrument over everything else would spend a
+# quarter of an hour to report that a record's property returns its own field.
+#
+# The scope is in Jellyfin.Plugin.Watchlist.Tests/stryker-config.json rather than
+# here, for the reason the coverage floor lives in the test project: the scope
+# belongs next to the suite it is about and has to be the same for somebody running
+# the command on their own machine. Nothing in this workflow knows what the subjects
+# are.
+#
+# IT REPORTS AND IT NEVER GATES. There is no pull_request trigger below and there is
+# not going to be one: a mutation score that blocks a merge is a number people learn
+# to raise rather than a question about the suite, and the run costs minutes rather
+# than seconds. docs/parity.md carries that decision in the row for this instrument,
+# and a test in the suite refuses the trigger being added here by accident.
+#
+# What the run reads afterwards is Jellyfin.Plugin.Watchlist.Tests/MUTATION.md,
+# which carries the surviving mutants with a verdict each. A score with no triage
+# behind it is a number nobody acts on.
+name: Mutation
+
+on:
+  # Sunday, early. Weekly rather than on every push because the answer moves when
+  # the suite or the three subjects move, which is not every commit, and the run is
+  # minutes rather than seconds.
+  schedule:
+    - cron: "17 4 * * 0"
+  workflow_dispatch:
+
+# Deny everything at the workflow level; the job below takes only what it reads.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: Mutation score
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Say which server lines this run covers
+        # The same probe every other leg runs first, and for the same reason: this
+        # repository claims two supported server lines and carries a package set for
+        # one, so a score taken here is a score for half of what is supported.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh --prove-it-bites
+          echo
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Take the reading
+        # `--break-at 0` is what makes this report rather than gate. Stryker exits
+        # non-zero when the score falls under the break threshold, and zero is the
+        # only value that never does.
+        run: |
+          set -euo pipefail
+          dotnet tool install --global dotnet-stryker
+          dotnet restore
+          dotnet stryker \
+            --config-file Jellyfin.Plugin.Watchlist.Tests/stryker-config.json \
+            --output "${RUNNER_TEMP}/mutation" \
+            --break-at 0
+
+      - name: Refuse a run that produced no report
+        # A SILENTLY BROKEN INSTRUMENT READS EXACTLY LIKE A CLEAN ONE. The step above
+        # can end green having mutated nothing - a scope that matched no file, a tool
+        # that changed its output path, a build that produced no assembly to mutate -
+        # and the only difference a reader would see is a log they did not open. So
+        # the report is required to exist, to hold mutants, and to hold them for the
+        # subjects the scope names.
+        #
+        # This is the leg that fails loudly, and it is deliberately the only one: the
+        # score itself never fails this job.
+        run: |
+          set -euo pipefail
+          report="${RUNNER_TEMP}/mutation/reports/mutation-report.json"
+
+          if [ ! -s "$report" ]; then
+            echo "No mutation report at $report. The run produced nothing to read." >&2
+            exit 1
+          fi
+
+          tested=$(python3 - "$report" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              report = json.load(handle)
+          statuses = [m["status"] for f in report["files"].values() for m in f["mutants"]]
+          print(sum(1 for s in statuses if s not in ("Ignored", "CompileError")))
+          PY
+          )
+
+          if [ "$tested" -eq 0 ]; then
+            echo "The report holds no tested mutant. The scope matched nothing." >&2
+            exit 1
+          fi
+
+          echo "Tested mutants in the report: $tested"
+
+      - name: Keep the report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: mutation-report
+          path: ${{ runner.temp }}/mutation/reports/
+          if-no-files-found: warn

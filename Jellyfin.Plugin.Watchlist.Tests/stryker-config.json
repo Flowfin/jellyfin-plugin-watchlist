@@ -1,0 +1,12 @@
+{
+  "stryker-config": {
+    "project": "Jellyfin.Plugin.Watchlist.csproj",
+    "mutate": [
+      "**/Store/*.cs",
+      "**/Projection/WatchlistReconciler.cs",
+      "**/Watched/LibrarySeriesCompletion.cs"
+    ],
+    "reporters": ["html", "json", "progress"],
+    "thresholds": { "high": 100, "low": 100, "break": 0 }
+  }
+}
