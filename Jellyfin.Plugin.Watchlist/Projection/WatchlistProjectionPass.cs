@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Watchlist.Api;
@@ -52,6 +53,7 @@ public sealed class WatchlistProjectionPass
     private readonly WatchlistDocumentStore _store;
     private readonly WatchlistProjector _projector;
     private readonly WatchlistReconciler _reconciler;
+    private readonly IPlaylistGateway _playlists;
     private readonly IWatchlistItemDescriber _describer;
     private readonly ISeriesEpisodes _episodes;
     private readonly TimeProvider _clock;
@@ -64,6 +66,8 @@ public sealed class WatchlistProjectionPass
     /// <param name="store">The store, which is also where the population comes from.</param>
     /// <param name="projector">Which playlist a list belongs in.</param>
     /// <param name="reconciler">What is inside that playlist.</param>
+    /// <param name="playlists">The seam the rows are read through, before the list is
+    /// reconciled against them.</param>
     /// <param name="describer">What a library item is, for one user.</param>
     /// <param name="episodes">What a series holds, for one user.</param>
     /// <param name="clock">The clock an adopted entry is stamped from.</param>
@@ -76,6 +80,7 @@ public sealed class WatchlistProjectionPass
         WatchlistDocumentStore store,
         WatchlistProjector projector,
         WatchlistReconciler reconciler,
+        IPlaylistGateway playlists,
         IWatchlistItemDescriber describer,
         ISeriesEpisodes episodes,
         TimeProvider clock,
@@ -85,6 +90,7 @@ public sealed class WatchlistProjectionPass
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(projector);
         ArgumentNullException.ThrowIfNull(reconciler);
+        ArgumentNullException.ThrowIfNull(playlists);
         ArgumentNullException.ThrowIfNull(describer);
         ArgumentNullException.ThrowIfNull(episodes);
         ArgumentNullException.ThrowIfNull(clock);
@@ -94,6 +100,7 @@ public sealed class WatchlistProjectionPass
         _store = store;
         _projector = projector;
         _reconciler = reconciler;
+        _playlists = playlists;
         _describer = describer;
         _episodes = episodes;
         _clock = clock;
@@ -196,9 +203,26 @@ public sealed class WatchlistProjectionPass
             return (0, 0, 1);
         }
 
+        var playlistId = projection.Projection.PlaylistId;
+
+        // THE PLAYLIST IS READ INTO THE LIST BEFORE THE LIST IS WRITTEN INTO THE
+        // PLAYLIST, and the order is the whole of it. A pass that reconciled first would
+        // undo on a television exactly what somebody had just done there, and they would
+        // watch it happen.
+        target.TakeEdits(_playlists.EntriesOf(playlistId, target.OwnerUserId)
+            .Select(row => row.ItemId)
+            .ToList());
+
+        // A second target, because a target is a snapshot taken when it is made and the
+        // line above has just changed the document it was made from. Reconciling the
+        // first one would write the list as it stood before the edits were taken.
+        var written = UserProjectionTarget.For(_store, configuration, _describer, _episodes, _clock, userId);
+
         var reconciliation = await _reconciler
-            .ReconcileAsync(target, projection.Projection.PlaylistId, cancellationToken)
+            .ReconcileAsync(written, playlistId, cancellationToken)
             .ConfigureAwait(false);
+
+        Record(written, projection.Projection);
 
         var created = projection.Outcome == ProjectionOutcome.Created ? 1 : 0;
 
@@ -213,4 +237,36 @@ public sealed class WatchlistProjectionPass
 
         return (created, writes, 0);
     }
+
+    /// <summary>
+    /// Writes down what this pass put in the playlist, so the next one can tell an edit
+    /// from a projection.
+    /// </summary>
+    /// <param name="target">The target that was reconciled.</param>
+    /// <param name="projection">The playlist it was reconciled into, as the projector
+    /// settled it. It is handed in rather than read off the target again because the
+    /// projector has already established that it exists, and reading it back would put a
+    /// branch here that no input can take.</param>
+    /// <remarks>
+    /// WITHOUT THIS EVERY PASS READS EVERY ROW AS SOMEBODY'S ADDITION, which is harmless
+    /// on its own - the store refuses the duplicate - and makes a removal on a client
+    /// unreadable forever, because nothing is ever recorded as having been written.
+    ///
+    /// What is recorded is what the target ASKED for rather than what the seam confirmed,
+    /// and the difference is a bound rather than a detail. The reconciler answers how
+    /// many rows moved and not which, so a pass that failed part way through would record
+    /// more than it wrote; it does not fail part way through silently, because a failure
+    /// on that seam leaves this method unreached and the record unchanged, and the next
+    /// pass then reads the rows it did write as additions rather than as removals. That
+    /// is the safe direction again.
+    ///
+    /// A record that cannot be written is not an error here. It is the same unavailable
+    /// document the pass already counts, and the next pass meets it at the top.
+    /// </remarks>
+    private void Record(UserProjectionTarget target, WatchlistProjectionState projection) =>
+        target.Remember(projection with
+        {
+            ProjectedItemIds = target.Wanted,
+            WrittenAt = _clock.GetUtcNow(),
+        });
 }

@@ -13,7 +13,7 @@ public sealed record WatchlistDocument
     /// The version this plugin writes. A document carrying a higher number was
     /// written by a newer plugin than the one reading it.
     /// </summary>
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     /// <summary>
     /// Gets the schema version the document was written with.

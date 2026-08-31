@@ -181,6 +181,60 @@ public sealed class WatchlistDocumentUpgradeTests : IDisposable
     }
 
     /// <summary>
+    /// A version 3 document that HAS a projection block comes forward with the two
+    /// members version 4 added, and the values say that the plugin does not know what it
+    /// last wrote rather than guessing.
+    /// </summary>
+    /// <remarks>
+    /// The direction matters more than the shape and is the reason this is a test rather
+    /// than a reading of the step. An empty set means every row now in the playlist is
+    /// one this plugin did not write, so the first pass after an upgrade ADOPTS them.
+    /// The opposite filling - claiming the list's own entries were written - would make
+    /// that pass read every entry the playlist does not hold as a removal, and delete
+    /// them.
+    /// </remarks>
+    [Fact]
+    public void AVersionThreeDocumentWithAProjectionGainsAnEmptySetAndNoInstant()
+    {
+        var document = new JsonObject
+        {
+            ["SchemaVersion"] = 3,
+            ["UserId"] = "11111111-1111-1111-1111-111111111111",
+            ["Entries"] = new JsonArray(),
+            ["Projection"] = new JsonObject
+            {
+                ["PlaylistId"] = "dddddddd-0000-0000-0000-000000000001",
+                ["LastNameWritten"] = "Watchlist (plugin)",
+            },
+        };
+
+        var brought = WatchlistDocumentUpgrades.BringForward(document, 3);
+        var projection = Assert.IsType<JsonObject>(brought["Projection"]);
+
+        Assert.Empty(Assert.IsType<JsonArray>(projection["ProjectedItemIds"]));
+        Assert.Null(projection["WrittenAt"]);
+    }
+
+    /// <summary>
+    /// And a version 3 document with no projection block gains nothing, because there is
+    /// no playlist to have written anything into.
+    /// </summary>
+    [Fact]
+    public void AVersionThreeDocumentWithNoProjectionGainsNothing()
+    {
+        var document = new JsonObject
+        {
+            ["SchemaVersion"] = 3,
+            ["UserId"] = "11111111-1111-1111-1111-111111111111",
+            ["Entries"] = new JsonArray(),
+        };
+
+        var brought = WatchlistDocumentUpgrades.BringForward(document, 3);
+
+        Assert.False(brought.ContainsKey("Projection"));
+    }
+
+    /// <summary>
     /// The chain this plugin ships reaches the version it writes from the oldest
     /// version it claims to read.
     /// </summary>

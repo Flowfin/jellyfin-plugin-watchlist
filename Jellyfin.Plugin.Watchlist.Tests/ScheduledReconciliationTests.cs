@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -372,6 +373,7 @@ public sealed class ScheduledReconciliationTests : IDisposable
             null!,
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
             new ADescriberOf(),
             new ASeriesLibraryOf(),
             AStoppedClock(),
@@ -382,6 +384,7 @@ public sealed class ScheduledReconciliationTests : IDisposable
             store,
             null!,
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
             new ADescriberOf(),
             new ASeriesLibraryOf(),
             AStoppedClock(),
@@ -392,6 +395,7 @@ public sealed class ScheduledReconciliationTests : IDisposable
             store,
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             null!,
+            server,
             new ADescriberOf(),
             new ASeriesLibraryOf(),
             AStoppedClock(),
@@ -403,6 +407,7 @@ public sealed class ScheduledReconciliationTests : IDisposable
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
             null!,
+            new ADescriberOf(),
             new ASeriesLibraryOf(),
             AStoppedClock(),
             () => new PluginConfiguration(),
@@ -412,6 +417,18 @@ public sealed class ScheduledReconciliationTests : IDisposable
             store,
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
+            null!,
+            new ASeriesLibraryOf(),
+            AStoppedClock(),
+            () => new PluginConfiguration(),
+            new RecordingPassLogger()));
+
+        Assert.Throws<ArgumentNullException>(() => new WatchlistProjectionPass(
+            store,
+            new WatchlistProjector(server, new RecordingProjectorLogger()),
+            new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
             new ADescriberOf(),
             null!,
             AStoppedClock(),
@@ -422,6 +439,7 @@ public sealed class ScheduledReconciliationTests : IDisposable
             store,
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
             new ADescriberOf(),
             new ASeriesLibraryOf(),
             null!,
@@ -432,6 +450,7 @@ public sealed class ScheduledReconciliationTests : IDisposable
             store,
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
             new ADescriberOf(),
             new ASeriesLibraryOf(),
             AStoppedClock(),
@@ -442,6 +461,7 @@ public sealed class ScheduledReconciliationTests : IDisposable
             store,
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
             new ADescriberOf(),
             new ASeriesLibraryOf(),
             AStoppedClock(),
@@ -485,7 +505,15 @@ public sealed class ScheduledReconciliationTests : IDisposable
         var path = store.PathFor(userId);
         var text = File.ReadAllText(path);
 
-        File.WriteAllText(path, text.Replace("\"SchemaVersion\": 3", "\"SchemaVersion\": 9999", StringComparison.Ordinal));
+        // The version this build writes rather than a number typed here, so this stays
+        // true on the change that bumps the schema instead of quietly stopping to make
+        // the document unreadable.
+        File.WriteAllText(
+            path,
+            text.Replace(
+                string.Format(CultureInfo.InvariantCulture, "\"SchemaVersion\": {0}", WatchlistDocument.CurrentSchemaVersion),
+                "\"SchemaVersion\": 9999",
+                StringComparison.Ordinal));
     }
 
     private WatchlistDocumentStore AStore() => new(DataFolder, new RecordingLogger());
@@ -498,6 +526,7 @@ public sealed class ScheduledReconciliationTests : IDisposable
             store,
             new WatchlistProjector(server, new RecordingProjectorLogger()),
             new WatchlistReconciler(server, new RecordingReconcilerLogger()),
+            server,
             new ADescriberOf(
                 (AFilm, AUser, WatchlistItemKind.Movie),
                 (AnotherFilm, AUser, WatchlistItemKind.Movie),

@@ -351,5 +351,9 @@ public sealed class PlaylistAdoptionTests : IDisposable
 
             return itemIds.Count;
         }
+
+        public PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows) =>
+            new() { Added = 0, Removed = 0 };
+
     }
 }

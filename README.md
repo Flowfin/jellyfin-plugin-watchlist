@@ -206,22 +206,28 @@ everybody can see and writing into it are not a user's own operations. Who added
 each entry is not in the file, so a shared list that arrives on another server
 carries its titles and not the names beside them.
 
-The projection into a playlist does not run, and it is the part a user would
-notice, because until it does a list is reachable over the API and appears on no
-client. What has changed is what is missing rather than whether anything is: the
-half that decides which playlist a list belongs in is written and tested - it
-creates one on demand, takes over a matching one you already had, and keeps the
-name in step - and none of it is wired into a running server, so no playlist is
-created, renamed or read on any server this plugin is installed on. What is still
-unwritten is the half that puts the entries in and keeps them there, and the pass
-that would call either.
+The projection into a playlist runs, and this paragraph said it does not. Both
+halves are built and both are wired into a running server: the half that decides
+which playlist a list belongs in - it creates one on demand, takes over a matching
+one you already had, and keeps the name in step - and the half that puts the entries
+in and keeps them there. A scheduled task drives them for every user four times a day
+by default, an administrator can run it on demand from the dashboard, and a removal
+from the library asks for a run of its own so a deleted film stops being offered
+without waiting for the next one. A show on a list appears as one episode, and edits
+made to the playlist on a client are read back onto the list.
 
-That is true of both kinds of list, which is the part of the shared list that is
-missing rather than the whole of it: the shared record, the setting that turns it
-on, the endpoints that read and change it, the administrative surface that makes
-it and takes it away, and the pair that carries it between servers are all here,
-and what is absent is the playlist it would appear in. That is why there is no
-release.
+NOBODY HAS SEEN ANY OF THAT ON A CLIENT, and that is a different sentence from the
+one above. No server has ever loaded this plugin: nothing has been released from this
+repository, and the harness that would boot a stock server in a container is not
+built. [docs/client-verification.md](docs/client-verification.md) is the register
+where a row would go, it is empty, and it says so first.
+
+The shared list is where the projection stops. The shared record, the setting that
+turns it on, the endpoints that read and change it, the administrative surface that
+makes it and takes it away, and the pair that carries it between servers are all
+here, and what is absent is the playlist it would appear in - so a shared list is
+reachable over the API and appears on no client. That, and the verification above,
+is why there is no release.
 
 One of the two server lines above is not built either. The plugin compiles
 against the 10.11 package set, on the framework that line runs, and the packaging

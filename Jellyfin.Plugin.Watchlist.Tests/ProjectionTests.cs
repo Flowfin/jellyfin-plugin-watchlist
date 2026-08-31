@@ -127,6 +127,8 @@ public sealed class ProjectionTests : IDisposable
         {
             PlaylistId = borrowed,
             LastNameWritten = PluginConfiguration.DefaultProjectedListName,
+            ProjectedItemIds = [],
+            WrittenAt = null,
         }));
 
         var result = await projector.EnsurePlaylistAsync(TargetFor(store, AUser), CancellationToken.None);
@@ -356,6 +358,8 @@ public sealed class ProjectionTests : IDisposable
         {
             PlaylistId = Guid.Parse("cccccccc-0000-0000-0000-000000000002"),
             LastNameWritten = "Watchlist",
+            ProjectedItemIds = [],
+            WrittenAt = null,
         }));
 
         Assert.Contains("Projection", File.ReadAllText(store.PathFor(AUser)), StringComparison.Ordinal);
@@ -382,6 +386,8 @@ public sealed class ProjectionTests : IDisposable
         {
             PlaylistId = Guid.Parse("cccccccc-0000-0000-0000-000000000003"),
             LastNameWritten = "Watchlist",
+            ProjectedItemIds = [],
+            WrittenAt = null,
         }));
 
         Assert.Equal(before, File.ReadAllBytes(store.PathFor(TheFixtureUser)));
@@ -503,6 +509,9 @@ public sealed class ProjectionTests : IDisposable
 
             return itemIds.Count;
         }
+
+        public PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows) =>
+            new() { Added = 0, Removed = 0 };
     }
 
     /// <summary>
@@ -533,5 +542,8 @@ public sealed class ProjectionTests : IDisposable
         public bool Remember(WatchlistProjectionState projection) => false;
 
         public int Adopt(IReadOnlyList<Guid> itemIds) => 0;
+
+        public PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows) =>
+            new() { Added = 0, Removed = 0 };
     }
 }

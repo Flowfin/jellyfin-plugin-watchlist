@@ -431,5 +431,8 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
         public bool Remember(WatchlistProjectionState projection) => false;
 
         public int Adopt(IReadOnlyList<Guid> itemIds) => 0;
+
+        public PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows) =>
+            new() { Added = 0, Removed = 0 };
     }
 }

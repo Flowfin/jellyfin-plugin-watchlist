@@ -122,6 +122,12 @@ public sealed class WatchlistProjector
         {
             PlaylistId = playlistId,
             LastNameWritten = name,
+
+            // Nothing has been written into it yet, which is what an empty set means
+            // here. The set is filled by the pass that puts entries in, because that is
+            // the only place that knows what went in.
+            ProjectedItemIds = [],
+            WrittenAt = null,
         };
 
         if (!target.Remember(projection))
@@ -283,6 +289,14 @@ public sealed class WatchlistProjector
         {
             PlaylistId = adopted.PlaylistId,
             LastNameWritten = target.ConfiguredName,
+
+            // Empty, and that is the whole point of an adoption: every row in a
+            // playlist this plugin has just taken over is one somebody else put there.
+            // Recording them as projected would turn the next pass's reading of them
+            // upside down, because a row this plugin believes it wrote and that is then
+            // taken away is a removal.
+            ProjectedItemIds = [],
+            WrittenAt = null,
         };
 
         if (!target.Remember(projection))

@@ -116,4 +116,43 @@ public interface IProjectionTarget
     /// list does not hold are all rows that arrive here and do not become entries.
     /// </remarks>
     int Adopt(IReadOnlyList<Guid> itemIds);
+
+    /// <summary>
+    /// Takes the edits somebody made to the playlist on a client back into the list.
+    /// </summary>
+    /// <param name="rows">The library items the playlist holds now.</param>
+    /// <returns>How many entries were added and how many were taken off.</returns>
+    /// <remarks>
+    /// <para>
+    /// THREE CASES AND ONE OF THEM MEANS DELETE, which is why this is a comparison
+    /// against what the projector last wrote rather than against the list.
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>A row the projector wrote and that is gone is a REMOVAL made
+    /// on a client, and the entry leaves the list.</description></item>
+    /// <item><description>A row the projector never wrote is an ADDITION made on a
+    /// client, and it goes onto the list recorded as one.</description></item>
+    /// <item><description>An entry on the list the projector has not written yet is
+    /// neither. It is projected on this pass and is never read as a
+    /// removal.</description></item>
+    /// </list>
+    /// <para>
+    /// The three are indistinguishable to anything comparing only the list against the
+    /// playlist, and that is what the projected set on the record exists for.
+    /// </para>
+    /// <para>
+    /// THE ONE WEAKNESS, AND IT IS NOT FIXABLE FROM HERE. A change made while the server
+    /// was down arrives at the next pass looking exactly like one made through the
+    /// plugin, because neither side carries a time this could compare. Somebody removing
+    /// a row on a client while the server is off has it read as a removal, which is
+    /// right; a playlist edited by something that is not a person in the same window
+    /// gets the same reading, and nothing on disk separates the two.
+    /// </para>
+    /// <para>
+    /// It is on the target rather than in the pass for the same reason
+    /// <see cref="Adopt"/> is: what an entry carries is not the same on a private list
+    /// and on a shared one, and who may take an entry off differs between them.
+    /// </para>
+    /// </remarks>
+    PlaylistEditsTaken TakeEdits(IReadOnlyList<Guid> rows);
 }
