@@ -510,6 +510,37 @@ public sealed class WatchlistDocumentStore
     }
 
     /// <summary>
+    /// Records which playlist the shared list is projected into.
+    /// </summary>
+    /// <param name="projection">The playlist and what was last written to it, or null to
+    /// forget one.</param>
+    /// <returns>False where the record could not be read, so there is nothing to write
+    /// it into.</returns>
+    /// <remarks>
+    /// The same shape as the per-user one above and for the same reason: the read and the
+    /// write happen inside one gate, so a projection recorded while somebody is adding an
+    /// entry loses neither. A server with no shared record answers false, which is not
+    /// the same as one this build cannot read - the caller that gets here has already
+    /// established there is a list.
+    /// </remarks>
+    public bool SetSharedProjection(WatchlistProjectionState? projection)
+    {
+        lock (SharedGate())
+        {
+            var read = ReadSharedInsideTheGate();
+
+            if (!read.IsAvailable || read.Document is null)
+            {
+                return false;
+            }
+
+            Commit(Stage(read.Document with { Projection = projection }));
+
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Reads the shared list.
     /// </summary>
     /// <returns>

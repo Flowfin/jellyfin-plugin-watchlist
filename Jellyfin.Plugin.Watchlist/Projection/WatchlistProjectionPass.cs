@@ -147,11 +147,29 @@ public sealed class WatchlistProjectionPass
         var skipped = 0;
         var done = 0;
 
+        // The shared list first, and it is one target rather than one per user. A server
+        // that has none - the setting is off, or nobody has made one - produces no target
+        // here, so there is nothing to make a playlist for and no call at all.
+        var shared = SharedProjectionTarget.For(_store, configuration, _describer, _episodes, _clock);
+
+        if (shared is not null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var outcome = await OneTargetAsync(shared, cancellationToken).ConfigureAwait(false);
+
+            created += outcome.Created;
+            writes += outcome.Writes;
+            skipped += outcome.Skipped;
+        }
+
         foreach (var userId in users)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var outcome = await OneUserAsync(userId, configuration, cancellationToken).ConfigureAwait(false);
+            var outcome = await OneTargetAsync(
+                UserProjectionTarget.For(_store, configuration, _describer, _episodes, _clock, userId),
+                cancellationToken).ConfigureAwait(false);
 
             created += outcome.Created;
             writes += outcome.Writes;
@@ -183,19 +201,24 @@ public sealed class WatchlistProjectionPass
     }
 
     /// <summary>
-    /// One user's projection, made to agree with their list.
+    /// One target: its playlist made, opened where it has to be, the edits somebody made
+    /// to it taken back into the list, and the list written into it.
     /// </summary>
-    /// <param name="userId">The user.</param>
-    /// <param name="configuration">The settings this run took at its start.</param>
+    /// <param name="target">The list being projected.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>What this user cost the run.</returns>
-    private async Task<(int Created, int Writes, int Skipped)> OneUserAsync(
-        Guid userId,
-        PluginConfiguration configuration,
+    /// <returns>What this target cost the run.</returns>
+    /// <remarks>
+    /// ONE ROUTE FOR BOTH KINDS OF LIST. A user's own and the one the server shares reach
+    /// this by different constructors and differ in nothing it does: the difference
+    /// calculation, the ordering, the series rule and the adoption are the target's
+    /// answers rather than this method's, and the one thing they disagree about is
+    /// whether everybody may see the playlist, which is a value on the target that this
+    /// reads rather than a case it decides.
+    /// </remarks>
+    private async Task<(int Created, int Writes, int Skipped)> OneTargetAsync(
+        IProjectionTarget target,
         CancellationToken cancellationToken)
     {
-        var target = UserProjectionTarget.For(_store, configuration, _describer, _episodes, _clock, userId);
-
         var projection = await _projector.EnsurePlaylistAsync(target, cancellationToken).ConfigureAwait(false);
 
         if (projection.Projection is null)
@@ -204,6 +227,18 @@ public sealed class WatchlistProjectionPass
         }
 
         var playlistId = projection.Projection.PlaylistId;
+        var opened = 0;
+
+        if (target.IsOpenToEveryone && !_playlists.IsOpenToEveryone(playlistId, target.OwnerUserId))
+        {
+            // Once, and never again: the question above is a read, so a playlist that is
+            // already open costs this pass nothing. A projection that set it every time
+            // would touch the shared playlist on every scheduled run for nothing.
+            await _playlists.OpenToEveryoneAsync(playlistId, target.OwnerUserId, cancellationToken)
+                .ConfigureAwait(false);
+
+            opened = 1;
+        }
 
         // THE PLAYLIST IS READ INTO THE LIST BEFORE THE LIST IS WRITTEN INTO THE
         // PLAYLIST, and the order is the whole of it. A pass that reconciled first would
@@ -213,10 +248,10 @@ public sealed class WatchlistProjectionPass
             .Select(row => row.ItemId)
             .ToList());
 
-        // A second target, because a target is a snapshot taken when it is made and the
-        // line above has just changed the document it was made from. Reconciling the
+        // A target made afresh, because a target is a snapshot taken when it is made and
+        // the line above has just changed the record it was made from. Reconciling the
         // first one would write the list as it stood before the edits were taken.
-        var written = UserProjectionTarget.For(_store, configuration, _describer, _episodes, _clock, userId);
+        var written = target.Reread();
 
         var reconciliation = await _reconciler
             .ReconcileAsync(written, playlistId, cancellationToken)
@@ -226,12 +261,13 @@ public sealed class WatchlistProjectionPass
 
         var created = projection.Outcome == ProjectionOutcome.Created ? 1 : 0;
 
-        // A creation, a rename and an adoption are all writes the server saw, and so is
-        // every row this pass moved. They are counted into one number because what the
-        // third condition asks is whether an already-correct server was touched at all,
-        // and a count that left the creation out would answer zero for a pass that made
-        // a playlist.
+        // A creation, a rename, an adoption and an opening are all writes the server saw,
+        // and so is every row this pass moved. They are counted into one number because
+        // what the third condition asks is whether an already-correct server was touched
+        // at all, and a count that left the creation out would answer zero for a pass
+        // that made a playlist.
         var writes = (projection.Outcome == ProjectionOutcome.AlreadyProjected ? 0 : 1)
+            + opened
             + reconciliation.Added
             + reconciliation.Removed;
 
@@ -263,7 +299,7 @@ public sealed class WatchlistProjectionPass
     /// A record that cannot be written is not an error here. It is the same unavailable
     /// document the pass already counts, and the next pass meets it at the top.
     /// </remarks>
-    private void Record(UserProjectionTarget target, WatchlistProjectionState projection) =>
+    private void Record(IProjectionTarget target, WatchlistProjectionState projection) =>
         target.Remember(projection with
         {
             ProjectedItemIds = target.Wanted,

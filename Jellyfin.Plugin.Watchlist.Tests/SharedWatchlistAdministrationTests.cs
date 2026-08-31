@@ -296,16 +296,23 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
     }
 
     /// <summary>
-    /// The half of the fifth condition that has a subject. A server where nobody made a
-    /// shared list has no shared playlist, and the reason is that this plugin builds
-    /// exactly one kind of projection target and it is a user's own list. The set is
-    /// read off the assembly rather than off a sentence, so the day a shared target is
-    /// added this goes red and the condition is read again.
+    /// THIS SAID THE ONLY PROJECTION TARGET IS A USER'S OWN LIST, AND THE DAY IT WENT RED
+    /// IS THE DAY IT WAS FOR. It stood in for the fifth condition of #84 - a server where
+    /// nobody made a shared list gets no shared playlist - by reading off the assembly
+    /// that no target for one existed. One exists now.
+    ///
+    /// The condition it stood in for is proven where it belongs, by counting the calls a
+    /// pass makes on a server with no shared list, in `SharedProjectionTests`. What is
+    /// left here is the set itself, which is still worth reading off the assembly: a
+    /// third kind of target is a third answer to who may see a playlist, and it should
+    /// turn this red.
     /// </summary>
     [Fact]
-    public void TheOnlyProjectionTargetThisPluginBuildsIsAUsersOwnList()
+    public void TheProjectionTargetsThisPluginBuildsAreTheTwoKindsOfList()
     {
-        Assert.Equal(["UserProjectionTarget"], ProjectionTargetsIn(PluginUnderTest.Assembly.GetTypes()));
+        Assert.Equal(
+            ["SharedProjectionTarget", "UserProjectionTarget"],
+            ProjectionTargetsIn(PluginUnderTest.Assembly.GetTypes()));
     }
 
     /// <summary>
@@ -317,7 +324,7 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
     public void TheReaderNamesATargetSomebodyMightAdd()
     {
         Assert.Equal(
-            ["ASharedProjectionTargetSomebodyMightAdd", "UserProjectionTarget"],
+            ["ASharedProjectionTargetSomebodyMightAdd", "SharedProjectionTarget", "UserProjectionTarget"],
             ProjectionTargetsIn([.. PluginUnderTest.Assembly.GetTypes(), typeof(ASharedProjectionTargetSomebodyMightAdd)]));
     }
 
@@ -425,6 +432,10 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
         public IReadOnlyList<Guid> Wanted => [];
 
         public bool IsRecordAvailable => false;
+
+        public bool IsOpenToEveryone => false;
+
+        public IProjectionTarget Reread() => this;
 
         public WatchlistProjectionState? Remembered => null;
 

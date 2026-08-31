@@ -31,6 +31,20 @@ public static class WatchlistDocumentUpgrades
     public const int OldestReadableSchemaVersion = 0;
 
     /// <summary>
+    /// The oldest version a stored SHARED list may declare and still be read. Below it
+    /// there is no step, so a document declaring less than this is refused.
+    /// </summary>
+    /// <remarks>
+    /// One rather than zero, because that record's numbering starts at one and there has
+    /// never been a version below it. It is a constant here rather than a subtraction at
+    /// each reader for the reason the shared chain's first step exposed: while that chain
+    /// was empty, "one below the current version" and "below the oldest readable version"
+    /// were the same number, and three tests were written against the first of the two.
+    /// They stopped meaning what they said the day the chain gained a step.
+    /// </remarks>
+    public const int OldestReadableSharedSchemaVersion = 1;
+
+    /// <summary>
     /// One step per version this plugin can upgrade from, keyed by the version it
     /// upgrades away from. A key of N produces the shape of version N plus one.
     /// </summary>
@@ -44,18 +58,21 @@ public static class WatchlistDocumentUpgrades
         };
 
     /// <summary>
-    /// The same, for the shared list. Empty, because that record is at its first
-    /// version and there is nothing behind it to come forward from.
+    /// The same, for the shared list. One step, and it arrived with the second version
+    /// of that record rather than with the first.
     /// </summary>
     /// <remarks>
-    /// Empty rather than absent. The chain is what decides whether a stored version is
-    /// readable, so the shared record is judged by the same rule as a user's from its
-    /// first version rather than from the first version that needed a step. A document
-    /// declaring version 0 is refused here today, and it is refused by the rule rather
-    /// than by there being no code to run.
+    /// It was empty until then, and empty rather than absent: the chain is what decides
+    /// whether a stored version is readable, so the shared record is judged by the same
+    /// rule as a user's from its first version rather than from the first version that
+    /// needed a step. A document declaring version 0 is refused here, and it is refused
+    /// by the rule rather than by there being no code to run.
     /// </remarks>
     private static readonly IReadOnlyDictionary<int, Func<JsonObject, JsonObject>> ShippedSharedSteps =
-        new Dictionary<int, Func<JsonObject, JsonObject>>();
+        new Dictionary<int, Func<JsonObject, JsonObject>>
+        {
+            [1] = FromSharedVersionOneToVersionTwo,
+        };
 
     /// <summary>
     /// Gets the steps this plugin ships, for a test that reads the real chain rather
@@ -277,4 +294,21 @@ public static class WatchlistDocumentUpgrades
 
         return document;
     }
+
+    /// <summary>
+    /// The shared list, version 1 to version 2, which adds no member to a stored
+    /// document.
+    /// </summary>
+    /// <param name="document">The shared document at version 1.</param>
+    /// <returns>The same members, which are already the version 2 shape.</returns>
+    /// <remarks>
+    /// Version 2 added the block recording which playlist the shared list is projected
+    /// into, and that block is written only once a projection has been made. A version 1
+    /// document was written before this plugin could make one, so every one of them is a
+    /// list with no projection, and the version 2 shape of that is the block being
+    /// absent. Writing an empty block here would put a playlist identifier of all zeroes
+    /// on disk, which a later pass would read as a playlist to reconcile against rather
+    /// than as one nobody has made.
+    /// </remarks>
+    private static JsonObject FromSharedVersionOneToVersionTwo(JsonObject document) => document;
 }

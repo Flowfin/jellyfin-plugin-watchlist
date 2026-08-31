@@ -61,6 +61,7 @@
 
 Api/WatchlistController.cs | gated | the two list endpoints read the document and hand the entries straight to the gate, once each, and describe only what comes back
 Projection/UserProjectionTarget.cs | gated | the target reads the document once when it is made and hands the entries to the gate before anything is projected; the resolver it passes is the describer for one user, which is the question the gate asks rather than a second copy of the rule
+Projection/SharedProjectionTarget.cs | gated | the shared target reads the record once when it is made and hands the entries to the gate before anything is projected; the resolver it passes asks about the list's OWNER rather than about a reader, which is the decision that class argues and not a second copy of the rule
 Api/SharedWatchlistTransferController.cs | outside | an export is a copy of the stored document rather than a read of the list, and an entry that stops resolving on this server has to survive the round trip to the one it is restored on
 Export/WatchlistExporter.cs | outside | the exporter is handed the document's entries by the endpoint above and writes them out; its subject is the same copy and it decides nothing about what a person is shown
 Watched/WatchedRemovalHandler.cs | outside | this reads the entries to decide which of them a play retires, and it shows nobody anything; gating it would make an entry whose item does not resolve permanently unretirable rather than merely hidden

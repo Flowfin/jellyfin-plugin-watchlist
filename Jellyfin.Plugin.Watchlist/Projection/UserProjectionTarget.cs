@@ -34,12 +34,14 @@ public sealed class UserProjectionTarget : IProjectionTarget
     private readonly WatchlistDocumentStore _store;
     private readonly PluginConfiguration _configuration;
     private readonly IWatchlistItemDescriber _describer;
+    private readonly ISeriesEpisodes _episodes;
     private readonly TimeProvider _clock;
 
     private UserProjectionTarget(
         WatchlistDocumentStore store,
         PluginConfiguration configuration,
         IWatchlistItemDescriber describer,
+        ISeriesEpisodes episodes,
         TimeProvider clock,
         Guid userId,
         bool isRecordAvailable,
@@ -49,6 +51,7 @@ public sealed class UserProjectionTarget : IProjectionTarget
         _store = store;
         _configuration = configuration;
         _describer = describer;
+        _episodes = episodes;
         _clock = clock;
         OwnerUserId = userId;
         IsRecordAvailable = isRecordAvailable;
@@ -87,6 +90,14 @@ public sealed class UserProjectionTarget : IProjectionTarget
     /// </para>
     /// </remarks>
     public IReadOnlyList<Guid> Wanted { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Never. A private watchlist is one person's, and the playlist it is projected into
+    /// is theirs; the plugin makes it for them and asks the server to show it to nobody
+    /// else. The list that everybody sees is a list of its own.
+    /// </remarks>
+    public bool IsOpenToEveryone => false;
 
     /// <inheritdoc />
     public bool IsRecordAvailable { get; }
@@ -133,6 +144,7 @@ public sealed class UserProjectionTarget : IProjectionTarget
             store,
             configuration,
             describer,
+            episodes,
             clock,
             userId,
             read.IsAvailable,
@@ -216,6 +228,10 @@ public sealed class UserProjectionTarget : IProjectionTarget
     /// <inheritdoc />
     public bool Remember(WatchlistProjectionState projection) =>
         _store.SetProjection(OwnerUserId, projection);
+
+    /// <inheritdoc />
+    public IProjectionTarget Reread() =>
+        For(_store, _configuration, _describer, _episodes, _clock, OwnerUserId);
 
     /// <inheritdoc />
     /// <remarks>

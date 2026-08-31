@@ -253,12 +253,17 @@ row asked #87 to take, and it is taken this way rather than the other because tw
 answers to whether this server offers a shared list is the shape a reader is caught
 by, not a redundancy.
 
-WHAT STILL READS IT IS NOTHING ELSE, and that half of the old sentence stands. The
-record landed on #83 and the endpoints over its contents on #85, and none of those
-asks this question: what they answer is decided by whether a shared list exists.
-Removing the list does not ask it either, because turning the switch off and then
-being unable to undo the list it made would be the worse failure. Its projection is
-#84 and does not exist, so nothing here stops projecting when the switch moves.
+WHAT STILL READS IT WAS NOTHING ELSE, AND NOW IT IS THE PROJECTION. The record landed
+on #83 and the endpoints over its contents on #85, and none of those asks this question:
+what they answer is decided by whether a shared list exists. Removing the list does not
+ask it either, because turning the switch off and then being unable to undo the list it
+made would be the worse failure.
+
+The projection landed on #84 and does ask it. Turned off, the shared list is not
+projected: no playlist is made for it, and one that was already made is left exactly as
+it is rather than emptied or removed. So the switch stops the plugin managing the shared
+playlist and does not take it off the clients that can already see it, which is the same
+promise `ProjectionEnabled` makes one size larger.
 
 ### SharedListName
 
@@ -282,8 +287,9 @@ Read by one thing, and this row said it was read by nothing until #40. The expor
 that carries the shared list off this server writes it into the file as the label the
 list was shown under, because the shared record deliberately holds no name and a file
 that named the list nothing would arrive somewhere else as a list with no name at all.
-What still does not read it is the projection, for the same reason as
-`ProjectedListName`: projecting the shared list is #84.
+The projection reads it now, which is the second reader and arrived with #84: it is the
+name the shared playlist is created under and renamed to, by the same rule
+`ProjectedListName` follows for a private one.
 
 ### MaxEntriesInSharedList
 
@@ -307,13 +313,14 @@ Bounds: 0 to 1000000, the same as the per-user cap and for the same reasons.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
-What reads it: the route that adds an item to the shared list, and the one that
-imports a file into it, each refusing a write that would take that list past the
-bound.
+What reads it: the route that adds an item to the shared list, the one that imports a
+file into it, and the projection that takes a row somebody added to the shared playlist
+onto the list, each refusing a write that would take that list past the bound.
 
     git grep -l 'MaxEntriesInSharedList' -- Jellyfin.Plugin.Watchlist/ | grep -v Configuration/
     Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    Jellyfin.Plugin.Watchlist/Projection/SharedProjectionTarget.cs
 
 WHAT AN ADMINISTRATOR WHO MOVES THIS NUMBER SEES SAID NOTHING HERE, AND THAT WAS
 BECAUSE NO LIST COULD BE MADE. #87 landed the route that makes one, so the cap is

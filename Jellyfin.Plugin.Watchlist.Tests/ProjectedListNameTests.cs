@@ -386,6 +386,10 @@ public sealed class ProjectedListNameTests : IDisposable
 
         public bool IsRecordAvailable => true;
 
+        public bool IsOpenToEveryone => false;
+
+        public IProjectionTarget Reread() => this;
+
         public WatchlistProjectionState? Remembered { get; }
 
         public bool Remember(WatchlistProjectionState projection) => false;

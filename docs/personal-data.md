@@ -362,6 +362,7 @@ which is what a creation nobody asked for would be:
     git grep -lE 'WriteShared|ReadShared' -- Jellyfin.Plugin.Watchlist
     Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs
     Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    Jellyfin.Plugin.Watchlist/Projection/SharedProjectionTarget.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentFormat.cs
     Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
 
@@ -454,14 +455,23 @@ which entries they may take off again.
 A user who does not want that known about them should not add the title. There is no
 setting that makes an entry anonymous, and this page does not imply one.
 
-**And nothing else.** The record holds four members, and none of them is about a
+**And nothing else.** The record holds five members, and none of them is about a
 reader:
 
     grep -n 'get; init;' Jellyfin.Plugin.Watchlist/Store/SharedWatchlistDocument.cs
-    47:    public required int SchemaVersion { get; init; }
-    52:    public required Guid ListId { get; init; }
-    63:    public required Guid OwnerUserId { get; init; }
-    68:    public required IReadOnlyList<WatchlistEntry> Entries { get; init; }
+    48:    public required int SchemaVersion { get; init; }
+    53:    public required Guid ListId { get; init; }
+    64:    public required Guid OwnerUserId { get; init; }
+    69:    public required IReadOnlyList<WatchlistEntry> Entries { get; init; }
+    87:    public WatchlistProjectionState? Projection { get; init; }
+
+THE FIFTH ARRIVED WITH THE PROJECTION AND IS THE SAME KIND OF THING AS THE ONE ON A
+USER'S DOCUMENT. It names the playlist the shared list is projected into, the name last
+written for it, the items last put in it and when. The items are a copy of what the
+entries above them projected as, which is one file away from being the same bytes and
+readable by exactly whoever can read those, and it is stored because without it a row
+somebody added on a client and a row no pass has projected yet are indistinguishable -
+and one of those two readings means delete.
 
 **The shared list holds no per-user reading state.** Nobody learns from it who has
 opened the list, who has looked at an entry, or what anybody has watched. Reading it
@@ -593,8 +603,8 @@ identifier, so a refused read puts that identifier in the server log:
     grep -n 'Refusing to read {Path}' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
     201:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
     216:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
-    548:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
-    559:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    579:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    590:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
 
 Re-taken on the change that landed the deleted-user handler, where the last two moved
 from 414 and 425 because the deletion path went into the store above them, and again
@@ -650,19 +660,33 @@ declares:
                     OpenAccess = request.Public ?? false,
                     DateCreated = info.CreationTimeUtc,
 
-So the shares are empty and the list is not open. There is no route through this plugin
-that shares one afterwards either: the seam it speaks to the server through declares
-listing a user's playlists, reading one's rows, creating, renaming, adding and
-removing, one question about whether an add can name a position, and nothing that
-changes who a playlist is shared with.
+So the shares are empty and the list is not open when it is made.
+
+THE SEAM CAN NOW OPEN A PLAYLIST TO EVERYBODY, AND THIS PASSAGE SAID IT COULD NOT. It
+said the seam declares nothing that changes who a playlist is shared with. It declares
+one such operation, and one read beside it:
 
     grep -c 'Task\|IReadOnlyList' Jellyfin.Plugin.Watchlist/Projection/IPlaylistGateway.cs
-    7
+    8
 
 That number counts declarations and their return types together rather than
 operations, and it is pasted as what the command prints rather than as the figure the
 sentence above wants. The sentence is the list of names, which a reader checks by
 opening the file.
+
+WHAT THAT OPERATION IS FOR IS THE SHARED LIST AND NEVER A PRIVATE ONE, and the reason a
+reader can hold on to is that the two lists are different targets: the private one
+answers that it is not open to everybody and the shared one answers that it is, and the
+pass acts on the answer rather than deciding it. A private playlist is therefore made
+private and left private, which is what the paragraph above this one is about.
+
+TWO THINGS THAT OPERATION DOES NOT DO. It grants nobody permission to EDIT a playlist -
+the update it sends names no users, so the share list is not touched - and it is never
+sent for a playlist that is already open, because the read beside it is asked first.
+Who may add to the shared list and who may take an entry off it are the endpoints'
+question, answered with the server's own word about the caller, and a playlist share
+could not express that pair anyway: edit permission on a playlist is one flag covering
+both.
 
 An ADMINISTRATOR of the server can see a playlist like anything else on the server they
 administer. That is the same answer this page already gives for the document on disk,
@@ -682,25 +706,41 @@ the second is the other direction of the same question - what the playlist shoul
 for this user, asked through the gate every read path goes through:
 
     grep -n '_describer.Describe' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
-    241:            var described = _describer.Describe(itemId, OwnerUserId);
-    351:        public bool Exists(Guid itemId) => _describer.Describe(itemId, _userId) is not null;
+    257:            var described = _describer.Describe(itemId, OwnerUserId);
+    367:        public bool Exists(Guid itemId) => _describer.Describe(itemId, _userId) is not null;
 
 An entry that arrived that way records that it came from a playlist edit rather than
 from an endpoint, which is one of the four values this page already says an entry
 carries:
 
     grep -n 'Source = WatchlistEntrySource.PlaylistEdit' Jellyfin.Plugin.Watchlist/Projection/UserProjectionTarget.cs
-    255:                    Source = WatchlistEntrySource.PlaylistEdit,
+    271:                    Source = WatchlistEntrySource.PlaylistEdit,
 
 Adoption does not change who can see the playlist. It is the user's own list, made by
 them, and the plugin takes over managing it rather than sharing it.
 
-### The shared list has no playlist at all
+### The shared list has a playlist now, and it is open to everybody
 
-`## The shared list` below describes a record and its endpoints. The playlist that
-record would appear in is #84 and is not built, so nothing on the shared list is
-visible on any client, and what that section says about who can read it is about the
-endpoints rather than about a playlist.
+THIS SAID IT HAS NONE. `## The shared list` below describes a record and its endpoints,
+and until #84 that was the whole of it: nothing on the shared list reached a client.
+There is a playlist now, and what is true of it is the part to read carefully, because
+it is the one surface in this plugin that shows one person's addition to everybody.
+
+The playlist is made for the administrator the record names and is then marked as one
+every user of the server may SEE. It is not shared with named users, and nobody is given
+permission to edit it: who may add to the list and who may take an entry off it are the
+endpoints' question, answered with the server's own word about the caller.
+
+WHAT GOES ON IT IS DECIDED BY THE OWNER'S LIBRARY ACCESS AND NOT BY THE READER'S. A
+playlist holds the same rows for everybody who can see it, so there is no per-reader
+answer for it to carry. An entry is projected when it resolves for the administrator
+whose list it is, which means a user can see the NAME of something they may not play,
+and the server refuses them when they try. That is what a list the whole server can see
+is, and it is why `SharedListEnabled` is off until an administrator turns it on.
+
+The attribution goes with it. `## The shared list` below already says an entry carries
+and shows who added it; the playlist row does not carry that, so what a client shows is
+the title alone and the endpoints are where the name beside it is read.
 
 ### THIS RUNS ON A SERVER NOW, AND THIS SECTION SAID IT RUNS NOWHERE
 
@@ -718,8 +758,8 @@ registered, and the scheduled pass that drives them is too:
 So everything above about what a projection reads and writes is now what a server
 actually does, four times a day by default, without anybody asking. What a run of it
 puts in the log is the summary under `## What reaches the server log`: four counts and
-nothing else. The shared list is still the exception - it has no playlist at all, which
-is #84 - and that is the sentence in this section that has not moved.
+nothing else. The shared list was the exception in this section and is not any more,
+which the section above it sets out.
 
 ## What leaves the server
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.Watchlist.Store;
 
@@ -39,7 +40,7 @@ public sealed record SharedWatchlistDocument
     /// counter would make every change to one of them an upgrade step the other has
     /// to carry.
     /// </remarks>
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     /// <summary>
     /// Gets the schema version the document was written with.
@@ -66,4 +67,22 @@ public sealed record SharedWatchlistDocument
     /// Gets the entries, in the order they were written.
     /// </summary>
     public required IReadOnlyList<WatchlistEntry> Entries { get; init; }
+
+    /// <summary>
+    /// Gets what this plugin remembers about the playlist this list is projected into,
+    /// or null where nothing has been projected for it yet.
+    /// </summary>
+    /// <remarks>
+    /// The same shape a user's document carries, deliberately. What a projection has to
+    /// remember does not depend on whose list it is - the playlist, the name last
+    /// written, what was last put in it and when - and two records answering that
+    /// question differently would be two rules to keep in step.
+    ///
+    /// Null means no playlist has been made for the shared list, which is every server
+    /// where the setting was turned on and no pass has run since. Suppressed when it is
+    /// null for the same reason the user document's is, so a server with no projection
+    /// carries no such member on disk.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public WatchlistProjectionState? Projection { get; init; }
 }

@@ -52,6 +52,10 @@ internal sealed class AListProjectedInto : IProjectionTarget
     /// <inheritdoc />
     public bool IsRecordAvailable => true;
 
+    public bool IsOpenToEveryone => false;
+
+    public IProjectionTarget Reread() => this;
+
     /// <inheritdoc />
     public WatchlistProjectionState? Remembered => null;
 

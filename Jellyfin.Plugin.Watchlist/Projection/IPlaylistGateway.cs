@@ -110,4 +110,44 @@ public interface IPlaylistGateway
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task.</returns>
     Task RemoveAsync(Guid playlistId, IReadOnlyCollection<string> entryIds, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether this playlist is one every user of the server may see.
+    /// </summary>
+    /// <param name="playlistId">The playlist.</param>
+    /// <param name="ownerUserId">The user it belongs to, which is who the question is
+    /// asked as.</param>
+    /// <returns>True where the server would show it to anybody.</returns>
+    /// <remarks>
+    /// A READ, and it is here so that opening a playlist costs a write once rather than
+    /// once a pass. A projection that called the operation below every time would touch
+    /// the shared playlist on every scheduled run for nothing, and every one of those
+    /// writes is something a client re-syncs.
+    ///
+    /// False for a playlist that is not there, which is the same answer as one that is
+    /// there and private: a caller that could tell them apart would learn about a
+    /// playlist from a question about visibility.
+    /// </remarks>
+    bool IsOpenToEveryone(Guid playlistId, Guid ownerUserId);
+
+    /// <summary>
+    /// Makes this playlist one every user of the server may see.
+    /// </summary>
+    /// <param name="playlistId">The playlist.</param>
+    /// <param name="ownerUserId">The user it belongs to, which is who the change is
+    /// made as.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The task.</returns>
+    /// <remarks>
+    /// READ VISIBILITY ONLY, AND NEVER EDIT PERMISSION. The server keeps the two apart -
+    /// a playlist is visible to everybody or shared with named users, and a named share
+    /// carries its own answer about editing - and this plugin sets the first and never
+    /// the second. Who may add to the shared list and who may take from it is answer 7
+    /// on #1, which grants an addition to everybody and a removal only to an
+    /// administrator or to whoever put the entry there, and a playlist share cannot
+    /// express that pair: edit permission on a playlist is one flag covering both. So
+    /// the plugin grants none, and the endpoints are where those two rights are
+    /// exercised with the server's own answer about the caller in hand.
+    /// </remarks>
+    Task OpenToEveryoneAsync(Guid playlistId, Guid ownerUserId, CancellationToken cancellationToken);
 }
