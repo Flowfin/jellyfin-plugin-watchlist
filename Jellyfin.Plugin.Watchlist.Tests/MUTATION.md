@@ -23,7 +23,8 @@ A score that blocks a merge is a number people learn to raise. What this is for 
 the list below: every surviving mutant, with a verdict, so the next run is read
 against a decision rather than against a number.
 
-The reading, taken by hand on this machine, at the head this file landed on:
+The reading, taken by hand on this machine, at the head this file landed on, with
+`dotnet-stryker` 4.16.0:
 
     dotnet stryker --config-file Jellyfin.Plugin.Watchlist.Tests/stryker-config.json
     Killed:   218
@@ -34,6 +35,17 @@ The reading, taken by hand on this machine, at the head this file landed on:
 
 That run and a run tomorrow are two different readings. Re-run it rather than
 citing this one.
+
+WHICH VERSION TOOK IT IS PART OF THE READING, which is why the number is above and why
+`.github/workflows/mutation.yaml` installs that one rather than whatever the feed
+serves. A score that moved between two runs is the suite moving or the instrument
+moving, and an unpinned install leaves a reader unable to tell which. That is #293:
+Scorecard reports the unpinned form as `nugetCommand not pinned by hash`.
+
+A version pinned in a workflow is not a version anybody has watched run there. This
+workflow has never run - it is weekly and manual, and the tracker shows no run of it -
+so what stands behind the number is a hand run on one machine, and this sentence is the
+whole of that disclosure.
 
 ## The eleven that survived, one verdict each
 

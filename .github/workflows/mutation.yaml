@@ -73,9 +73,19 @@ jobs:
         # `--break-at 0` is what makes this report rather than gate. Stryker exits
         # non-zero when the score falls under the break threshold, and zero is the
         # only value that never does.
+        #
+        # THE INSTRUMENT IS PINNED, and the version is the one the reading in
+        # MUTATION.md was taken with rather than a number picked today. Unpinned, this
+        # step installed whatever the feed served on the morning it ran, so a score
+        # that moved could be the suite moving or the instrument moving and nothing
+        # here could tell a reader which. It is the same shape the release workflow
+        # already uses for its inventory generator. Scorecard reports the unpinned
+        # form as `nugetCommand not pinned by hash`, which is what raised #293.
+        env:
+          MUTATION_TOOL_VERSION: "4.16.0"
         run: |
           set -euo pipefail
-          dotnet tool install --global dotnet-stryker
+          dotnet tool install --global dotnet-stryker --version "${MUTATION_TOOL_VERSION}"
           dotnet restore
           dotnet stryker \
             --config-file Jellyfin.Plugin.Watchlist.Tests/stryker-config.json \
