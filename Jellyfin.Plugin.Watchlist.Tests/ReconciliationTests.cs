@@ -41,6 +41,8 @@ public sealed class ReconciliationTests : IDisposable
 
     private static readonly Guid SomethingElse = Guid.Parse("99999999-0000-0000-0000-000000000009");
 
+    private static readonly Guid TheSharedList = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002");
+
     private readonly TemporaryDirectory _sandbox = new("watchlist-reconciliation");
 
     private string DataFolder => Path.Join(_sandbox.FullPath, "plugin-data");
@@ -332,10 +334,10 @@ public sealed class ReconciliationTests : IDisposable
     /// wanted set, and the calls and the resulting order are the same on both.
     /// </summary>
     /// <remarks>
-    /// What this does NOT drive is the shared target from #84, which is not in this
-    /// tree. It drives a target of that SHAPE, which is what says the reconciler has no
-    /// private-list branch in it; that the shared list's own target behaves this way is
-    /// #84's to prove when it lands.
+    /// The target here is handed its owner and its wanted set rather than reading them
+    /// out of a record, so what it says is that the difference calculation branches on
+    /// nothing a target could carry. The shared list's own target is a shipped type now
+    /// and is driven by the test below this one, against the same assertions.
     /// </remarks>
     [Fact]
     public async Task OnePassOverAUsersOwnListAndOneOverAListOwnedElsewhereAgree()
@@ -361,6 +363,79 @@ public sealed class ReconciliationTests : IDisposable
         Assert.Equal(ownResult, elsewhereResult);
         Assert.Equal(mine.ItemsOn(TheList), elsewhere.ItemsOn(TheList));
         Assert.Equal([Second, First], elsewhere.ItemsOn(TheList));
+    }
+
+    /// <summary>
+    /// ONE DIFFERENCE CALCULATION OVER THE TWO SHIPPED TARGETS. A user's own list and
+    /// the one list the whole server shares, holding the same two entries added at the
+    /// same two moments, put the same starting playlist into the same state through the
+    /// same calls.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Both targets here are the shipped ones, built by their own factories out of real
+    /// records, so what agrees is the projection as it runs rather than a fake standing
+    /// in for half of it. That is what separates this from the test above, which drives
+    /// a target of the right shape and can say nothing about the shared list's own.
+    /// </para>
+    /// <para>
+    /// What differs between the two lists is the visibility rule and not the difference
+    /// calculation, and the assertions are arranged to say so: the wanted sets are read
+    /// off the targets first and are equal, while the owner and the openness are not, so
+    /// everything after that is the reconciler being handed two targets it must not be
+    /// able to tell apart. A branch on the owner, on
+    /// <see cref="IProjectionTarget.IsOpenToEveryone"/> or on anything else the shared
+    /// target answers differently moves one of the two call sequences and not the other.
+    /// </para>
+    /// <para>
+    /// Driven under both gateway answers, because the ordering path is where a
+    /// per-target branch would be cheapest to write and hardest to see.
+    /// </para>
+    /// </remarks>
+    /// <param name="canInsert">Which line the gateway stands for.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task OnePassOverAUsersOwnListAndOneOverTheSharedListAgree(bool canInsert)
+    {
+        var store = new WatchlistDocumentStore(DataFolder, new RecordingLogger());
+        var clock = AStoppedClock();
+        var settings = new PluginConfiguration { SharedListEnabled = true };
+
+        Assert.True(store.CreateShared(TheSharedList, AnAdministrator));
+
+        Put(store, clock, First, WatchlistItemKind.Movie);
+        PutShared(store, clock, First);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        Put(store, clock, Second, WatchlistItemKind.Movie);
+        PutShared(store, clock, Second);
+
+        var describer = new ADescriberOf(
+            (First, AUser, WatchlistItemKind.Movie),
+            (Second, AUser, WatchlistItemKind.Movie),
+            (First, AnAdministrator, WatchlistItemKind.Movie),
+            (Second, AnAdministrator, WatchlistItemKind.Movie));
+
+        var own = UserProjectionTarget.For(store, settings, describer, new ASeriesLibraryOf(), clock, AUser);
+        var shared = SharedProjectionTarget.For(store, settings, describer, new ASeriesLibraryOf(), clock);
+
+        Assert.NotNull(shared);
+        Assert.Equal([Second, First], own.Wanted);
+        Assert.Equal(own.Wanted, shared.Wanted);
+        Assert.NotEqual(own.OwnerUserId, shared.OwnerUserId);
+        Assert.False(own.IsOpenToEveryone);
+        Assert.True(shared.IsOpenToEveryone);
+
+        var mine = AServerHolding(canInsert, SomethingElse);
+        var everybodys = AServerHolding(canInsert, SomethingElse);
+
+        var ownResult = await Reconcile(mine, own);
+        var sharedResult = await Reconcile(everybodys, shared);
+
+        Assert.Equal(ownResult, sharedResult);
+        Assert.Equal(mine.Calls, everybodys.Calls);
+        Assert.Equal([Second, First], mine.ItemsOn(TheList));
+        Assert.Equal(mine.ItemsOn(TheList), everybodys.ItemsOn(TheList));
     }
 
     /// <summary>
@@ -405,6 +480,22 @@ public sealed class ReconciliationTests : IDisposable
                 Source = WatchlistEntrySource.Api,
             },
             PluginConfiguration.DefaultMaxEntriesPerUser);
+
+        Assert.Equal(WatchlistAddOutcome.Added, result.Outcome);
+    }
+
+    private static void PutShared(WatchlistDocumentStore store, TimeProvider clock, Guid itemId)
+    {
+        var result = store.AddShared(
+            new WatchlistEntry
+            {
+                ItemId = itemId,
+                Kind = WatchlistItemKind.Movie,
+                AddedAt = clock.GetUtcNow(),
+                Source = WatchlistEntrySource.Api,
+                AddedBy = AnAdministrator,
+            },
+            PluginConfiguration.DefaultMaxEntriesInSharedList);
 
         Assert.Equal(WatchlistAddOutcome.Added, result.Outcome);
     }

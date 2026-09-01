@@ -11,13 +11,13 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// THIS IS NOT THE SHARED TARGET AND DOES NOT STAND IN FOR IT. The shared list's own
-/// target is issue #84 and is not in this tree; what this carries is the SHAPE that
-/// makes a target something other than a private list - an owner who is not the holder
-/// of the record, and a wanted set the target decided rather than the reconciler. A
-/// pass over one of these and a pass over a <see cref="UserProjectionTarget"/> from the
-/// same wanted set going the same way is what the suite can say today, and it is less
-/// than a pass over #84's target.
+/// THIS IS NOT THE SHARED TARGET AND DOES NOT STAND IN FOR IT. What it carries is the
+/// SHAPE that makes a target something other than a private list - an owner who is not
+/// the holder of the record, and a wanted set the target decided rather than the
+/// reconciler. <see cref="SharedProjectionTarget"/> is a shipped type and the suite
+/// drives it directly, so a pass over one of these says less than that one does and is
+/// kept for the narrower thing it says: that the difference calculation reads nothing
+/// off a target beyond the wanted set and the owner.
 /// </para>
 /// <para>
 /// Everything the reconciler could branch on is a value here rather than a rule, which
