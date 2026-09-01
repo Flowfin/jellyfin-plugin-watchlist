@@ -112,6 +112,34 @@ public interface IPlaylistGateway
     Task RemoveAsync(Guid playlistId, IReadOnlyCollection<string> entryIds, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Takes one playlist off the server entirely.
+    /// </summary>
+    /// <param name="playlistId">The playlist.</param>
+    /// <param name="ownerUserId">The user it belongs to, which is who the removal is
+    /// made as.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True where a playlist was there and is gone; false where the server
+    /// held none for this owner under this identifier.</returns>
+    /// <remarks>
+    /// THE ONE OPERATION ON THIS SEAM THAT IS NOT PART OF A PASS. Every other call here
+    /// is issued while a list is being projected; this one is issued when a list stops
+    /// existing, and the playlist it made has to go with it or it stays on the server
+    /// showing what the list held at the moment it was removed, managed by nothing.
+    /// That is #301.
+    ///
+    /// FALSE IS NOT A FAILURE. A playlist a user already deleted from a client, or one
+    /// whose owner is gone, is a server that is already in the state the caller asked
+    /// for, and it is reported apart from a removal that did something so a caller can
+    /// say which of the two it met without inferring it from a count.
+    ///
+    /// A server this cannot reach at all throws, and the caller decides what that
+    /// means. The shared list's removal treats it as a playlist that outlived its
+    /// record rather than as a reason to keep the record, which is argued where that
+    /// decision is taken.
+    /// </remarks>
+    Task<bool> DeleteAsync(Guid playlistId, Guid ownerUserId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Whether this playlist is one every user of the server may see.
     /// </summary>
     /// <param name="playlistId">The playlist.</param>

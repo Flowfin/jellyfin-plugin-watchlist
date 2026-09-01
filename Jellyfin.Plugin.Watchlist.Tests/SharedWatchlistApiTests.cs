@@ -592,6 +592,7 @@ public sealed class SharedWatchlistApiTests : IDisposable
         configuration,
         new StoppedClock(WhenItWasAdded),
         server,
+        new APlaylistServerOf(),
         NullLogger<WatchlistController>.Instance);
 
     private IReadOnlyList<WatchlistEntry> Stored() =>

@@ -315,14 +315,31 @@ question is answered, so what it does cannot depend on which administrator asked
 
 Removed and never-there stay one answer, as everywhere else on this surface.
 
-What it removes is the shared record and nothing else, and since #84 there IS something
-else it does not remove. The shared list is projected into a playlist now, and taking the
-record away leaves that playlist on the server: the identifier of it was held in the
-record, so once the record is gone nothing in this plugin knows which playlist it was.
-What every user of the server is left with is a playlist they can still see, under the
-name the shared list had, that nothing manages any more - an administrator removes it the
-way they would remove any playlist. That is a consequence of this route rather than a
-decision taken here, it is #301, and it is written down rather than left to be met.
+IT TAKES THE PLAYLIST WITH IT. The shared list is projected into one playlist every user
+of the server may see, and this route removes that playlist as well as the record. Left
+behind it would stand on the server under the name the shared list had, holding what the
+list held at the moment it went, open to everybody and managed by nothing - and no later
+pass could tidy it, because the record naming which playlist it is is the thing being
+removed. THIS PARAGRAPH SAID THE PLAYLIST WAS LEFT, which was true from #84 until #301
+answered it here.
+
+The record goes first and unconditionally, and the playlist after it. A server whose
+playlists cannot be reached therefore loses the record anyway rather than refusing the
+call: every route over the shared list answers from the record, so a removal that refused
+here would leave every user still reading and writing a list an administrator has taken
+away. What that leaves is one line in the server log naming the playlist and its owner, so
+an administrator can remove it the way they would remove any playlist. A playlist somebody
+had already deleted is no failure at all, and is logged as what it is.
+
+The switch is not consulted. Turning `SharedListEnabled` off leaves the record and the
+playlist alone deliberately, so that turning it back on picks the same playlist up again;
+a record REMOVED while the switch is off is the one case where nothing will ever come back
+to tidy up, which is why this route does not ask.
+
+A list nothing ever projected asks the server nothing, because there is no identifier to
+ask about. A record this build will not read is the same case with one difference that is
+disclosed rather than hidden: the projection cannot be read out of it, so the record goes
+and any playlist it named stays, and the log says so.
 
 Nothing about a user's own list moves. Removing the shared list is not a way to
 reach anybody's private one, and no private document is read or written by it.
