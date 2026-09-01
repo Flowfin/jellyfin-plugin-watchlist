@@ -217,10 +217,20 @@ without waiting for the next one. A show on a list appears as one episode, and e
 made to the playlist on a client are read back onto the list.
 
 NOBODY HAS SEEN ANY OF THAT ON A CLIENT, and that is a different sentence from the
-one above. No server has ever loaded this plugin: nothing has been released from this
-repository, and the harness that would boot a stock server in a container is not
-built. [docs/client-verification.md](docs/client-verification.md) is the register
-where a row would go, it is empty, and it says so first.
+one above. What has changed is the reason, and this paragraph carried the old one:
+it said no server had ever loaded this plugin and that the harness which would boot
+a stock one in a container was not built. A stock server boots with the packaged
+archive on every run of the interoperability check, and a second harness now drives
+the whole loop against one - it adds a film through this plugin's endpoint, runs the
+scheduled task, and reads the projected playlist back with the two queries a client
+issues to list playlists and their contents.
+
+So the server answers a client asking. What nobody has done is look at a screen, and
+those are two claims rather than one: a server that answers correctly and a client
+that renders it can come apart, and the register keeps them apart on purpose.
+[docs/client-verification.md](docs/client-verification.md) holds one row for the
+first and none for the second, and it says which is which before it says anything
+else.
 
 The shared list is projected too, and this paragraph said that is where the projection
 stops. Where an administrator has turned it on and made one, it appears as a playlist
