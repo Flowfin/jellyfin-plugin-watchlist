@@ -289,7 +289,7 @@ public sealed class SharedWatchlistTransferApiTests : IDisposable
         StoreShared(EntryAddedBy(1, SomebodyElse));
 
         var controller = ControllerOver(
-            new PluginConfiguration { MaxEntriesInSharedList = 1 },
+            new PluginConfiguration { SharedListEnabled = true, MaxEntriesInSharedList = 1 },
             new ProviderIdTable(),
             new ProviderIndexTable(("Imdb", "tt0000002", Item(2))),
             Visible(2, AnAdministrator));
@@ -493,7 +493,7 @@ public sealed class SharedWatchlistTransferApiTests : IDisposable
             new DescriberFor(Visible(11, AnAdministrator), Visible(12, AnAdministrator)),
             new ProviderIdTable(),
             new ProviderIndexTable(("Imdb", "tt0000001", Item(11)), ("Imdb", "tt0000002", Item(12))),
-            new PluginConfiguration(),
+            AServerThatOffersASharedList(),
             AuthorisationAnswering.Yes(),
             NullLogger<SharedWatchlistTransferController>.Instance);
 
@@ -637,6 +637,16 @@ public sealed class SharedWatchlistTransferApiTests : IDisposable
         return text;
     }
 
+    /// <summary>
+    /// The settings a server serving a shared list is in. Every route over the list's
+    /// CONTENTS reads this switch since #277 and answers as though there were no list
+    /// while it says no, so a fixture leaving it at its default would be driving the
+    /// closed surface rather than the open one.
+    /// </summary>
+    /// <returns>The settings.</returns>
+    private static PluginConfiguration AServerThatOffersASharedList() =>
+        new() { SharedListEnabled = true };
+
     private SharedWatchlistTransferController ControllerAsking(
         AuthorisationAnswering server,
         ControllerContext context) => new(
@@ -644,7 +654,7 @@ public sealed class SharedWatchlistTransferApiTests : IDisposable
         new DescriberFor(),
         new ProviderIdTable(),
         new ProviderIndexTable(),
-        new PluginConfiguration(),
+        AServerThatOffersASharedList(),
         server,
         NullLogger<SharedWatchlistTransferController>.Instance)
     {
@@ -654,13 +664,13 @@ public sealed class SharedWatchlistTransferApiTests : IDisposable
     private SharedWatchlistTransferController ControllerOver(
         IProviderIdSource providerIds,
         params (Guid ItemId, Guid UserId, WatchlistItemDescription Description)[] rows) =>
-        ControllerOver(new PluginConfiguration(), providerIds, new ProviderIndexTable(), rows);
+        ControllerOver(AServerThatOffersASharedList(), providerIds, new ProviderIndexTable(), rows);
 
     private SharedWatchlistTransferController ControllerOver(
         IProviderIdSource providerIds,
         IProviderIdIndex providerIndex,
         params (Guid ItemId, Guid UserId, WatchlistItemDescription Description)[] rows) =>
-        ControllerOver(new PluginConfiguration(), providerIds, providerIndex, rows);
+        ControllerOver(AServerThatOffersASharedList(), providerIds, providerIndex, rows);
 
     private SharedWatchlistTransferController ControllerOver(
         PluginConfiguration configuration,

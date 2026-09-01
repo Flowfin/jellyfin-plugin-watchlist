@@ -39,11 +39,14 @@ namespace Jellyfin.Plugin.Watchlist.Api;
 /// else, so neither is a route into a list somebody keeps for themselves.
 /// </para>
 /// <para>
-/// Neither route consults <see cref="PluginConfiguration.SharedListEnabled"/>, which is
-/// the answer the shared read and the shared add already give: the setting is consulted
-/// where the list is made and nowhere else today. Whether turning it off should close
-/// the routes that read an existing list is #277, and an answer taken at this route
-/// alone would be a third place that one question is answered.
+/// BOTH ROUTES CONSULT <see cref="PluginConfiguration.SharedListEnabled"/> NOW, AND
+/// THIS PARAGRAPH SAID NEITHER DID. It said the setting was consulted where the list is
+/// made and nowhere else, and that whether turning it off should close the routes over
+/// an existing list was #277. #277 decided it: the routes that serve the contents read
+/// the setting and answer as though there were no list, and these two serve the
+/// contents of it as much as the item routes do. The answer is asked of
+/// <see cref="SharedListSwitch"/> rather than spelled here, which is what keeps it from
+/// being a third place one question is answered.
 /// </para>
 /// </remarks>
 [ApiController]
@@ -212,6 +215,15 @@ public class SharedWatchlistTransferController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden);
         }
 
+        if (SharedListSwitch.ClosesTheList(_configuration))
+        {
+            // The switch says this server offers no shared list, so this route answers
+            // the way it answers on a server that has none. It is the same answer rather
+            // than a neighbouring one deliberately: a caller that could tell a list
+            // switched off from a list never made would learn that the list is there.
+            return NotFound();
+        }
+
         var read = _store.ReadShared();
 
         if (!read.Exists)
@@ -296,6 +308,15 @@ public class SharedWatchlistTransferController : ControllerBase
                 WatchlistExport.CurrentFormatVersion);
 
             return BadRequest();
+        }
+
+        if (SharedListSwitch.ClosesTheList(_configuration))
+        {
+            // The switch says this server offers no shared list, so this route answers
+            // the way it answers on a server that has none. It is the same answer rather
+            // than a neighbouring one deliberately: a caller that could tell a list
+            // switched off from a list never made would learn that the list is there.
+            return NotFound();
         }
 
         var read = _store.ReadShared();

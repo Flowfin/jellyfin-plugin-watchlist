@@ -394,8 +394,8 @@ as the private ones do not. Five sit on the controller that carries the item rou
 and two on the one that carries the list between servers:
 
     git grep -n 'HttpGet("Shared\|HttpPost("Shared' -- Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs
-    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:115:    [HttpGet("Shared/Export")]
-    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:160:    [HttpPost("Shared/Import")]
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:118:    [HttpGet("Shared/Export")]
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:163:    [HttpPost("Shared/Import")]
 
 The first paste said three until #87 added its last two. Those two are the list itself
 rather than its contents - making it and taking it away - and neither reads anything:
@@ -404,6 +404,17 @@ one writes an empty record and the other removes it. The second paste is the pai
 an ordinary user, and the two pastes are read together rather than the first alone,
 because a count over one controller stopped answering for this surface the day a
 second one arrived.
+
+FIVE OF THE SEVEN ARE CLOSED WHILE THE SETTING SAYS NO, WHICH IS #277 AND IS NEW. The
+five over the list's CONTENTS - the read, the add, the removal of one entry, and the
+export and import pair - read `SharedListEnabled` and answer as though this server had
+no shared list while it says no. So an administrator who turns the switch off closes the
+list to every user of the server rather than only to the page that describes it, and the
+sentence at the head of this section is true of a server whose switch says yes. What is
+NOT closed is the administrative pair: the creation refuses with its own answer, and the
+removal has to stay reachable, because it is how a list made before the switch moved is
+taken away. Nothing on disk is touched either way, so turning the switch back on gives
+every user the list they had.
 
 **Anybody with file access to the server**, for the same reason a private list is
 readable that way. It is one plain file under the same folder, and its name is not one

@@ -187,7 +187,7 @@ public sealed class SharedWatchlistApiTests : IDisposable
         MakeTheSharedList();
 
         var controller = ControllerOver(
-            new PluginConfiguration(),
+            AServerThatOffersASharedList(),
             new DescriberFor((Item(1), AUser, Description(WatchlistItemKind.Other))));
 
         Assert.IsType<BadRequestResult>(controller.AddSharedFor(AUser, Item(1)));
@@ -205,7 +205,7 @@ public sealed class SharedWatchlistApiTests : IDisposable
         StoreShared(EntryAddedBy(1, AUser));
 
         var controller = ControllerOver(
-            new PluginConfiguration { MaxEntriesInSharedList = 1 },
+            new PluginConfiguration { SharedListEnabled = true, MaxEntriesInSharedList = 1 },
             Visible(2, AUser));
 
         Assert.IsType<ConflictResult>(controller.AddSharedFor(AUser, Item(2)));
@@ -415,7 +415,7 @@ public sealed class SharedWatchlistApiTests : IDisposable
         StoreShared(EntryAddedBy(1, AUser));
 
         var server = AuthorisationAnswering.Yes();
-        var controller = ControllerOver(new PluginConfiguration(), server, Visible(1, AnotherUser));
+        var controller = ControllerOver(AServerThatOffersASharedList(), server, Visible(1, AnotherUser));
         controller.ControllerContext = AsRequestFrom(AnotherUser);
 
         Assert.IsType<NoContentResult>(await controller.RemoveSharedWatchlistItem(Item(1)));
@@ -434,7 +434,7 @@ public sealed class SharedWatchlistApiTests : IDisposable
         StoreShared(EntryAddedBy(1, AUser));
 
         var server = AuthorisationAnswering.No();
-        var controller = ControllerOver(new PluginConfiguration(), server, Visible(1, AnotherUser));
+        var controller = ControllerOver(AServerThatOffersASharedList(), server, Visible(1, AnotherUser));
         controller.ControllerContext = AsRequestFrom(AnotherUser);
 
         Assert.Equal(
@@ -560,12 +560,22 @@ public sealed class SharedWatchlistApiTests : IDisposable
         _ => throw new InvalidOperationException("This result carries no status code: " + result.GetType().Name),
     };
 
+    /// <summary>
+    /// The settings a server serving a shared list is in. Every route over the list's
+    /// CONTENTS reads this switch since #277 and answers as though there were no list
+    /// while it says no, so a fixture leaving it at its default would be driving the
+    /// closed surface rather than the open one.
+    /// </summary>
+    /// <returns>The settings.</returns>
+    private static PluginConfiguration AServerThatOffersASharedList() =>
+        new() { SharedListEnabled = true };
+
     private static IReadOnlyList<WatchlistEntryView> EntriesOf(
         ActionResult<IReadOnlyList<WatchlistEntryView>> result) => result.Value!;
 
     private WatchlistController ControllerOver(
         params (Guid ItemId, Guid UserId, WatchlistItemDescription Description)[] rows) =>
-        ControllerOver(new PluginConfiguration(), new DescriberFor(rows));
+        ControllerOver(AServerThatOffersASharedList(), new DescriberFor(rows));
 
     private WatchlistController ControllerOver(
         PluginConfiguration configuration,

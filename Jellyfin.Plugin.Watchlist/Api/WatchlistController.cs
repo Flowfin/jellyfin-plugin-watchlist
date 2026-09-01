@@ -555,6 +555,15 @@ public class WatchlistController : ControllerBase
     /// <returns>The result the endpoint returns.</returns>
     internal ActionResult<IReadOnlyList<WatchlistEntryView>> SharedItemsFor(Guid userId)
     {
+        if (SharedListSwitch.ClosesTheList(_configuration))
+        {
+            // The switch says this server offers no shared list, so this route answers
+            // the way it answers on a server that has none. It is the same answer rather
+            // than a neighbouring one deliberately: a caller that could tell a list
+            // switched off from a list never made would learn that the list is there.
+            return NotFound();
+        }
+
         var read = _store.ReadShared();
 
         if (!read.Exists)
@@ -624,6 +633,15 @@ public class WatchlistController : ControllerBase
             AddedBy = userId,
         };
 
+        if (SharedListSwitch.ClosesTheList(_configuration))
+        {
+            // The switch says this server offers no shared list, so this route answers
+            // the way it answers on a server that has none. It is the same answer rather
+            // than a neighbouring one deliberately: a caller that could tell a list
+            // switched off from a list never made would learn that the list is there.
+            return NotFound();
+        }
+
         var result = _store.AddShared(entry, _configuration.MaxEntriesInSharedList);
 
         if (result.IsOnTheList)
@@ -658,6 +676,15 @@ public class WatchlistController : ControllerBase
     /// <returns>The result the endpoint returns.</returns>
     internal ActionResult RemoveSharedFor(Guid userId, Guid itemId, bool callerMayRemoveAnyEntry)
     {
+        if (SharedListSwitch.ClosesTheList(_configuration))
+        {
+            // The switch says this server offers no shared list, so this route answers
+            // the way it answers on a server that has none. It is the same answer rather
+            // than a neighbouring one deliberately: a caller that could tell a list
+            // switched off from a list never made would learn that the list is there.
+            return NotFound();
+        }
+
         var result = _store.RemoveShared(itemId, userId, callerMayRemoveAnyEntry);
 
         if (result.IsOffTheList)

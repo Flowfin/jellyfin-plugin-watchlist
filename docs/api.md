@@ -190,8 +190,15 @@ what sits in a library the caller has no access to.
 | --- | --- |
 | 200 | The shared list. It is empty when nobody has put anything on it, and that is not an error. |
 | 401 | The request carried no user identity this plugin could read. |
-| 404 | This server has no shared list. Nobody has made one. |
+| 404 | This server has no shared list: nobody has made one, or the setting says it offers none. |
 | 503 | The shared list exists and this plugin will not read it. |
+
+**While `SharedListEnabled` says no, this route answers 404 whatever is on disk.** The
+switch is the server's statement that it offers a shared list, and since #277 the routes
+over the list's CONTENTS read it and answer as though there were none. It is the same
+answer as for a list nobody ever made, deliberately: a caller that could tell the two
+apart would learn from the difference that the list is there. Nothing stored is touched,
+so turning the switch back on restores exactly what was there.
 
 The 404 and the empty 200 are different answers to different questions, and
 collapsing them would be the more comfortable mistake. A server on which nobody
@@ -220,9 +227,16 @@ somebody else asked for would be the opposite of what the attribution is for.
 | 204 | The item is on the shared list. This call put it there, or it was already there. |
 | 400 | The item is not of a kind a watchlist holds. |
 | 401 | The request carried no user identity this plugin could read. |
-| 404 | There is nothing here for this caller to add, or this server has no shared list. |
+| 404 | There is nothing here for this caller to add, or this server has no shared list: nobody has made one, or the setting says it offers none. |
 | 409 | The shared list is at its cap. Nothing was added and nothing was removed. |
 | 503 | The shared list exists and this plugin will not write to it. |
+
+**While `SharedListEnabled` says no, this route answers 404 whatever is on disk.** The
+switch is the server's statement that it offers a shared list, and since #277 the routes
+over the list's CONTENTS read it and answer as though there were none. It is the same
+answer as for a list nobody ever made, deliberately: a caller that could tell the two
+apart would learn from the difference that the list is there. Nothing stored is touched,
+so turning the switch back on restores exactly what was there.
 
 The 404 answers three questions with one answer here rather than two. An item
 that is not in the library, an item this caller may not see, and a server with
@@ -250,8 +264,15 @@ it is asked through the server's own elevation policy.
 | 204 | The item is not on the shared list. This call took it off, or it was never there. |
 | 401 | The request carried no user identity this plugin could read. |
 | 403 | The entry is somebody else's and this caller is not an administrator. Nothing was removed. |
-| 404 | This server has no shared list. |
+| 404 | This server has no shared list to take an entry off: nobody has made one, or the setting says it offers none. |
 | 503 | The shared list exists and this plugin will not write to it. |
+
+**While `SharedListEnabled` says no, this route answers 404 whatever is on disk.** The
+switch is the server's statement that it offers a shared list, and since #277 the routes
+over the list's CONTENTS read it and answer as though there were none. It is the same
+answer as for a list nobody ever made, deliberately: a caller that could tell the two
+apart would learn from the difference that the list is there. Nothing stored is touched,
+so turning the switch back on restores exactly what was there.
 
 The 403 says something a 404 would hide, and here that is right. Every entry on
 this list names who added it, so a caller who is told an entry is not theirs
@@ -448,8 +469,15 @@ one server export the same bytes.
 | 200 | The export. A shared list nobody has put anything on gets a list with no entries, which is a valid export of nothing. |
 | 401 | The request carried no user identity this plugin could read. |
 | 403 | The caller is not an administrator. Nothing was read. |
-| 404 | Nobody has made a shared list on this server. |
+| 404 | Nobody has made a shared list on this server, or the setting says it offers none. |
 | 503 | The shared list exists and this plugin will not read it. |
+
+**While `SharedListEnabled` says no, this route answers 404 whatever is on disk.** The
+switch is the server's statement that it offers a shared list, and since #277 the routes
+over the list's CONTENTS read it and answer as though there were none. It is the same
+answer as for a list nobody ever made, deliberately: a caller that could tell the two
+apart would learn from the difference that the list is there. Nothing stored is touched,
+so turning the switch back on restores exactly what was there.
 
 A server with no shared list answers 404 rather than an empty export. A file
 describing a shared list with no entries would restore onto another server as a
@@ -502,8 +530,15 @@ not read is counted along with how many entries sat in it.
 | 400 | The body is not an export this plugin can read, or it declares a format version this plugin does not know. |
 | 401 | The request carried no user identity this plugin could read. |
 | 403 | The caller is not an administrator. Nothing was written. |
-| 404 | This server has no shared list to write into. |
+| 404 | This server has no shared list to write into: nobody has made one, or the setting says it offers none. |
 | 503 | The shared list exists and this plugin will not write to it. |
+
+**While `SharedListEnabled` says no, this route answers 404 whatever is on disk.** The
+switch is the server's statement that it offers a shared list, and since #277 the routes
+over the list's CONTENTS read it and answer as though there were none. It is the same
+answer as for a list nobody ever made, deliberately: a caller that could tell the two
+apart would learn from the difference that the list is there. Nothing stored is touched,
+so turning the switch back on restores exactly what was there.
 
 A private list in the file is counted and left alone, which is the mirror image of
 what the per-user import does with a shared one. Writing somebody's private list
