@@ -78,7 +78,12 @@
 #
 # A FAILURE PRINTS WHAT IT COLLECTED. Every refusal goes through one function that
 # dumps the transcript of the calls made and the container's log before it exits,
-# so a red run is readable without re-running it.
+# so a red run is readable without re-running it. `--collect` writes the same two
+# things to a directory instead of only to the log, which is what a job uploads
+# when the run that produced them is gone: a log printed into a workflow run is
+# readable while somebody is looking at that run, and a file is readable after it
+# has scrolled past. Both are written on EVERY path, not only the failing one, so
+# a green run leaves the transcript that says what it actually asked the server.
 #
 # THE MEANS. Bash, curl and jq, with docker and unzip, which is what
 # `boot-a-line-with-this-plugin.sh` beside it is written in and what the workflows
@@ -100,6 +105,9 @@
 #     --image jellyfin/jellyfin:10.11.11 --package <package.zip>
 #   .github/scripts/drive-the-whole-loop-on-a-line.sh \
 #     --image jellyfin/jellyfin:10.11.11 --package <package.zip> \
+#     --collect <directory>
+#   .github/scripts/drive-the-whole-loop-on-a-line.sh \
+#     --image jellyfin/jellyfin:10.11.11 --package <package.zip> \
 #     --without-the-projection
 #   .github/scripts/drive-the-whole-loop-on-a-line.sh --prove-it-bites
 
@@ -111,6 +119,7 @@ package=""
 port="18098"
 prove="no"
 without_projection="no"
+collect_into=""
 
 # The shape the near miss compares by name, for the reason the header gives.
 NO_PLAYLIST="[no-playlist]"
@@ -128,7 +137,7 @@ client='MediaBrowser Client="loop-harness", Device="ci", DeviceId="loop-harness"
 film="Loop Probe (2020)"
 
 usage() {
-  echo "Usage: drive-the-whole-loop-on-a-line.sh --image <image> --package <package.zip> [--port <port>] [--without-the-projection]" >&2
+  echo "Usage: drive-the-whole-loop-on-a-line.sh --image <image> --package <package.zip> [--port <port>] [--collect <directory>] [--without-the-projection]" >&2
   echo "       drive-the-whole-loop-on-a-line.sh --prove-it-bites" >&2
   exit 2
 }
@@ -139,6 +148,7 @@ while [ "$#" -gt 0 ]; do
     --image) image="$2"; shift 2 ;;
     --package) package="$2"; shift 2 ;;
     --port) port="$2"; shift 2 ;;
+    --collect) collect_into="$2"; shift 2 ;;
     --without-the-projection) without_projection="yes"; shift ;;
     --prove-it-bites) prove="yes"; shift ;;
     *)
@@ -444,7 +454,24 @@ fi
 # Removing them can fail on a permission error, because the server writes into
 # the mounted directories as the user inside the container. That is tidying
 # rather than a verdict.
+#
+# IT IS ALSO WHERE THE COLLECTION HAPPENS, AND THAT IS WHY IT IS NOT AT THE END OF
+# THE RUN. A failing run leaves through a refusal rather than through the last
+# line of this file, so anything written after the assertions is written only on
+# the runs that did not need it. The trap fires on every path, and it is the only
+# place that can say that.
+collect() {
+  [ -n "${collect_into}" ] || return 0
+
+  mkdir -p "${collect_into}" || return 0
+  docker logs "${container}" > "${collect_into}/server.log" 2>&1 || true
+  cp "${transcript}" "${collect_into}/transcript.txt" 2>/dev/null || true
+
+  echo "Collected the server log and the request transcript into ${collect_into}."
+}
+
 cleanup() {
+  collect
   docker rm --force "${container}" >/dev/null 2>&1 || true
   rm -rf "${root}" 2>/dev/null || echo "Left behind ${root}."
 }

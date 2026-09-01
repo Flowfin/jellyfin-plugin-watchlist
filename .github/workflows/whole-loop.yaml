@@ -38,11 +38,18 @@
 #
 # WHAT THIS FILE DOES NOT DECIDE. Where a container harness belongs in the gate -
 # on a schedule, on demand, at a release across every supported line, and with the
-# log and the transcript published as artifacts of the run - is #62, and none of
-# those is taken here. What is here is the smallest route that can run the harness
-# at all, because a harness nothing runs is a harness nobody has watched bite. The
-# triggers below are therefore a starting point that #62 revises, and the parity
-# table row is written there rather than claimed here.
+# log and the transcript published as artifacts of the run - is #62 and is decided
+# here: a pull request that can move what the harness asserts, a weekly schedule,
+# on demand, and the tag a release is cut from. Each trigger carries its own reason
+# at the trigger rather than in a list, and the one condition that is NOT met is
+# written at the tag trigger rather than left for a reader to notice - this
+# workflow runs beside the publishing chain and does not hold it.
+#
+# WHAT A FAILURE LEAVES BEHIND. The harness writes the container log and the
+# transcript of every call it made into a directory, on every path it can exit by,
+# and the job uploads that directory whether the run passed or failed. A red run is
+# therefore readable a month later, when the step log has scrolled past and the
+# server it was about is long gone.
 #
 # It reports and does not gate. Which checks the mainline requires is decided on
 # #63, and the required set is read rather than restated:
@@ -53,12 +60,45 @@
 name: Whole loop
 
 on:
-  push:
-    branches:
-      - master
+  # A pull request that can move what the harness asserts. That set is the harness
+  # and this file, `build.yaml` - whose declared identity and line the harness
+  # asserts against, and whose version names the archive - and the plugin itself,
+  # which is what the loop is a reading of. A trigger narrowed to the harness alone
+  # would be a check that guards only itself: a change to the projection that broke
+  # the loop would meet nothing on the pull request introducing it, and would be
+  # found by the schedule below, after the merge.
   pull_request:
     branches:
       - master
+    paths:
+      - ".github/scripts/drive-the-whole-loop-on-a-line.sh"
+      - ".github/workflows/whole-loop.yaml"
+      - "build.yaml"
+      - "Jellyfin.Plugin.Watchlist/**"
+  # What this reads is a published server image and a container runtime rather than
+  # this tree alone, so a run that passed on the day of a merge says nothing about
+  # the image the same tag resolves to a month later. That is the failure a check
+  # wired only to changes cannot see, and it is why this one is not.
+  schedule:
+    - cron: "0 4 * * 1"
+  # On demand, so a reading can be taken against a commit somebody is about to tag
+  # without waiting a week for the schedule or pushing a change to force one.
+  workflow_dispatch:
+  # At a release. The tag patterns are the ones `publish.yaml` triggers on, so the
+  # loop is driven against exactly the commit an artifact is cut from rather than
+  # against whatever the mainline holds that day.
+  #
+  # THIS RUNS BESIDE THE PUBLISH AND DOES NOT HOLD IT, WHICH IS A GAP RATHER THAN
+  # THE DESIGN. #62 asks for the evidence to exist BEFORE an artifact is published;
+  # a workflow triggered by the same push starts at the same moment as the
+  # publishing chain and can finish after it. Making it a condition of the publish
+  # means a job inside `publish.yaml`, whose alert judges a fixed set of jobs by
+  # name, and that change is not taken here. What stands in for it is a step in
+  # `docs/RELEASING.md`, performed by a person rather than refused by anything.
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+-stable"
+      - "[0-9]+.[0-9]+.[0-9]+.[0-9]+-stable"
 
 # Deny everything at the workflow level; the job below takes only what it reads.
 permissions: {}
@@ -148,6 +188,7 @@ jobs:
           set -euo pipefail
           bash .github/scripts/drive-the-whole-loop-on-a-line.sh \
             --image "${IMAGE}" --package "${ARTIFACT}" --port 18099 \
+            --collect collected/near-miss \
             --without-the-projection
 
       - name: Drive the whole loop
@@ -157,4 +198,22 @@ jobs:
         run: |
           set -euo pipefail
           bash .github/scripts/drive-the-whole-loop-on-a-line.sh \
-            --image "${IMAGE}" --package "${ARTIFACT}"
+            --image "${IMAGE}" --package "${ARTIFACT}" \
+            --collect collected/loop
+
+      - name: Publish the server log and the request transcript
+        # `always()`, because the run this is worth having is the one that failed,
+        # and the default condition skips exactly that one. The harness writes both
+        # files from its exit trap, so a refusal midway through the loop still
+        # leaves the transcript of what it had asked by then.
+        #
+        # A run that died before the harness started leaves nothing here, and the
+        # upload warns rather than failing: an empty upload is not evidence that the
+        # loop was clean, and this step is not the thing that decides the job.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: whole-loop-${{ matrix.line }}
+          path: collected/
+          if-no-files-found: warn
+          retention-days: 30
