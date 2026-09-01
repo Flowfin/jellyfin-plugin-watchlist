@@ -1,0 +1,160 @@
+# Drive the whole watchlist loop on a real server, with the packaged plugin
+# installed the way a server installs one (#52).
+#
+# WHAT THIS ADDS THAT THE INTEROPERABILITY MATRIX DOES NOT. That matrix boots the
+# same image with the same archive and asserts that the plugin loads, is listed
+# active, answers three routes and collides with nothing. It adds no item, runs no
+# projection and reads no playlist, and says so in its own header. So until this
+# job existed, every green run on this board left "a client sees the list" as a
+# claim about source: the scheduled task the projection is driven by, the playlist
+# manager it writes through and the library the endpoints refuse an unknown item
+# against had never been executed anywhere.
+#
+# THE HARNESS IS A FIRST-PARTY SCRIPT IN THE TREE, for the reason the boot harness
+# and the dependency listing are: the gate should be readable here, and it should
+# run the same way on a workstation with a container runtime as it does on a
+# runner.
+#
+#   .github/scripts/drive-the-whole-loop-on-a-line.sh \
+#     --image jellyfin/jellyfin:10.11.11 --package <package.zip>
+#
+# TWO PROBES RUN AHEAD OF THE RUN THAT MATTERS, which is the ordering every other
+# guard in this repository uses. A harness that asserted nothing would pass the
+# real run exactly like one that is holding.
+#
+#   The four judgements the harness decides with run over fabricated answers and
+#   their one-change neighbours. No container.
+#
+#   The harness is pointed at the same image and the same archive with the
+#   projection turned off through the plugin's own configuration route, and must
+#   refuse it FOR THE PLAYLIST NEVER APPEARING rather than merely exit non-zero.
+#   That proves the assertion the loop is about, on a live server, against the one
+#   setting that decides it.
+#
+# ONE LINE IS BOOTED AND THE RUN SAYS SO, which is the reading the build, test,
+# dependency and interoperability legs already take, taken here for their reason:
+# the tree carries one package set, and a second line arrives with a second one
+# rather than with a second entry in this file.
+#
+# WHAT THIS FILE DOES NOT DECIDE. Where a container harness belongs in the gate -
+# on a schedule, on demand, at a release across every supported line, and with the
+# log and the transcript published as artifacts of the run - is #62, and none of
+# those is taken here. What is here is the smallest route that can run the harness
+# at all, because a harness nothing runs is a harness nobody has watched bite. The
+# triggers below are therefore a starting point that #62 revises, and the parity
+# table row is written there rather than claimed here.
+#
+# It reports and does not gate. Which checks the mainline requires is decided on
+# #63, and the required set is read rather than restated:
+#
+#     gh api repos/Flowfin/jellyfin-plugin-watchlist/rulesets/20456281 \
+#       --jq '[.rules[] | select(.type=="required_status_checks")
+#              | .parameters.required_status_checks[].context]'
+name: Whole loop
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+# Deny everything at the workflow level; the job below takes only what it reads.
+permissions: {}
+
+# A superseded run on the same ref tells nobody anything, and this one holds a
+# container runtime for the length of two server boots.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  loop:
+    # This name is the check context. Changing it removes a context rather than
+    # renaming one, so it moves only together with whatever requires it.
+    name: Whole loop on ${{ matrix.line }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read # check out the tree the package is built from
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # build.yaml declares targetAbi 10.11.0.0, and 10.11.11 is the newest
+          # image published on that line, so this job boots a server the manifest
+          # claims to load on. The tag is where the version is read from: a
+          # floating tag would move this job onto a server nobody chose.
+          - line: "10.11"
+            framework: net9.0
+            image: "jellyfin/jellyfin:10.11.11"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Say which server lines this run covers
+        # One line is booted and the tree supports two. Without this step a green
+        # tick here reads as a statement about both.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh --prove-it-bites
+          echo
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh
+
+      - name: Say what this job is booting
+        env:
+          LINE: ${{ matrix.line }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          echo "Server line: ${LINE}"
+          echo "Image:       ${IMAGE}"
+          grep -n '^targetAbi:\|^framework:' build.yaml
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Build the package this job installs
+        id: jprm
+        # The same packager and the same pin the release route runs. No version
+        # input: the packager reads it out of build.yaml, which is the only place
+        # the version is written.
+        uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
+        with:
+          dotnet-target: ${{ matrix.framework }}
+
+      - name: Prove the harness bites before it is believed
+        run: |
+          set -euo pipefail
+          bash .github/scripts/drive-the-whole-loop-on-a-line.sh --prove-it-bites
+
+      - name: Prove the harness refuses a server whose projection is off
+        # This step passes when the harness REFUSED, and the inversion lives
+        # inside the script rather than here on purpose. A step written as "run it
+        # and expect a non-zero exit" accepts a harness that died before it
+        # asserted anything. The script knows which failure it raised; a shell
+        # here knows only the exit status.
+        env:
+          IMAGE: ${{ matrix.image }}
+          ARTIFACT: ${{ steps.jprm.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/drive-the-whole-loop-on-a-line.sh \
+            --image "${IMAGE}" --package "${ARTIFACT}" --port 18099 \
+            --without-the-projection
+
+      - name: Drive the whole loop
+        env:
+          IMAGE: ${{ matrix.image }}
+          ARTIFACT: ${{ steps.jprm.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/drive-the-whole-loop-on-a-line.sh \
+            --image "${IMAGE}" --package "${ARTIFACT}"
