@@ -616,10 +616,10 @@ plugin refuses to read is reported with its path, and the file name is the user'
 identifier, so a refused read puts that identifier in the server log:
 
     grep -n 'Refusing to read {Path}' Jellyfin.Plugin.Watchlist/Store/WatchlistDocumentStore.cs
-    199:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
-    214:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
-    577:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
-    588:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    201:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+    216:                "Refusing to read {Path}: it declares watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The list is unavailable for this user and the file is left alone.",
+    579:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin understands version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
+    590:                "Refusing to read {Path}: it declares shared watchlist schema version {StoredVersion} and this plugin carries no upgrade step from it to version {UnderstoodVersion}. The shared list is unavailable and the file is left alone.",
 
 Re-taken on the change that landed the deleted-user handler, where the last two moved
 from 414 and 425 because the deletion path went into the store above them, and again
@@ -627,8 +627,6 @@ on the change that landed the projector, which moved them to 499 and 510 for the
 reason: the store gained the writer that records a user's playlist above them. The paste
 held two lines until the shared list gained the same two refusals, and the last two of
 the four name a path that is the shared list's file rather than anybody's identifier.
-All four moved up by two on the change that took a local out of the loop over the
-document folder, which sits above every one of them.
 
 The path is what makes that line actionable, since it names the file somebody has to
 look at, and an identifier without the list beside it says nothing about what anyone
