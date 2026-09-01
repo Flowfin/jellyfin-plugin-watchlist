@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Mime;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Watchlist.Configuration;
+using Jellyfin.Plugin.Watchlist.Projection;
 using Jellyfin.Plugin.Watchlist.Store;
 using MediaBrowser.Common.Api;
 using Microsoft.AspNetCore.Authorization;
@@ -59,6 +61,7 @@ public class WatchlistController : ControllerBase
     private readonly PluginConfiguration _configuration;
     private readonly TimeProvider _clock;
     private readonly IAuthorizationService _authorisation;
+    private readonly IPlaylistGateway _playlists;
     private readonly ILogger<WatchlistController> _logger;
 
     /// <summary>
@@ -69,6 +72,9 @@ public class WatchlistController : ControllerBase
     /// <param name="configuration">The settings a write is judged against.</param>
     /// <param name="clock">What stamps an entry with the moment it was added.</param>
     /// <param name="authorisation">Who answers whether a caller is an administrator.</param>
+    /// <param name="playlists">The seam every playlist operation goes through, which
+    /// this surface uses for one thing: taking the shared list's playlist off the
+    /// server when the shared list is removed.</param>
     /// <param name="logger">Where the one line about skipped entries goes.</param>
     /// <remarks>
     /// The clock is a dependency rather than a call. An entry carries the instant it
@@ -80,6 +86,15 @@ public class WatchlistController : ControllerBase
     /// server can take, so the cap a write is judged against would be the one line of
     /// this file no test could reach. It is resolved per request rather than once, so
     /// a cap changed on the configuration page applies to the next call.
+    ///
+    /// THE PLAYLIST SEAM IS HERE FOR ONE OPERATION AND THE NARROWNESS IS THE POINT.
+    /// Nothing on this surface projects anything; the scheduled pass does that. What
+    /// this needs it for is the removal of the shared list, which is the one moment a
+    /// playlist has to stop existing and the one moment no later pass will ever come
+    /// back to tidy up - the record that would tell a pass which playlist to tidy is
+    /// the thing being deleted. It is the interface rather than the server's
+    /// implementation, so this file names no server playlist type and the suite drives
+    /// the removal with a fake.
     /// </remarks>
     public WatchlistController(
         WatchlistDocumentStore store,
@@ -87,6 +102,7 @@ public class WatchlistController : ControllerBase
         PluginConfiguration configuration,
         TimeProvider clock,
         IAuthorizationService authorisation,
+        IPlaylistGateway playlists,
         ILogger<WatchlistController> logger)
     {
         _store = store;
@@ -94,6 +110,7 @@ public class WatchlistController : ControllerBase
         _configuration = configuration;
         _clock = clock;
         _authorisation = authorisation;
+        _playlists = playlists;
         _logger = logger;
     }
 
@@ -365,11 +382,12 @@ public class WatchlistController : ControllerBase
     /// another, which is what the second condition of this operation asks for and is
     /// visible in the signature rather than argued for in a sentence.
     ///
-    /// What it removes is the shared record and nothing else. This plugin projects no
-    /// shared playlist today, so there is none for the removal to take with it; the
-    /// projection that exists is per user and is not this list. When the shared list
-    /// is projected, which is #84, the sentence naming what happens to that playlist
-    /// belongs here and in the store method underneath.
+    /// IT TAKES THE PLAYLIST WITH IT. The shared list is projected into one playlist
+    /// that every user of the server may see, so a removal that left it behind would
+    /// leave that playlist on the server holding whatever the list held at the moment
+    /// it went, open to everybody and managed by nothing - and no later pass would
+    /// tidy it, because the record naming which playlist it is is the thing being
+    /// removed. That is #301 and this is where it is answered.
     ///
     /// A list that was not there and a list that has been removed are one answer, as
     /// everywhere else on this surface. A caller asked for a server without a shared
@@ -391,7 +409,8 @@ public class WatchlistController : ControllerBase
             .AuthorizeAsync(User, Policies.RequiresElevation)
             .ConfigureAwait(false);
 
-        return RemoveSharedListFor(elevated.Succeeded);
+        return await RemoveSharedListFor(elevated.Succeeded, HttpContext.RequestAborted)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -434,8 +453,44 @@ public class WatchlistController : ControllerBase
     /// caller.
     /// </summary>
     /// <param name="callerIsAnAdministrator">The server's answer about this caller.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The result the endpoint returns.</returns>
-    internal ActionResult RemoveSharedListFor(bool callerIsAnAdministrator)
+    /// <remarks>
+    /// <para>
+    /// THE ORDER IS THE RECORD FIRST AND THE PLAYLIST AFTER IT, and it is the order
+    /// #301's second condition asks for. A record that could not be deleted is worse
+    /// than a playlist that outlived one: the record is what every endpoint on this
+    /// surface answers from, so a removal that refused because the server's playlists
+    /// could not be reached would leave every user still reading and writing a list an
+    /// administrator has taken away. So the record goes unconditionally, and what
+    /// happens to the playlist afterwards cannot put it back.
+    /// </para>
+    /// <para>
+    /// WHICH PLAYLIST IS READ BEFORE THE RECORD GOES, because the record is the only
+    /// place it is written down. A record this build cannot read carries no projection
+    /// this can see, so nothing is removed and the line below says so - which is the
+    /// honest answer rather than a guess at an identifier.
+    /// </para>
+    /// <para>
+    /// THE SWITCH IS NOT CONSULTED, and that is #301's fourth condition rather than an
+    /// omission. Turning the shared list off leaves the record and the playlist alone
+    /// deliberately, so that turning it back on picks the same playlist up. A record
+    /// REMOVED while the switch is off is the case where nothing will ever come back to
+    /// tidy up, which makes it the case that needs this most.
+    /// </para>
+    /// <para>
+    /// A SEAM THAT THROWS LEAVES A PLAYLIST AND NEVER A RECORD. The catch is broad on
+    /// purpose: what a server does when its library cannot be written is not something
+    /// this plugin can enumerate, and every one of those outcomes has the same right
+    /// answer here, which is that the record has already gone and the playlist that
+    /// outlived it is named in the log so an administrator can find it. Narrowing it to
+    /// the exception types seen so far would turn the next one into a removal that
+    /// refused.
+    /// </para>
+    /// </remarks>
+    internal async Task<ActionResult> RemoveSharedListFor(
+        bool callerIsAnAdministrator,
+        CancellationToken cancellationToken)
     {
         if (!callerIsAnAdministrator)
         {
@@ -445,7 +500,50 @@ public class WatchlistController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden);
         }
 
-        _store.DeleteShared();
+        var read = _store.ReadShared();
+        var projected = read.Document?.Projection;
+        var owner = read.Document?.OwnerUserId ?? Guid.Empty;
+
+        var removed = _store.DeleteShared();
+
+        if (projected is null)
+        {
+            if (removed && !read.IsAvailable)
+            {
+                _logger.LogWarning(
+                    "Removed the shared watchlist record without reading it, so any playlist it was projected into is left on this server and has to be removed by hand.");
+            }
+
+            return NoContent();
+        }
+
+        try
+        {
+            var wentWithIt = await _playlists
+                .DeleteAsync(projected.PlaylistId, owner, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (wentWithIt)
+            {
+                _logger.LogInformation(
+                    "Removed the shared watchlist and the playlist {PlaylistId} it was projected into.",
+                    projected.PlaylistId);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Removed the shared watchlist. The playlist {PlaylistId} it was projected into was already gone from this server.",
+                    projected.PlaylistId);
+            }
+        }
+        catch (Exception failure)
+        {
+            _logger.LogError(
+                failure,
+                "Removed the shared watchlist, but the playlist {PlaylistId} of user {UserId} it was projected into could not be removed. It is still on this server, still visible to every user, and has to be removed by hand.",
+                projected.PlaylistId,
+                owner);
+        }
 
         return NoContent();
     }

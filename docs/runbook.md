@@ -423,6 +423,26 @@ watchlist was shown to anybody, because the projection that would put a list whe
 client can see it is not built. #65 is the matrix that records client readings when
 there is something to look at.
 
+**What removing the shared list leaves.** No shared list was made on this run, so none
+was removed, and nothing below is a reading of a server. It is written here because
+#301 asks that this file say what a removal leaves, and the honest answer from this run
+is that it says what the route is built to do and marks the reading as untaken.
+
+Since #301 the route removes the shared record AND the one playlist the shared list was
+projected into, in that order:
+
+    git grep -n 'DeleteAsync(projected.PlaylistId' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:523:                .DeleteAsync(projected.PlaylistId, owner, cancellationToken)
+
+So what an administrator is left with on a server whose playlists could be reached is
+neither the record nor the playlist, and the private lists and their playlists are
+untouched. What they are left with when the playlists could NOT be reached is the
+playlist, still visible to every user, and one line in the server log naming it and its
+owner - the record goes either way, because every route over the shared list answers
+from the record. `docs/api.md` carries the whole of that rule at
+`## DELETE Watchlist/Shared`; it is not repeated here, and neither half of it has been
+watched happen on a server.
+
 **Downgrades.** Neither a plugin downgrade nor a server downgrade was attempted.
 
 **The next line is a release candidate.** 12.0.0 here is `12.0-rc4`. A reading against

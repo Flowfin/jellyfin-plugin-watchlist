@@ -659,9 +659,12 @@ public sealed class WatchlistDocumentStore
     /// list this call is removing has no reader once the list is gone and would be
     /// picked up by nothing but a later crash of the same kind.
     ///
-    /// This plugin projects no shared playlist today, so there is no such playlist for
-    /// this to take with it. The sentence naming what happens to one belongs here on
-    /// the day the shared list is projected, which is #84.
+    /// IT DOES NOT TOUCH THE PLAYLIST THE LIST WAS PROJECTED INTO, and that is not the
+    /// answer to #301 but the shape of it. The store knows nothing about a server and
+    /// reaches no playlist; what it does is take the record away, and the record is the
+    /// only place the identifier of that playlist is written. So the removal of the
+    /// playlist is the caller's, it has to read the record BEFORE this runs, and the
+    /// endpoint that does so is where the rule and the failure case are argued.
     /// </remarks>
     public bool DeleteShared()
     {

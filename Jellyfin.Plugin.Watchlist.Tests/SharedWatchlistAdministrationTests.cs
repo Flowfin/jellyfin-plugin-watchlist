@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Watchlist.Api;
 using Jellyfin.Plugin.Watchlist.Configuration;
@@ -12,6 +13,7 @@ using Jellyfin.Plugin.Watchlist.Store;
 using MediaBrowser.Common.Api;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -32,9 +34,12 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
 {
     private static readonly Guid TheList = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static readonly Guid TheOwner = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    private static readonly Guid ThePlaylist = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
     private static readonly Guid AnAdministrator = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid AnotherAdministrator = Guid.Parse("22222222-2222-2222-2222-222222222222");
     private static readonly Guid AnOrdinaryUser = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+    private const string Unreachable = "This server's playlists cannot be reached.";
 
     private static readonly DateTimeOffset WhenItWasAdded =
         new(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
@@ -161,15 +166,16 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
     /// The removal, which takes the record away and leaves the folder with nothing of
     /// the shared list in it.
     /// </summary>
+    /// <returns>The running test.</returns>
     [Fact]
-    public void AnAdministratorTakesTheSharedListAway()
+    public async Task AnAdministratorTakesTheSharedListAway()
     {
         MakeTheSharedList();
         StoreShared(AnEntryAddedBy(1, AnOrdinaryUser));
 
         var controller = ControllerOn(AServerThatOffersASharedList());
 
-        Assert.IsType<NoContentResult>(controller.RemoveSharedListFor(callerIsAnAdministrator: true));
+        Assert.IsType<NoContentResult>(await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None).ConfigureAwait(true));
 
         Assert.False(Store().ReadShared().Exists);
         Assert.Empty(FilesInTheDataFolder());
@@ -179,12 +185,13 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
     /// Removed and never there are one answer, as everywhere else on this surface. A
     /// caller asked for a server without a shared list and that is what they have.
     /// </summary>
+    /// <returns>The running test.</returns>
     [Fact]
-    public void RemovingAListThatIsNotThereIsTheSameAnswer()
+    public async Task RemovingAListThatIsNotThereIsTheSameAnswer()
     {
         var controller = ControllerOn(AServerThatOffersASharedList());
 
-        Assert.IsType<NoContentResult>(controller.RemoveSharedListFor(callerIsAnAdministrator: true));
+        Assert.IsType<NoContentResult>(await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None).ConfigureAwait(true));
 
         Assert.False(Store().ReadShared().Exists);
     }
@@ -194,15 +201,16 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
     /// than depending on who asked. Two administrators, the same starting state each,
     /// and the same answer and the same folder afterwards.
     /// </summary>
+    /// <returns>The running test.</returns>
     [Fact]
-    public void TheRemovalDoesTheSameThingWhicheverAdministratorAsks()
+    public async Task TheRemovalDoesTheSameThingWhicheverAdministratorAsks()
     {
         MakeTheSharedList();
         StoreShared(AnEntryAddedBy(1, AnOrdinaryUser));
 
         var first = ControllerOn(AServerThatOffersASharedList(), AsRequestFrom(AnAdministrator));
 
-        Assert.IsType<NoContentResult>(first.RemoveSharedListFor(callerIsAnAdministrator: true));
+        Assert.IsType<NoContentResult>(await first.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None).ConfigureAwait(true));
 
         var afterTheFirst = FilesInTheDataFolder();
 
@@ -211,7 +219,7 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
 
         var second = ControllerOn(AServerThatOffersASharedList(), AsRequestFrom(AnotherAdministrator));
 
-        Assert.IsType<NoContentResult>(second.RemoveSharedListFor(callerIsAnAdministrator: true));
+        Assert.IsType<NoContentResult>(await second.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None).ConfigureAwait(true));
 
         Assert.Equal(afterTheFirst, FilesInTheDataFolder());
     }
@@ -220,8 +228,9 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
     /// A caller the server does not answer for cannot take the list away, and the list
     /// and its entries are still there afterwards.
     /// </summary>
+    /// <returns>The running test.</returns>
     [Fact]
-    public void ACallerWithoutElevationCannotRemoveTheListAndItStays()
+    public async Task ACallerWithoutElevationCannotRemoveTheListAndItStays()
     {
         MakeTheSharedList();
         StoreShared(AnEntryAddedBy(1, AnOrdinaryUser));
@@ -230,7 +239,7 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
 
         Assert.Equal(
             StatusCodes.Status403Forbidden,
-            StatusOf(controller.RemoveSharedListFor(callerIsAnAdministrator: false)));
+            StatusOf(await controller.RemoveSharedListFor(callerIsAnAdministrator: false, CancellationToken.None).ConfigureAwait(true)));
 
         Assert.Equal(Item(1), Assert.Single(Store().ReadShared().Document!.Entries).ItemId);
     }
@@ -240,8 +249,9 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
     /// removed with the list. Nothing reads it once the list is gone, and leaving it
     /// puts a file named for this list in a folder where the list does not exist.
     /// </summary>
+    /// <returns>The running test.</returns>
     [Fact]
-    public void TheRemovalTakesAStagedWriteWithIt()
+    public async Task TheRemovalTakesAStagedWriteWithIt()
     {
         MakeTheSharedList();
 
@@ -251,10 +261,161 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
 
         var controller = ControllerOn(AServerThatOffersASharedList());
 
-        Assert.IsType<NoContentResult>(controller.RemoveSharedListFor(callerIsAnAdministrator: true));
+        Assert.IsType<NoContentResult>(await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None).ConfigureAwait(true));
 
         Assert.False(File.Exists(staged));
         Assert.Empty(FilesInTheDataFolder());
+    }
+
+    /// <summary>
+    /// #301'S FIRST CONDITION. The shared list is projected into one playlist every
+    /// user of the server may see, and a removal takes that playlist with it. Left
+    /// behind it would stand on the server holding what the list held at the moment it
+    /// went, open to everybody, and no later pass would reach it - the record naming
+    /// which playlist it is is the thing being removed.
+    /// </summary>
+    /// <returns>The running test.</returns>
+    [Fact]
+    public async Task TheRemovalTakesThePlaylistWithIt()
+    {
+        var server = AServerHoldingTheProjectedPlaylist();
+        var controller = ControllerOn(AServerThatOffersASharedList(), server);
+
+        Assert.IsType<NoContentResult>(
+            await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None)
+                .ConfigureAwait(true));
+
+        Assert.False(Store().ReadShared().Exists);
+        Assert.Empty(server.PlaylistsOf(TheOwner));
+        Assert.Contains("delete " + ThePlaylist, server.Calls, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// #301'S FOURTH CONDITION, and the case that needs this most. Turning the switch
+    /// off leaves the record and the playlist alone deliberately, so that turning it on
+    /// again picks the same playlist up. A record REMOVED while the switch is off is the
+    /// one case where nothing will ever come back to tidy up, so the removal does not
+    /// consult the switch.
+    /// </summary>
+    /// <returns>The running test.</returns>
+    [Fact]
+    public async Task ARecordRemovedWhileTheProjectionIsOffStillTakesItsPlaylist()
+    {
+        var server = AServerHoldingTheProjectedPlaylist();
+        var controller = ControllerOn(new PluginConfiguration { SharedListEnabled = false }, server);
+
+        Assert.IsType<NoContentResult>(
+            await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None)
+                .ConfigureAwait(true));
+
+        Assert.False(Store().ReadShared().Exists);
+        Assert.Empty(server.PlaylistsOf(TheOwner));
+    }
+
+    /// <summary>
+    /// A list nothing ever projected asks the server nothing. There is no identifier to
+    /// ask about, and a removal that went looking anyway would be guessing at one.
+    /// </summary>
+    /// <returns>The running test.</returns>
+    [Fact]
+    public async Task AListThatWasNeverProjectedAsksTheServerNothing()
+    {
+        MakeTheSharedList();
+
+        var server = new APlaylistServerOf();
+        var controller = ControllerOn(AServerThatOffersASharedList(), server);
+
+        Assert.IsType<NoContentResult>(
+            await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None)
+                .ConfigureAwait(true));
+
+        Assert.False(Store().ReadShared().Exists);
+        Assert.Empty(server.Calls);
+    }
+
+    /// <summary>
+    /// A playlist somebody already deleted from a client is a server that is already in
+    /// the state the caller asked for. The record goes, nothing is refused, and the line
+    /// that is logged says which of the two happened.
+    /// </summary>
+    /// <returns>The running test.</returns>
+    [Fact]
+    public async Task APlaylistThatIsAlreadyGoneIsNotAFailedRemoval()
+    {
+        RememberAProjectionOf(ThePlaylist);
+
+        var log = new RecordingControllerLogger();
+        var controller = ControllerOn(AServerThatOffersASharedList(), new APlaylistServerOf(), log);
+
+        Assert.IsType<NoContentResult>(
+            await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None)
+                .ConfigureAwait(true));
+
+        Assert.False(Store().ReadShared().Exists);
+        Assert.Equal(
+            "Information Removed the shared watchlist. The playlist " + ThePlaylist + " it was projected into was already gone from this server.",
+            Assert.Single(log.Lines),
+            StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// #301'S SECOND CONDITION. A server whose playlists cannot be reached still loses
+    /// the record, because a record that cannot be deleted is worse than a playlist that
+    /// outlives one: every endpoint on this surface answers from the record, so a
+    /// removal that refused here would leave every user reading and writing a list an
+    /// administrator has taken away. What it leaves is named in the log.
+    /// </summary>
+    /// <returns>The running test.</returns>
+    [Fact]
+    public async Task AServerThatCannotRemoveThePlaylistStillLosesTheRecord()
+    {
+        RememberAProjectionOf(ThePlaylist);
+
+        var log = new RecordingControllerLogger();
+        var controller = ControllerOn(AServerThatOffersASharedList(), new APlaylistServerThatRefuses(), log);
+
+        Assert.IsType<NoContentResult>(
+            await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None)
+                .ConfigureAwait(true));
+
+        Assert.False(Store().ReadShared().Exists);
+        Assert.Empty(FilesInTheDataFolder());
+
+        var line = Assert.Single(log.Lines);
+
+        Assert.StartsWith("Error Removed the shared watchlist, but the playlist ", line, StringComparison.Ordinal);
+        Assert.Contains(ThePlaylist.ToString(), line, StringComparison.Ordinal);
+        Assert.Contains(TheOwner.ToString(), line, StringComparison.Ordinal);
+        Assert.Contains("has to be removed by hand", line, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A record this build will not read carries no projection this can see, so there is
+    /// no playlist to name and none is removed. The record still goes, and the line that
+    /// is logged says what was left rather than reporting a clean removal.
+    /// </summary>
+    /// <returns>The running test.</returns>
+    [Fact]
+    public async Task ARecordThisBuildCannotReadLosesTheRecordAndSaysWhatItLeft()
+    {
+        var server = AServerHoldingTheProjectedPlaylist();
+
+        FromTheFuture();
+
+        var log = new RecordingControllerLogger();
+        var controller = ControllerOn(AServerThatOffersASharedList(), server, log);
+
+        Assert.IsType<NoContentResult>(
+            await controller.RemoveSharedListFor(callerIsAnAdministrator: true, CancellationToken.None)
+                .ConfigureAwait(true));
+
+        Assert.False(Store().ReadShared().Exists);
+        Assert.Empty(server.Calls);
+        Assert.Single(server.PlaylistsOf(TheOwner));
+        Assert.Equal(
+            "Warning Removed the shared watchlist record without reading it, so any playlist it was projected into is left on this server and has to be removed by hand.",
+            Assert.Single(log.Lines),
+            StringComparer.Ordinal);
     }
 
     /// <summary>
@@ -389,7 +550,18 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
         });
 
     private WatchlistController ControllerOn(PluginConfiguration configuration) =>
-        ControllerOn(configuration, AsRequestFrom(AnAdministrator), AuthorisationAnswering.Yes());
+        ControllerOn(configuration, new APlaylistServerOf());
+
+    private WatchlistController ControllerOn(
+        PluginConfiguration configuration,
+        IPlaylistGateway playlists) =>
+        ControllerOn(configuration, playlists, NullLogger<WatchlistController>.Instance);
+
+    private WatchlistController ControllerOn(
+        PluginConfiguration configuration,
+        IPlaylistGateway playlists,
+        ILogger<WatchlistController> logger) =>
+        ControllerOn(configuration, AsRequestFrom(AnAdministrator), AuthorisationAnswering.Yes(), playlists, logger);
 
     private WatchlistController ControllerOn(
         PluginConfiguration configuration,
@@ -399,16 +571,114 @@ public sealed class SharedWatchlistAdministrationTests : IDisposable
     private WatchlistController ControllerOn(
         PluginConfiguration configuration,
         ControllerContext context,
-        AuthorisationAnswering server) => new(
+        AuthorisationAnswering server) =>
+        ControllerOn(configuration, context, server, new APlaylistServerOf());
+
+    private WatchlistController ControllerOn(
+        PluginConfiguration configuration,
+        ControllerContext context,
+        AuthorisationAnswering server,
+        IPlaylistGateway playlists) =>
+        ControllerOn(configuration, context, server, playlists, NullLogger<WatchlistController>.Instance);
+
+    private WatchlistController ControllerOn(
+        PluginConfiguration configuration,
+        ControllerContext context,
+        AuthorisationAnswering server,
+        IPlaylistGateway playlists,
+        ILogger<WatchlistController> logger) => new(
         Store(),
         new DescribesNothing(),
         configuration,
         new StoppedClock(WhenItWasAdded),
         server,
-        NullLogger<WatchlistController>.Instance)
+        playlists,
+        logger)
     {
         ControllerContext = context,
     };
+
+    /// <summary>
+    /// The state a server is in once the shared list has been projected: a record that
+    /// remembers one playlist, and a server holding that playlist for the list's owner.
+    /// </summary>
+    /// <returns>The server.</returns>
+    private APlaylistServerOf AServerHoldingTheProjectedPlaylist()
+    {
+        RememberAProjectionOf(ThePlaylist);
+
+        var server = new APlaylistServerOf();
+
+        server.AlreadyHolds(TheOwner, ThePlaylist, "Shared watchlist");
+
+        return server;
+    }
+
+    /// <summary>
+    /// Stamps the record with a schema version this build does not understand, which is
+    /// how a record it will not read is made: the file is left alone by every read, so
+    /// what a caller gets back is a result that is not available rather than a document.
+    /// </summary>
+    private void FromTheFuture()
+    {
+        var path = Store().SharedListPath;
+        var text = File.ReadAllText(path);
+
+        File.WriteAllText(
+            path,
+            text.Replace(
+                "\"SchemaVersion\": " + SharedWatchlistDocument.CurrentSchemaVersion.ToString(CultureInfo.InvariantCulture),
+                "\"SchemaVersion\": 9999",
+                StringComparison.Ordinal));
+    }
+
+    private void RememberAProjectionOf(Guid playlistId)
+    {
+        MakeTheSharedList();
+
+        Assert.True(Store().SetSharedProjection(new WatchlistProjectionState
+        {
+            PlaylistId = playlistId,
+            LastNameWritten = "Shared watchlist",
+            ProjectedItemIds = [],
+            WrittenAt = WhenItWasAdded,
+        }));
+    }
+
+    /// <summary>
+    /// A seam that cannot reach the server's playlists. What a server does when its
+    /// library cannot be written is not something this plugin enumerates, so the fake
+    /// throws the plainest thing there is: what the test is about is that the removal
+    /// survives an exception rather than that it survives one particular exception.
+    /// </summary>
+    private sealed class APlaylistServerThatRefuses : IPlaylistGateway
+    {
+        public bool CanInsertAtAPosition => false;
+
+        public IReadOnlyList<ProjectedPlaylist> PlaylistsOf(Guid userId) => [];
+
+        public IReadOnlyList<ProjectedPlaylistEntry> EntriesOf(Guid playlistId, Guid userId) => [];
+
+        public Task<Guid> CreateAsync(Guid userId, string name, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(Unreachable);
+
+        public Task RenameAsync(Guid playlistId, Guid userId, string name, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(Unreachable);
+
+        public Task AddAsync(Guid playlistId, Guid userId, IReadOnlyCollection<Guid> itemIds, int? position, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(Unreachable);
+
+        public Task RemoveAsync(Guid playlistId, IReadOnlyCollection<string> entryIds, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(Unreachable);
+
+        public Task<bool> DeleteAsync(Guid playlistId, Guid ownerUserId, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(Unreachable);
+
+        public bool IsOpenToEveryone(Guid playlistId, Guid ownerUserId) => false;
+
+        public Task OpenToEveryoneAsync(Guid playlistId, Guid ownerUserId, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(Unreachable);
+    }
 
     /// <summary>
     /// A describer for a surface that describes nothing. Neither endpoint here reads a

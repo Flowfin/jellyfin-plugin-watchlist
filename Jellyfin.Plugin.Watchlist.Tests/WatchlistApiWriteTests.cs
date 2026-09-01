@@ -411,6 +411,7 @@ public sealed class WatchlistApiWriteTests : IDisposable
         new PluginConfiguration(),
         clock,
         AuthorisationAnswering.No(),
+        new APlaylistServerOf(),
         NullLogger<WatchlistController>.Instance);
 
     private IReadOnlyList<WatchlistEntry> StoredFor(Guid userId) =>

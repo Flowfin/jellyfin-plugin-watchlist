@@ -228,11 +228,15 @@ owned by them that the server shows to every user, and the plugin never gives an
 permission to edit it: adding to the shared list and taking things off it go through
 the plugin's own endpoints, where who is asking is known.
 
-Two things about it are worth knowing before turning it on. What goes on it is decided
-by what the administrator whose list it is can see, so a user may meet the name of
-something they cannot play - a playlist holds the same rows for everybody. And removing
-the shared list leaves its playlist behind on the server for everybody, which is
-[#301](https://github.com/Flowfin/jellyfin-plugin-watchlist/issues/301).
+One thing about it is worth knowing before turning it on. What goes on it is decided by
+what the administrator whose list it is can see, so a user may meet the name of
+something they cannot play - a playlist holds the same rows for everybody.
+
+Removing the shared list removes its playlist as well, and this paragraph said the
+playlist was left behind for everybody. Where the server's playlists cannot be reached
+the list is still removed and the playlist is left, because a list an administrator has
+taken away that every user can still read and write would be the worse of the two; the
+server log names what was left.
 
 The verification above is why there is no release.
 

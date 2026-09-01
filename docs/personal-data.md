@@ -11,7 +11,7 @@ rather than the sections that change touched, because a path added to the store 
 line numbers in files this page reads:
 
     git grep -c '^    \(git\|grep\|sed\|awk\|curl\|gh\) ' docs/personal-data.md
-    docs/personal-data.md:42
+    docs/personal-data.md:43
 
 Thirty-three were checked. The thirty-fourth is that line counting them, which counts
 itself and was written after the pass rather than checked by it, and saying so is
@@ -34,12 +34,16 @@ One more arrived with the shared list's transfer routes on #40, later than all o
 them, and names the two endpoints that carry that list off this server and back onto
 one. It is under `### Who can read it` and it was run at the commit that landed it.
 
+One more arrived with the removal of the shared list's playlist on #301, later than all
+of them, and names the three files that spell that removal. It is under
+`### The plugin never shares a private one` and it was run at the commit that landed it.
+
 Most of the checking is a run rather than a reading now. `DocumentPasteTests` re-runs
 every `grep` and `git grep` paste in this file and reds the suite where one has
-stopped agreeing, which is forty of the forty-two:
+stopped agreeing, which is forty-one of the forty-three:
 
     git grep -c '^    \(git grep\|grep\) ' docs/personal-data.md
-    docs/personal-data.md:40
+    docs/personal-data.md:41
 
 Both numbers include that line and the one at the top of this file, each of which
 counts itself, which is the same admission the paragraph above makes and is why the
@@ -381,11 +385,11 @@ knows. There are seven shared routes and none of them takes a user identifier, e
 as the private ones do not. Five sit on the controller that carries the item routes:
 
     git grep -n 'HttpGet("Shared\|HttpPost("Shared\|HttpDelete("Shared' -- Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:214:    [HttpGet("Shared/Items")]
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:248:    [HttpPost("Shared/Items/{itemId}")]
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:287:    [HttpDelete("Shared/Items/{itemId}")]
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:332:    [HttpPost("Shared")]
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:378:    [HttpDelete("Shared")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:231:    [HttpGet("Shared/Items")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:265:    [HttpPost("Shared/Items/{itemId}")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:304:    [HttpDelete("Shared/Items/{itemId}")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:349:    [HttpPost("Shared")]
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:396:    [HttpDelete("Shared")]
 
 and two on the one that carries the list between servers:
 
@@ -530,11 +534,11 @@ list in the first place.
 ## What reaches the server log
 
 Identifiers, counts and versions. Never a title, and never anything read out of the
-library. Forty-one places log at all, over nine files:
+library. Forty-five places log at all, over nine files:
 
     git grep -cE '_logger\.Log' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:7
-    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:11
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:15
     Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:5
     Jellyfin.Plugin.Watchlist/Projection/WatchlistProjectionPass.cs:2
     Jellyfin.Plugin.Watchlist/Projection/WatchlistProjector.cs:7
@@ -644,7 +648,7 @@ server for a playlist by that user's identifier and by a name, and it names no o
 user and no public flag:
 
     grep -n 'CreatePlaylist(new PlaylistCreationRequest' Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
-    95:            .CreatePlaylist(new PlaylistCreationRequest { Name = name, UserId = userId })
+    114:            .CreatePlaylist(new PlaylistCreationRequest { Name = name, UserId = userId })
 
 What the server does with a request that names neither is a reading of the server
 rather than of this tree, taken in a jellyfin checkout at the line this artifact
@@ -667,12 +671,27 @@ said the seam declares nothing that changes who a playlist is shared with. It de
 one such operation, and one read beside it:
 
     grep -c 'Task\|IReadOnlyList' Jellyfin.Plugin.Watchlist/Projection/IPlaylistGateway.cs
-    8
+    9
 
 That number counts declarations and their return types together rather than
 operations, and it is pasted as what the command prints rather than as the figure the
 sentence above wants. The sentence is the list of names, which a reader checks by
 opening the file.
+
+THE SEAM CAN ALSO REMOVE A PLAYLIST NOW, which is #301 and is the count moving from
+eight to nine. What it is for is the moment the shared list is removed: the playlist
+that list was projected into goes with it, so a list an administrator has taken away
+stops being visible to every user of the server instead of standing there under the old
+name with nothing managing it. It reaches one playlist, asked for as its owner, and the
+route that calls it is the administrative removal and nothing else:
+
+    git grep -ln 'DeleteAsync(' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs
+    Jellyfin.Plugin.Watchlist/Projection/IPlaylistGateway.cs
+    Jellyfin.Plugin.Watchlist/Projection/ServerPlaylistGateway.cs
+
+No scheduled pass deletes anything, and no private playlist is reachable through it: the
+only identifier it is ever handed is the one the shared record remembered.
 
 WHAT THAT OPERATION IS FOR IS THE SHARED LIST AND NEVER A PRIVATE ONE, and the reason a
 reader can hold on to is that the two lists are different targets: the private one

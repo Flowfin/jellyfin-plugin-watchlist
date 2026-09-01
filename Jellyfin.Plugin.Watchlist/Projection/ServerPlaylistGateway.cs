@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Playlists;
 
@@ -31,14 +32,32 @@ namespace Jellyfin.Plugin.Watchlist.Projection;
 public sealed class ServerPlaylistGateway : IPlaylistGateway
 {
     private readonly IPlaylistManager _playlists;
+    private readonly ILibraryManager _library;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ServerPlaylistGateway"/> class.
     /// </summary>
     /// <param name="playlists">The server's playlists.</param>
-    public ServerPlaylistGateway(IPlaylistManager playlists)
+    /// <param name="library">The server's library, which is where an item is removed
+    /// and therefore where a playlist is removed.</param>
+    /// <remarks>
+    /// TWO MANAGERS FOR ONE SEAM, because the server splits the operations that way. A
+    /// playlist is made, renamed, filled and emptied through the playlist manager, and
+    /// it is DELETED as a library item like anything else - the playlist manager on
+    /// both supported lines offers a removal of every playlist a user has and none of
+    /// one playlist:
+    ///
+    ///     git show v10.11.11:MediaBrowser.Controller/Playlists/IPlaylistManager.cs | grep -n 'RemovePlaylistsAsync'
+    ///     105:        Task RemovePlaylistsAsync(Guid userId);
+    ///
+    /// Taking that one would delete every playlist the administrator owns to be rid of
+    /// the one this plugin made, which is the reason the second manager is here rather
+    /// than an argument about layering.
+    /// </remarks>
+    public ServerPlaylistGateway(IPlaylistManager playlists, ILibraryManager library)
     {
         _playlists = playlists;
+        _library = library;
     }
 
     /// <inheritdoc />
@@ -162,5 +181,45 @@ public sealed class ServerPlaylistGateway : IPlaylistGateway
         await _playlists
             .RemoveItemFromPlaylistAsync(playlistId.ToString("N", CultureInfo.InvariantCulture), entryIds)
             .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// THE LOOK-UP IS ASKED AS THE OWNER, which is the same question every other read
+    /// on this seam asks, so a playlist that is not this owner's is not found and is
+    /// not deleted. That is what makes the false answer safe: this cannot reach past
+    /// the one list it was handed.
+    ///
+    /// The deletion is the server's own, with the same options its library controller
+    /// uses for an item a user asked to delete:
+    ///
+    ///     git show v10.11.11:Jellyfin.Api/Controllers/LibraryController.cs | sed -n '385,388p'
+    ///         _libraryManager.DeleteItem(
+    ///             item,
+    ///             new DeleteOptions { DeleteFileLocation = true },
+    ///             true);
+    ///
+    /// The file location is a playlist's own directory under the server's data, which
+    /// is the file the playlist IS rather than any media it points at; leaving it would
+    /// put a directory on the server for a playlist that is gone. Nothing here reaches
+    /// a media file, because a playlist holds links and not media.
+    ///
+    /// It is synchronous on both supported lines and is awaited nowhere, so the task
+    /// this returns is already complete when it is handed back.
+    /// </remarks>
+    public Task<bool> DeleteAsync(Guid playlistId, Guid ownerUserId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var playlist = _playlists.GetPlaylistForUser(playlistId, ownerUserId);
+
+        if (playlist is null)
+        {
+            return Task.FromResult(false);
+        }
+
+        _library.DeleteItem(playlist, new DeleteOptions { DeleteFileLocation = true }, true);
+
+        return Task.FromResult(true);
     }
 }

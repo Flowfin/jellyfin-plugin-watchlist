@@ -238,6 +238,29 @@ internal sealed class APlaylistServerOf : IPlaylistGateway
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// It APPLIES the removal as well as counting it, so a later read of the same
+    /// playlist finds nothing, and it answers as the server does: a playlist this owner
+    /// does not hold is false rather than an error, because the look-up on the real
+    /// seam is asked as the owner and finds none.
+    /// </remarks>
+    public Task<bool> DeleteAsync(Guid playlistId, Guid ownerUserId, CancellationToken cancellationToken)
+    {
+        _calls.Add(string.Format(CultureInfo.InvariantCulture, "delete {0}", playlistId));
+
+        if (!Owned(ownerUserId).Any(playlist => playlist.PlaylistId == playlistId))
+        {
+            return Task.FromResult(false);
+        }
+
+        Owned(ownerUserId).RemoveAll(playlist => playlist.PlaylistId == playlistId);
+        _rows.Remove(playlistId);
+        _openToEveryone.Remove(playlistId);
+
+        return Task.FromResult(true);
+    }
+
     private void Record(string verb, Guid subject)
     {
         _calls.Add(string.Format(CultureInfo.InvariantCulture, "{0} {1}", verb, subject));
