@@ -182,10 +182,8 @@ public sealed class UserProjectionTarget : IProjectionTarget
             .OrderByDescending(entry => entry.AddedAt)
             .ThenBy(entry => entry.ItemId);
 
-        foreach (var entry in ordered)
+        foreach (var row in ordered.Select(entry => RowFor(entry, episodes, userId)))
         {
-            var row = RowFor(entry, episodes, userId);
-
             if (row is not null && held.Add(row.Value))
             {
                 rows.Add(row.Value);

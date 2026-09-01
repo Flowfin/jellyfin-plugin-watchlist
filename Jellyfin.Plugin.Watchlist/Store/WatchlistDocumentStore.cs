@@ -144,10 +144,10 @@ public sealed class WatchlistDocumentStore
 
         var users = new List<Guid>();
 
-        foreach (var path in Directory.EnumerateFiles(_dataFolderPath, "*.json"))
+        foreach (var name in Directory
+            .EnumerateFiles(_dataFolderPath, "*.json")
+            .Select(path => Path.GetFileNameWithoutExtension(path)))
         {
-            var name = Path.GetFileNameWithoutExtension(path);
-
             if (Guid.TryParseExact(name, "N", out var userId))
             {
                 users.Add(userId);
