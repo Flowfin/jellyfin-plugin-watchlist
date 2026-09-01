@@ -14,7 +14,26 @@ name.
 
 1. Update `version` in `build.yaml` on the release branch and merge it.
 2. Check that the commit you want to release is on that branch.
-3. Push the tag for that commit:
+3. Read the `Whole loop on <line>` check on that commit, and do not tag until it
+   is green. **This step is performed rather than refused, and that is the gap it
+   exists to fill.** The `Whole loop` workflow triggers on the release tag too, so
+   a run against the tagged commit always happens - but it starts at the same
+   moment as the publishing chain and can finish after the release is created.
+   Nothing holds the publish on it. Where the commit carries no run because
+   nothing in its change touched the paths that trigger one, dispatch the workflow
+   against it:
+
+    ```
+    gh workflow run whole-loop.yaml --ref <commit-or-branch>
+    ```
+
+    A green run here is the only evidence on this board that a client would see
+    the list. Every other check reads the tree, builds it, packages it or greps
+    it, and the interoperability matrix reads what a server says about the plugin
+    rather than what the plugin does. Tagging past a red one publishes an archive
+    that installs and does nothing a user asked for.
+
+4. Push the tag for that commit:
 
     ```
     git tag 1.4.0-stable <commit>
