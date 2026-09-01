@@ -360,8 +360,10 @@ public sealed class SharedProjectionTarget : IProjectionTarget
             .OrderByDescending(entry => entry.AddedAt)
             .ThenBy(entry => entry.ItemId);
 
-        foreach (var row in ordered.Select(entry => RowFor(entry, episodes, ownerUserId)))
+        foreach (var entry in ordered)
         {
+            var row = RowFor(entry, episodes, ownerUserId);
+
             if (row is not null && held.Add(row.Value))
             {
                 rows.Add(row.Value);
