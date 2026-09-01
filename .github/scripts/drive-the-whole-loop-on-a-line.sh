@@ -605,9 +605,16 @@ if [ "${without_projection}" = "yes" ]; then
   [ "$(status_of "${answer}")" -lt 400 ] \
     || refuse "Turning the projection off through this plugin's configuration route answered $(status_of "${answer}"), so the near miss could not be arranged."
 
+  # `//` in jq takes its right-hand side when the left is null OR FALSE, so the
+  # spelling `.ProjectionEnabled // .projectionEnabled` reads a setting that IS
+  # off as the other spelling and then as null. That is the one place in this
+  # file where the value being read is a boolean, and it is why the pair is
+  # written out rather than defaulted through.
   again="$(call "/Plugins/${guid}/Configuration" GET "" "${token}")"
-  [ "$(body_of "${again}" | jq -r '.ProjectionEnabled // .projectionEnabled')" = "false" ] \
-    || refuse "The projection is still on after this harness turned it off, so the near miss would be the run that matters under another name."
+  state="$(body_of "${again}" | jq -r '[.ProjectionEnabled, .projectionEnabled] | map(select(. != null)) | if length == 0 then "absent" else (.[0] | tostring) end')"
+
+  [ "${state}" = "false" ] \
+    || refuse "The projection reads as ${state} after this harness turned it off, so the near miss would be the run that matters under another name."
 
   echo "The projection is off. Everything below is the same loop, and it must fail at the playlist."
 fi
