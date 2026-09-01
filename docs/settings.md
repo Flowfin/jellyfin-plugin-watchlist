@@ -233,15 +233,28 @@ call, and on the next reconciliation for the projection, which does not exist ye
 Turning it off deletes nothing stored, so a list that was made stays on disk and is
 removed with `DELETE Watchlist/Shared` rather than by moving this value.
 
-WHAT TURNING IT OFF DOES NOT DO, STATED BECAUSE #87 MADE IT REACHABLE. The endpoints
-over the list's contents key on whether a list exists rather than on this value, so a
-server that turns the switch off with a list already made goes on serving that list to
-every user, and this page says the server offers none. Before #87 nothing could make a
-list, so the gap was documented and could not be reached; it can be reached now. The
-repair is either those endpoints reading this value or the switch being refused while
-a list exists, and both are the contents surface rather than the administrative one.
-#277 is where that is decided, and turning the switch off is not a way to take a
-shared list away until it is.
+WHAT TURNING IT OFF DOES, AND THIS PARAGRAPH SAID IT DID NOT DO IT. It said the
+endpoints over the list's contents key on whether a list exists rather than on this
+value, so a server that turned the switch off with a list already made went on serving
+that list to every user while this page said the server offers none. #277 decided it and
+it is decided this way: those endpoints read this value and answer as though there were
+no shared list. Turning the feature off means the list is not readable.
+
+That is five routes - the shared read, the shared add, the shared removal of one entry,
+and the export and import pair - and each answers 404, the same answer as for a list
+nobody ever made. `docs/api.md` says it at each of them.
+
+THE OTHER REPAIR WAS REFUSED RATHER THAN LEFT UNMENTIONED. The alternative was to refuse
+this page's save while a list exists, and it would leave an administrator unable to turn
+the feature off at all while there is one. That is the wrong place for the enforcement:
+a setting that cannot be set is not a setting.
+
+WHAT IT STILL DOES NOT DO IS DELETE ANYTHING. The switch governs visibility and never
+existence, so a list that was made stays on disk while it is off and turning the switch
+back on restores exactly what was there, attribution and all. Taking the list away is
+still `DELETE Watchlist/Shared`, and that route stays reachable while the switch is off
+for exactly that reason - closing it would leave an administrator with a list they can
+neither read nor remove.
 
 Where it is stored: the plugin's configuration, one value for the whole server.
 
