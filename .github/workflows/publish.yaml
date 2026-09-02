@@ -1060,10 +1060,17 @@ jobs:
             echo "Refs #78."
           } > body.md
 
+          # THE LABELS ARE THE ONES `.github/labels.yaml` DECLARES, and this line named
+          # `ci`, which is not one of them. `gh issue create` refuses the whole call on
+          # an unknown label rather than creating the issue without it, so this alert
+          # judged a run correctly and then raised nothing - the silence it exists to
+          # break, in the one job whose whole purpose is to break a silence. Found by
+          # the probe recorded on #310 rather than by a route: nothing here reads a
+          # label name against the file that declares it, and nothing will.
           gh issue create --repo "${REPOSITORY}" \
             --title "${title}" \
             --body-file body.md \
-            --label ci --label "area: release" \
+            --label "area: ci" --label "area: release" \
             --milestone "M10 Release and catalogue readiness" \
             --assignee iderex
 
