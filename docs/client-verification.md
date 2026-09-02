@@ -47,11 +47,6 @@ covered by the suite and by the server the interoperability job boots; a client
 does not call them, because the whole point of projecting into a playlist is that
 no client has to be taught anything.
 
-The endpoints are a different matter and are not what this page is about. They are
-covered by the suite and by the server the interoperability job boots; a client
-does not call them, because the whole point of projecting into a playlist is that
-no client has to be taught anything.
-
 ## The table
 
 One row per client CHECKED. There are none, and the row below is not one: its

@@ -1,0 +1,18 @@
+# What has been seen on a client
+
+**NO PERSON HAS SEEN THIS LIST ON ANY CLIENT.** The table below has one row
+and it is the other kind: a query against the server, taken by a harness.
+
+## What is recorded, and what is still missing
+
+The table is no longer empty, and this section said no server had ever loaded
+this plugin. Both halves of that reason are gone.
+
+The endpoints are a different matter and are not what this page is about. They
+are covered by the suite and by the server the interoperability job boots; a
+client does not call them, because the whole point of projecting into a
+playlist is that no client has to be taught anything.
+
+## The table
+
+One row per client checked.
