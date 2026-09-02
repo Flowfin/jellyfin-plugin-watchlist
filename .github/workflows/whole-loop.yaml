@@ -36,14 +36,20 @@
 # the tree carries one package set, and a second line arrives with a second one
 # rather than with a second entry in this file.
 #
-# WHAT THIS FILE DOES NOT DECIDE. Where a container harness belongs in the gate -
-# on a schedule, on demand, at a release across every supported line, and with the
-# log and the transcript published as artifacts of the run - is #62 and is decided
-# here: a pull request that can move what the harness asserts, a weekly schedule,
-# on demand, and the tag a release is cut from. Each trigger carries its own reason
-# at the trigger rather than in a list, and the one condition that is NOT met is
-# written at the tag trigger rather than left for a reader to notice - this
-# workflow runs beside the publishing chain and does not hold it.
+# WHERE THIS BELONGS IN THE GATE. On a schedule, on demand, at a release across
+# every supported line, and with the log and the transcript published as artifacts
+# of the run - that is #62 and is decided here: a pull request that can move what
+# the harness asserts, a weekly schedule, on demand, and a release. Each trigger
+# carries its own reason at the trigger rather than in a list.
+#
+# THE RELEASE RUN IS NOT A TRIGGER IN THIS FILE ANY MORE, AND THAT IS #310. It was
+# a `push` on the tag patterns `publish.yaml` triggers on, which started this
+# workflow beside the publishing chain rather than ahead of it: two workflows on
+# one event, neither waiting, so a release could be created while this was still
+# booting its server and a red run could arrive after the archive was public. The
+# tag patterns are gone from here and `publish.yaml` calls this file as a job its
+# build needs. So a tag runs this once, inside the chain, and the chain does not
+# reach the release without it.
 #
 # WHAT A FAILURE LEAVES BEHIND. The harness writes the container log and the
 # transcript of every call it made into a directory, on every path it can exit by,
@@ -51,8 +57,11 @@
 # therefore readable a month later, when the step log has scrolled past and the
 # server it was about is long gone.
 #
-# It reports and does not gate. Which checks the mainline requires is decided on
-# #63, and the required set is read rather than restated:
+# WHAT IT GATES IS A RELEASE AND NOT THE MAINLINE, and the two are worth keeping
+# apart. On a pull request, on the schedule and on a dispatch this reports: a red
+# run here does not stop a merge, because which checks the mainline requires is
+# decided on #63 and the required set is read rather than restated below. On a
+# release it gates, because `publish.yaml` calls it as a job its build needs.
 #
 #     gh api repos/Flowfin/jellyfin-plugin-watchlist/rulesets/20456281 \
 #       --jq '[.rules[] | select(.type=="required_status_checks")
@@ -84,21 +93,18 @@ on:
   # On demand, so a reading can be taken against a commit somebody is about to tag
   # without waiting a week for the schedule or pushing a change to force one.
   workflow_dispatch:
-  # At a release. The tag patterns are the ones `publish.yaml` triggers on, so the
-  # loop is driven against exactly the commit an artifact is cut from rather than
-  # against whatever the mainline holds that day.
-  #
-  # THIS RUNS BESIDE THE PUBLISH AND DOES NOT HOLD IT, WHICH IS A GAP RATHER THAN
-  # THE DESIGN. #62 asks for the evidence to exist BEFORE an artifact is published;
-  # a workflow triggered by the same push starts at the same moment as the
-  # publishing chain and can finish after it. Making it a condition of the publish
-  # means a job inside `publish.yaml`, whose alert judges a fixed set of jobs by
-  # name, and that change is not taken here. What stands in for it is a step in
-  # `docs/RELEASING.md`, performed by a person rather than refused by anything.
-  push:
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+-stable"
-      - "[0-9]+.[0-9]+.[0-9]+.[0-9]+-stable"
+  # At a release, as a job `publish.yaml` calls rather than as a second workflow on
+  # the same tag push. The caller checks out the ref the tag names, so the loop is
+  # driven against exactly the commit an artifact is cut from, and `build` there
+  # needs this job, so the evidence exists BEFORE the archive is published rather
+  # than beside it. That is #62's condition and #310 is where it was taken.
+  workflow_call:
+    inputs:
+      deliberately-fail-the-loop:
+        description: "Fail this job before it boots anything, to prove that a red loop still reaches the alert that reports a publish which shipped nothing."
+        type: boolean
+        default: false
+        required: false
 
 # Deny everything at the workflow level; the job below takes only what it reads.
 permissions: {}
@@ -131,6 +137,20 @@ jobs:
             image: "jellyfin/jellyfin:10.11.11"
 
     steps:
+      - name: Fail on purpose, if the caller asked for a red loop
+        # The first step, so this costs no image pull and no container. What it
+        # exists for is #310's second condition: after the loop became something
+        # the publishing chain needs, a red loop must still end in the alert that
+        # reports a publish which shipped nothing, and a green run of the new
+        # arrangement demonstrates nothing about that. Only a caller can set this
+        # - `workflow_call` inputs are not settable from a push, a schedule or a
+        # dispatch of this file - so no route that publishes anything can reach it.
+        if: inputs.deliberately-fail-the-loop
+        run: |
+          set -euo pipefail
+          echo "::error::This job was failed on purpose by its caller. Nothing was booted and nothing was read. It exists so that the publishing chain can be watched refusing to reach a release when the loop is red."
+          exit 1
+
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

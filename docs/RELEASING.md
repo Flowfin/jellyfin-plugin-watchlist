@@ -14,14 +14,13 @@ name.
 
 1. Update `version` in `build.yaml` on the release branch and merge it.
 2. Check that the commit you want to release is on that branch.
-3. Read the `Whole loop on <line>` check on that commit, and do not tag until it
-   is green. **This step is performed rather than refused, and that is the gap it
-   exists to fill.** The `Whole loop` workflow triggers on the release tag too, so
-   a run against the tagged commit always happens - but it starts at the same
-   moment as the publishing chain and can finish after the release is created.
-   Nothing holds the publish on it. Where the commit carries no run because
-   nothing in its change touched the paths that trigger one, dispatch the workflow
-   against it:
+3. Optionally read the `Whole loop on <line>` check on that commit. **This step is
+   refused rather than performed, and it is here to save you a wasted tag rather
+   than to stand in for a gate.** `Publish Release` runs the loop itself, as a job
+   its build needs, against the commit the tag names, so a red loop reaches no
+   release. Reading it first only tells you sooner. Where the commit carries no run
+   because nothing in its change touched the paths that trigger one, dispatch the
+   workflow against it:
 
     ```
     gh workflow run whole-loop.yaml --ref <commit-or-branch>
@@ -30,8 +29,14 @@ name.
     A green run here is the only evidence on this board that a client would see
     the list. Every other check reads the tree, builds it, packages it or greps
     it, and the interoperability matrix reads what a server says about the plugin
-    rather than what the plugin does. Tagging past a red one publishes an archive
-    that installs and does nothing a user asked for.
+    rather than what the plugin does. That is why the publish waits for it.
+
+    What it costs, so that the day it bites is not the day it is discovered: the
+    loop pulls a published server image and starts a container, so it can go red
+    for a registry outage or an image moved under its tag, and either then holds a
+    release that is otherwise correct. The answer to a flaky gate is a less flaky
+    harness. It is not an advisory loop, which returns this board to the
+    arrangement #310 was opened against with more machinery in the way.
 
 4. Push the tag for that commit:
 

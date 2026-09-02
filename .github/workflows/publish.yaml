@@ -12,15 +12,34 @@ name: Publish Release
 # second manifest and a second route; this file does not provide one, and the checks
 # below refuse to guess.
 #
+# THE WHOLE LOOP IS A JOB THIS CHAIN NEEDS, WHICH IS #310. `whole-loop.yaml` used to
+# trigger on the same tag patterns as this file, so a tag started both and neither
+# waited: a release could be created while the loop was still booting its server, and
+# a red loop could arrive after the archive was public. That workflow no longer
+# triggers on a tag. It is called from here, `build` needs it, and a tag whose loop
+# goes red therefore reaches no release. The evidence a client would see the list now
+# exists BEFORE an artifact is published rather than beside it, which is #62's
+# condition, and `docs/RELEASING.md` step 3 is a step a route refuses rather than one
+# a person performs.
+#
+# WHAT THAT COSTS IS SAID HERE RATHER THAN DISCOVERED. The loop pulls a published
+# server image and starts a container, so it can go red for a registry outage or an
+# image moved under its tag, and each of those now holds a release that is otherwise
+# correct. The repair for a flaky gate is a less flaky harness. It is NOT a gate that
+# can be waved through: an advisory loop returns this board to the arrangement #310
+# was opened against, with more machinery in the way. The pressure to soften this
+# arrives on the day somebody wants to ship, which is why the reason sits at the
+# `needs:` line rather than in a commit message nobody re-reads.
+#
 # There is a second trigger and it publishes nothing. The last job here raises a
 # tracking issue when a run ends having shipped no installable release, and the
 # judgement half of that is proved by probes inside the job. The RAISING half could
 # only ever be exercised by a real failed publish, which costs a pushed tag and an
 # immutable public release that deleting does not give back. So this workflow takes a
-# manual trigger with one boolean input that forces exactly the shipped-nothing
-# condition, and on that path every job that builds, attests or releases is skipped by
-# its own condition. It is #78's fourth condition, and what it buys is a regression
-# test somebody can run again rather than a version number spent once.
+# manual trigger with two boolean inputs, each of which forces exactly the
+# shipped-nothing condition by a different route, and neither of which can publish
+# anything. It is #78's fourth condition and #310's second, and what it buys is a
+# regression test somebody can run again rather than a version number spent once.
 on:
   push:
     tags:
@@ -30,6 +49,11 @@ on:
     inputs:
       deliberately-fail:
         description: "Prove the alert raises. This publishes nothing: every publishing job is skipped and the last job judges a release that was never created."
+        type: boolean
+        default: false
+        required: true
+      deliberately-fail-the-loop:
+        description: "Prove the alert raises when the whole loop is RED rather than absent. The loop job fails before it boots anything, the publishing chain that needs it does not run, and the last job judges a release that was never created."
         type: boolean
         default: false
         required: true
@@ -241,9 +265,37 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Publishing version ${version} from tag ${tag}."
 
+  loop:
+    # The whole loop against a real server, as a job rather than as a second
+    # workflow on the same tag push. One definition, in `whole-loop.yaml`, called
+    # from here; a copy of those steps in this file would be the thing that drifts
+    # against the one a pull request runs.
+    #
+    # NO `needs:` ON PURPOSE, and it is not an oversight about ordering. The gate
+    # judges this run's metadata in about a minute and this job boots a server for
+    # up to thirty, so running them together is what a tag costs anyway. The
+    # deciding reason is the probe below: `gate` is skipped on the manual trigger by
+    # its own condition, and a job that needs a skipped job is skipped with it, so a
+    # loop behind the gate could not be failed on purpose without a pushed tag.
+    #
+    # A pushed tag always, and the manual trigger only where the input asked for a
+    # red loop. `build` needs this job, so a red or skipped loop stops the chain
+    # before anything is built, attested or released.
+    if: github.event_name == 'push' || inputs.deliberately-fail-the-loop
+    permissions:
+      # A called workflow gets no more than the calling job. The loop reads the tree
+      # it packages and nothing else.
+      contents: read
+    uses: ./.github/workflows/whole-loop.yaml
+    with:
+      deliberately-fail-the-loop: ${{ github.event_name != 'push' && inputs.deliberately-fail-the-loop }}
+
   build:
     name: Build package
-    needs: gate
+    # The gate for what this run says about itself, and the loop for what the
+    # plugin does on a server. Neither is advisory: a release is not cut past a red
+    # loop, and the argument for that is at the top of this file.
+    needs: [gate, loop]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Reads the source and nothing else. The signing scopes are deliberately not here:
@@ -860,8 +912,17 @@ jobs:
     # to run this, and a release created by hand outside this route is not a run at
     # all. Both are outside what a job in this workflow can see, and #78 carries
     # them.
-    needs: [gate, build, attest, release]
-    if: always() && (github.event_name == 'push' || inputs.deliberately-fail)
+    # THE LOOP IS IN THIS LIST AND #310 IS WHY. A job inserted ahead of `build`
+    # changes what this alert is a reading of. The failure to design against is
+    # that the loop goes red, the publishing chain does not run, and SKIPPED IS NOT
+    # FAILED: an alert watching for a failure would see none, while the tag exists,
+    # no release exists and nothing says so - the exact shape #78 was built
+    # against, reintroduced by the change meant to strengthen it. What this job
+    # judges is the RELEASE rather than any job's status, and the reading below
+    # names every job by result rather than testing the run's conclusion, so a
+    # skipped chain reads as `incomplete` the same way a failed one does.
+    needs: [gate, loop, build, attest, release]
+    if: always() && (github.event_name == 'push' || inputs.deliberately-fail || inputs.deliberately-fail-the-loop)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -896,12 +957,22 @@ jobs:
           # rather than a report about a release somebody might go looking for.
           RUN_TAG: ${{ github.event_name == 'push' && github.ref_name || format('{0}-deliberately-failed-probe', github.ref_name) }}
           PROBE: ${{ github.event_name == 'push' && 'no' || 'yes' }}
+          # Which of the two deliberate failures this was, so the issue it raises
+          # says what was actually done rather than naming whichever input was
+          # written first. Empty on a pushed tag, where nothing above it is printed.
+          #
+          # DOUBLE-QUOTED AT THE YAML LEVEL AND NOT AS A STYLE. A plain scalar ends
+          # at the first " " followed by a hash, so unquoted this value stopped
+          # inside its own string literal at the issue number below and left the
+          # expression unterminated. YAML parsed that without complaint;
+          # `actionlint` is what refused it.
+          PROBE_WHY: "${{ (github.event_name != 'push' && inputs.deliberately-fail-the-loop) && 'It was dispatched by hand with the `deliberately-fail-the-loop` input on, which fails the whole-loop job before it boots anything; the gate, the build, the attestation and the release all skip, because the chain needs that job. That is the case #310 is about - a red loop must still reach this alert - and it is the one a green run of the arrangement demonstrates nothing about.' || 'It was dispatched by hand with the `deliberately-fail` input on, which skips every job that builds, attests or releases.' }}"
           REPOSITORY: ${{ github.repository }}
           # Success only when every job before this one succeeded. A job that
           # failed, was cancelled, or was skipped because an earlier one failed all
           # mean the route did not finish, and what it left behind is read below
           # rather than assumed empty.
-          OUTCOME: ${{ (needs.gate.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
+          OUTCOME: ${{ (needs.gate.result == 'success' && needs.loop.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
         run: |
           set -euo pipefail
 
@@ -965,7 +1036,7 @@ jobs:
 
           {
             if [ "${PROBE}" = "yes" ]; then
-              echo "**This run was a deliberate failure and it published nothing.** It was dispatched by hand with the \`deliberately-fail\` input on, which skips every job that builds, attests or releases, so the release judged below was never created and no version number was spent. It exists to prove that the raising half of this alert works, which is #78's fourth condition. Everything under it is what this alert says when the condition it watches for is real."
+              echo "**This run was a deliberate failure and it published nothing.** ${PROBE_WHY} The release judged below was never created and no version number was spent. It exists to prove that the raising half of this alert works, which is #78's fourth condition. Everything under it is what this alert says when the condition it watches for is real."
               echo
             fi
             echo "The publish route for \`${RUN_TAG}\` finished and what it left is not a release anybody can install."
@@ -989,10 +1060,17 @@ jobs:
             echo "Refs #78."
           } > body.md
 
+          # THE LABELS ARE THE ONES `.github/labels.yaml` DECLARES, and this line named
+          # `ci`, which is not one of them. `gh issue create` refuses the whole call on
+          # an unknown label rather than creating the issue without it, so this alert
+          # judged a run correctly and then raised nothing - the silence it exists to
+          # break, in the one job whose whole purpose is to break a silence. Found by
+          # the probe recorded on #310 rather than by a route: nothing here reads a
+          # label name against the file that declares it, and nothing will.
           gh issue create --repo "${REPOSITORY}" \
             --title "${title}" \
             --body-file body.md \
-            --label ci --label "area: release" \
+            --label "area: ci" --label "area: release" \
             --milestone "M10 Release and catalogue readiness" \
             --assignee iderex
 
