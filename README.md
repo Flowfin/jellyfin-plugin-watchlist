@@ -21,7 +21,8 @@ becomes readable by everybody without being asked for.
 In the client you already use. The plugin projects a user's list into a playlist
 owned by that user, and a playlist is a surface every stock client already
 renders, which is why nothing on the client side has to change for the list to
-show up.
+show up. Where you find it, step by step and as the server answers it, is
+under `Finding the list, as the server answers it` below.
 
 Adding an item to that playlist from a client puts it on the list, and removing
 it takes it off, so the list can be worked from the same place it is read.
@@ -56,6 +57,60 @@ over, whatever it is called.
 If you would rather keep your own list to yourself, rename it, or change the name
 the plugin uses; both are in [docs/settings.md](docs/settings.md), together with
 the rule that stops the plugin renaming a list once you have named it yourself.
+
+## Finding the list, as the server answers it
+
+**This section is what the server returns to a client asking, and not a picture
+of a client: nobody has looked at a screen.** It is read off one run of this
+repository's own workflow, `33494240316`, which boots a stock
+`jellyfin/jellyfin:10.11.11` in a container, installs the packaged plugin
+`0.1.0.0` the way a server installs one, and asks the server the questions a
+client asks. That run is the one row in
+[docs/client-verification.md](docs/client-verification.md), which keeps a
+server that answers apart from a client that renders on purpose and says which
+of the two every row is. The moment somebody looks at a client, the sentence in
+bold goes and what they saw takes its place, there and here.
+
+1. **Put something on your list.** Your client, or anything that speaks to the
+   server for you, calls `POST Watchlist/Items/{itemId}` with the film's
+   identifier. The server answers for the user the request came from and for
+   nobody else, and the film is on your stored list from that moment. The
+   routes, what each one carries and what each one refuses are in
+   [docs/api.md](docs/api.md).
+
+2. **Nothing has changed in your client yet.** Open Playlists and there is no
+   playlist carrying the list name. The projection is not on the add path; it
+   runs when the scheduled task runs.
+
+3. **Wait for the task, or run it.** It is `Reconcile watchlist playlists`,
+   under `Watchlist` among the dashboard's scheduled tasks, and it runs four
+   times a day by default. Then open Playlists in your client. There is a
+   playlist owned by you, named whatever `ProjectedListName` says - `Watchlist
+   (plugin)` unless an administrator changed it, and
+   [docs/settings.md](docs/settings.md) carries the rule behind that name - and
+   the film is in it. A client reads that with two queries, its listing of items
+   filtered to playlists and the playlist's own contents route, and the server
+   answered both.
+
+4. **Take it off from the playlist.** Remove the row the way you remove any row
+   from any playlist in your client. On the next run of the task the film leaves
+   your list as well, because an edit made to the playlist is read back onto the
+   list.
+
+Read off the run rather than written from the code:
+
+    gh run view 33494240316 --repo Flowfin/jellyfin-plugin-watchlist --log | grep -oE '[1-5]\. [A-Z].*$' | tail -7
+    1. The stored list holds the film the endpoint was given.
+    2. No playlist carries that name before the projection runs.
+    3. The client's playlist query sees Watchlist (plugin) as 91b4a5b62a91c4cc81ffc2433649f5e1.
+    3. The playlist holds the film, as row d8e031515819616a5a940ef90d0ee3b4.
+    4. The stored list still holds the film after the projection.
+    5. The client's removal took the row out of the playlist.
+    5. The stored list dropped the entry the client removed.
+
+The `tail` is there because the same run first fails the harness on purpose,
+against a server with the projection turned off, and the lines above those seven
+are that refusal rather than the walk.
 
 ## Which servers it supports
 
