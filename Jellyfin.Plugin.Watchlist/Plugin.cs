@@ -62,6 +62,23 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <inheritdoc />
     public override string Name => "Watchlist";
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// The paragraph build.yaml declares under <c>description</c>, held to it by the
+    /// suite for the reason the name is. A server that reconciles a loaded plugin
+    /// against the manifest beside it assigns the instance's description over the
+    /// manifest's and writes the file back, and the base answers the empty string, so
+    /// a plugin declaring none shows a blank description on its own page after the
+    /// first load whatever the catalogue said before it. The words are the same in
+    /// both places; only where a line wraps differs, and the comparison folds that.
+    /// </remarks>
+    public override string Description =>
+        "Adds a watchlist to Jellyfin. Each user gets a private list, held on the "
+        + "server, so it is the same list on every device that user signs in from. "
+        + "The list is projected into a playlist owned by that user, which is a "
+        + "surface every stock client already renders, so nothing has to be patched, "
+        + "forked or installed alongside it.";
+
     /// <summary>
     /// Gets the identifier this plugin is known by. A server keys the configuration
     /// it stores for a plugin and the update entry it offers on this value, so it is
