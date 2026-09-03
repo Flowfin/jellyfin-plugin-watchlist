@@ -378,11 +378,14 @@ clean server has to know to go and look.
 ## What this run did not cover
 
 **The install route a user will actually take.** The plugin was put on the server by
-copying the assembly into a directory. A user installs from a manifest added to their
-server as a repository URL, and there is no release, no artifact and no manifest yet.
-So what is written above is what happens once the files are in place, and not the
-procedure an administrator follows to get them there. #73 packages the artifacts, #74
-publishes the manifest, and the install section gains that route when they land.
+copying the assembly into a directory. A user installs from a catalogue added to their
+server as a repository URL, and that route exists now: the first release,
+`0.1.0.0-stable`, was published on 2026-09-03, and the address and the reason it is
+that one are under `Installing` in [README.md](../README.md). No run has installed this
+plugin through it. So what is written above is what happens once the files are in
+place, and not the procedure an administrator follows to get them there; #76 is the
+run that takes that route on a stock server from the published catalogue, and this
+document gains the section when it has.
 
 **The packaging.** The `meta.json` beside each assembly was written by hand from the
 fields in `build.yaml`, for the same reason. A package produced by a release will not

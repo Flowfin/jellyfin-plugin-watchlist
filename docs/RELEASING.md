@@ -117,9 +117,17 @@ document: it is in it, as a name and a digest with no version and no licence
 beside them, which is the shape a release would publish while looking exactly like
 one that says what it ships.
 
-Nothing here writes a plugin catalog. A GitHub release is the whole output. If this
-repository previously published through the Jellyfin meta plugins workflow, that path
-is gone and no catalog is fed until a manifest generator is added.
+Nothing here writes a plugin catalogue. A GitHub release is the whole output of this
+route. What feeds the catalogue from it is the hub's generator, in
+[Flowfin/hub](https://github.com/Flowfin/hub), which declares this repository as a
+source, reads its releases on a daily schedule, takes the version, the line, the
+checksum and the identity out of the `.zip.meta.json` beside the archive, and
+publishes the result at the address `README.md` prints under `Installing`. That is
+why the descriptor is one of the eight files above rather than a courtesy: the
+generator reads identity from no other file, and its `decisions/failure-posture.md`
+stops the run on a defect in the newest release rather than publishing around it. A
+release published after the day's run waits for the next one, and the check that
+the catalogue has caught up is #89.
 
 ## The package this route builds, and the one the gate builds
 
