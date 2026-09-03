@@ -150,15 +150,47 @@ here.
 
 ## Installing
 
-Installation is from a plugin manifest published by this repository, rather than
-from the official Jellyfin plugin catalogue. In the server dashboard, open
-Plugins, then Repositories, and add this repository's manifest URL. The plugin
-then appears in the catalogue list on that server and installs and updates from
-there like any other.
+Installation is from the Flowfin plugin catalogue, a manifest generated from the
+releases of this repository and its siblings, rather than from the official
+Jellyfin plugin catalogue. In the server dashboard, open Plugins, then
+Repositories, and add this address:
 
-No release is published yet, so there is no manifest URL to add today. The
-section above describes the route that will be used, and it is written here
-because the README is where somebody looks for it.
+    https://flowfin.dev/manifest.json
+
+The plugin then appears in the catalogue list on that server and installs and
+updates from there like any other.
+
+That address is one every installed copy polls for the rest of its life, and a
+server raises nothing when the address it was given stops answering, so which
+address it is was decided once and is not this repository's to move. The reason
+is argued where the address is held, in `decisions/manifest-address.md` of
+[Flowfin/hub](https://github.com/Flowfin/hub): a name the family holds and renews,
+rather than one carrying an account, a repository or a branch that a rename can
+move from under every server that has it. The catalogue itself is generated from
+the releases and never edited by hand, and each entry carries the archive's
+checksum and the server line it was built for, read out of the `.zip.meta.json`
+beside the archive; `decisions/manifest-is-generated.md` and
+`decisions/plugin-identity.md` in the same place are those rules.
+
+Whether the catalogue carries a release of this plugin is read from the address
+rather than from this page:
+
+    curl -sS https://flowfin.dev/manifest.json | jq -r '.[] | select(.guid == "6e1631d7-aa49-494d-a23b-d5785853fc0a") | .versions[] | "\(.version)\t\(.targetAbi)\t\(.checksum)"'
+
+The catalogue is rebuilt once a day from what the declared repositories have
+released, and a rebuilt file reaches the address through a pull request on the
+hub. The first release here, `0.1.0.0-stable`, was published on 2026-09-03 at
+10:27Z, after that day's rebuild had run, so on that day the command above
+printed nothing and the address answered with a catalogue of two other plugins:
+
+    curl -sS -o /dev/null -w "%{http_code}\n" https://flowfin.dev/manifest.json
+    200
+    curl -sS https://flowfin.dev/manifest.json | jq -r '[.[].name] | join(", ")'
+    Requests, Playback Statistics
+
+A release published between two rebuilds is in that state for up to a day. What
+watches the catalogue for a release it has not caught up with is the hub's own
+freshness run, and on this board the check #89 asks for.
 
 ## What it stores about you, and where
 
@@ -303,7 +335,11 @@ the list is still removed and the playlist is left, because a list an administra
 taken away that every user can still read and write would be the worse of the two; the
 server log names what was left.
 
-The verification above is why there is no release.
+A release exists despite that: `0.1.0.0-stable`, published on 2026-09-03 from
+`28d6a70`. The 0 in its first position is what says the feature set called 1.0 is
+not finished, which is the rule `build.yaml` writes beside its version, and the
+verification above is why the number is that one. Where the release is installed
+from is under `Installing` above.
 
 One of the two server lines above is not built either. The plugin compiles
 against the 10.11 package set, on the framework that line runs, and the packaging
@@ -353,8 +389,29 @@ means the archive carries it, `excluded` means the plugin was compiled against i
 and the bytes are not in the zip. The licences are read out of the packages
 themselves by the generator and are not asserted here.
 
-Nothing has been released from this repository yet, so these commands describe what
-the route produces and have not been run against a release.
+These commands were run against the first release, `0.1.0.0-stable`, on 2026-09-03,
+with every asset downloaded from the release page. The statement verifies in both
+forms, and what it ties the archive to is read out of it rather than off the page:
+
+    gh attestation verify watchlist_0.1.0.0.zip --repo Flowfin/jellyfin-plugin-watchlist --format json | jq -r '.[0].verificationResult | .statement.subject[0].digest.sha256, .signature.certificate.sourceRepositoryDigest, .signature.certificate.runInvocationURI'
+    1cda87ece95bc95586049eadc2fe5764cf4ef7c8892cc8966a8da6c40aa6bab3
+    28d6a70da65a6766b07caab96f1c0730d09f3cf5
+    https://github.com/Flowfin/jellyfin-plugin-watchlist/actions/runs/33744102950/attempts/1
+
+    sha256sum -c watchlist_0.1.0.0.cdx.json.sha256
+    watchlist_0.1.0.0.cdx.json: OK
+    jq -r '.metadata.component | .name, (.hashes[] | .alg + " " + .content)' watchlist_0.1.0.0.cdx.json
+    watchlist_0.1.0.0.zip
+    SHA-256 1cda87ece95bc95586049eadc2fe5764cf4ef7c8892cc8966a8da6c40aa6bab3
+
+The digest the inventory names, the digest the statement was signed over and the
+digest in `watchlist_0.1.0.0.sha256` are one value, and the commit the statement
+names is the one the tag points at. The third and fourth commands print the two
+files the archive ships and the packages the release build resolved, all of them
+`excluded`, which is the reading the licence section below rests on:
+
+    jq -r '.components[] | select(.type != "file") | select(.scope != "excluded") | .name' watchlist_0.1.0.0.cdx.json | wc -l
+    0
 
 ## Licence
 
