@@ -127,11 +127,13 @@ internal static class Changelog
     /// <summary>
     /// Folds a block to one paragraph: every line trimmed, blank lines dropped, the
     /// rest joined by single spaces. Both sides of the comparison go through this, so
-    /// the rule is about the words and not about where a line happens to wrap.
+    /// the rule is about the words and not about where a line happens to wrap. The
+    /// manifest's folded description block is read by the same rule, from
+    /// <see cref="BuildManifest.ReadDescription"/>, which is why this is not private.
     /// </summary>
     /// <param name="block">The block to fold.</param>
     /// <returns>The folded text.</returns>
-    private static string Fold(string block) => string.Join(
+    internal static string Fold(string block) => string.Join(
         ' ',
         block
             .Replace("\r\n", "\n", StringComparison.Ordinal)

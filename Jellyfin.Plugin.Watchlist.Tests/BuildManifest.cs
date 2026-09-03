@@ -42,6 +42,16 @@ internal static class BuildManifest
         RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
     /// <summary>
+    /// The manifest's folded description block: the key, a <c>&gt;</c>, then every
+    /// indented line under it. Folded because that is what the packaging tool does
+    /// with it on the way into the archive, so the paragraph a catalogue shows is one
+    /// line however the file wraps it.
+    /// </summary>
+    private static readonly Regex DescriptionBlock = new(
+        @"^description:[ \t]*>[ \t]*\r?$(?<body>(?:\r?\n[ \t]+[^\r\n]*)*)",
+        RegexOptions.Multiline | RegexOptions.CultureInvariant);
+
+    /// <summary>
     /// A top-level quoted targetAbi entry, anchored per line for the same reason as the
     /// three above. The word appears in the comments this manifest carries, and a
     /// comment is not what a server reads.
@@ -200,6 +210,62 @@ internal static class BuildManifest
             manifestText,
             m => m.Value.Replace(m.Groups["name"].Value, replacement, StringComparison.Ordinal),
             1);
+
+    /// <summary>
+    /// Reads the description a manifest declares, folded to one paragraph.
+    /// </summary>
+    /// <param name="manifestText">The manifest to read.</param>
+    /// <returns>The declared description, as one line.</returns>
+    /// <remarks>
+    /// A missing block throws instead of answering the empty string, because the empty
+    /// string is exactly what the base plugin class answers, and a comparison between
+    /// two absences would be quietly true.
+    /// </remarks>
+    public static string ReadDescription(string manifestText)
+    {
+        var match = DescriptionBlock.Match(manifestText);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException("The manifest declares no top-level folded description block.");
+        }
+
+        return Changelog.Fold(match.Groups["body"].Value);
+    }
+
+    /// <summary>
+    /// Answers whether a manifest and a plugin class describe the plugin the same way.
+    /// The rule is over the words: both sides are folded, so a line wrapped at another
+    /// width is the same description and a changed word is not.
+    /// </summary>
+    /// <param name="manifestText">The manifest to read.</param>
+    /// <param name="pluginDescription">The description the plugin class declares.</param>
+    /// <returns>True when the two agree.</returns>
+    public static bool DescriptionsAgree(string manifestText, string pluginDescription) =>
+        string.Equals(ReadDescription(manifestText), Changelog.Fold(pluginDescription), StringComparison.Ordinal);
+
+    /// <summary>
+    /// Returns the manifest with a different description block in it, leaving every
+    /// other byte alone. Used to build the near miss: one manifest, one changed
+    /// paragraph. A replacement carrying newlines is written as further indented lines,
+    /// which is the shape a re-wrapped paragraph has in the file.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <param name="replacement">The text to put under the key.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithDescription(string manifestText, string replacement) =>
+        DescriptionBlock.Replace(
+            manifestText,
+            _ => "description: >\n  " + replacement.Replace("\n", "\n  ", StringComparison.Ordinal),
+            1);
+
+    /// <summary>
+    /// Returns the manifest with no description block at all. Used to prove the reading
+    /// refuses a manifest that has lost the paragraph rather than answering an empty one.
+    /// </summary>
+    /// <param name="manifestText">The manifest to rewrite.</param>
+    /// <returns>The rewritten manifest.</returns>
+    public static string WithoutDescription(string manifestText) =>
+        DescriptionBlock.Replace(manifestText, string.Empty, 1);
 
     /// <summary>
     /// Reads the ABI a manifest declares.
