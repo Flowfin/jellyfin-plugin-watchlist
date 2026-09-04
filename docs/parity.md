@@ -714,26 +714,58 @@ board with one other board, and a check neither of them carries does not appear
 here at all.
 
 It has a row per check and not per workflow, so a workflow that reports no check
-and gates nothing has no row. `sync-labels.yaml` here is the one such file. It
-still has none, because it reports on nothing and gates nothing, and a row for
-it would say it is a check.
+and gates nothing has no row. `sync-labels.yaml` here was the one such file, and
+this paragraph named it as the exception for as long as it existed. THE FILE IS
+GONE FROM THIS TREE, so the exception goes with it and the sentence above is
+left standing on its own.
 
-A decision has been taken about that file, which is what this paragraph used to
-say had not happened, so it is recorded here rather than left to the workflow's
-own comment. The sync it called replaced this board's labels with a shared set
-and deleted every label that set does not name, which is nine of the twenty this
-board uses, the whole `area:` vocabulary among them. #196 measured that and this
-is the position taken: the shared set is still read, from its own URL at the
-moment of the run, and this repository's own labels are handed to the same run
-in `.github/labels.yaml` beside it. `delete-other-labels` is kept, because
-removing a label nobody declared is the job; what changed is that this board's
-labels are now declared. The shared set is not copied into this tree, so the two
-files cannot drift against each other.
+THE POSITION #196 TOOK DID NOT HOLD, WHICH IS WHY THE FILE IS REMOVED RATHER
+THAN CONFIGURED A SECOND TIME. What stood here recorded that position: the
+shared set still read from its own URL at the moment of the run, this
+repository's own labels handed to the same run in `.github/labels.yaml` beside
+it, and `delete-other-labels` kept because removing a label nobody declared is
+what the sync is for. The gap in it is a label the board gains that the file
+does not, and the scheduled run of 2026-09-01 met one. Its output for
+`blocked-on-dependency`, which `.github/labels.yaml` declares nowhere:
 
-What that leaves undecided is deliberate. Whether this board should keep a
-vocabulary of its own or move onto the shared one is a question about the labels
-rather than about the workflow, #196 declines to settle it, and keeping both
-sets is the state the board was already in.
+    grep -c 'blocked-on-dependency' .github/labels.yaml
+    0
+    gh run view 33463837260 --repo Flowfin/jellyfin-plugin-watchlist --log \
+      | grep -A3 'blocked-on-dependency \[added\]' \
+      | sed 's/^Sync labels\tUNKNOWN STEP\t[0-9T:.Z-]*Z //'
+    blocked-on-dependency [added]
+    blocked-on-dependency → ⚰️
+    #d4c5f9 → ⚰️
+    Waiting on another issue or on a state of the tree, not on a person → ⚰️
+
+So the sync is removed on the decision taken on share-links#338 for every board
+that carries the file, and #327 is where it was executed here. The vocabulary of
+these boards is declared by the fleet and gated by the fleet; the standard names
+the upstream list gave us are on the board already and need no monthly run to
+keep them there.
+
+WHAT THE REMOVAL COSTS IS STATED RATHER THAN LEFT OUT. A label added to this
+board by hand, and a label whose colour or description drifts from what
+`.github/labels.yaml` declares, are now caught by nothing here. Before the
+removal they were caught once a month and at the price above. Which of the two
+is the better residual is the argument in share-links#338 and is not re-taken
+here.
+
+`.github/labels.yaml` STAYS AND IS NOW READ BY NO RUN. It remains the
+declaration of what this board's own labels are, and `publish.yaml` names it as
+the authority for a label its alert may ask for, but nothing compares it against
+the board any more. Its own header still describes the sync handing it to the
+action, and still promises that an undeclared label is deleted on the next
+scheduled run - two sentences about a file that is no longer in the tree and a
+run that no longer happens. That is #338 ON THIS BOARD, which is a different
+issue from the share-links#338 named above and reads as the same one at a
+glance. It is not part of this change, because #327 asks that nothing else in
+`.github/` move.
+
+What #196 left undecided is still undecided and is not touched by any of this.
+Whether this board should keep a vocabulary of its own or move onto the shared
+one is a question about the labels rather than about the workflow, and removing
+the workflow answers it in neither direction.
 
 It does not say that a green run of the adopted set means the change is right.
 Nothing in the required set reads a pull request for whether it does what its
