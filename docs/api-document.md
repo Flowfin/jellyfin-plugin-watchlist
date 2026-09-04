@@ -244,13 +244,24 @@ invoked, which needs a user, a library and the harness in #52.
 
 The plugin was installed by copying it into a container rather than through the
 server's own install route, and the `meta.json` beside the assembly was written
-by hand from `build.yaml`, because nothing has been published from this
-repository. `docs/first-load.md` records the same two departures for the same
-reason.
+by hand from `build.yaml`, because on the day of this run nothing had been
+published from this repository. `docs/first-load.md` records the same two
+departures for the same reason. Two releases have published since, so a run that
+takes the install route is no longer waiting on one to exist; what it waits on is
+a catalogue entry, which is #76.
 
 The assembly read here was built on `net9.0` against the 10.9.11 package set,
-which is not what the tree declares any more. #4 moved the references to 10.11.11
-and the manifest to the 10.11 line, so the pair this run compiled is one line
-behind the pair a build produces today, and the 12.0 half of that issue is still
-open. A run whose artifact is the artifact a user installs is one taken after
-both halves land and after something publishes.
+which is not what the tree declares any more. #4 moved the references to the 10.11
+line and the manifest with them, and #134 then moved the pin down to that line's
+first build, so the assembly binds the floor the manifest declares rather than a
+newer patch. This paragraph has already been wrong about that value once, so it is
+pasted under the command that prints it, where `DocumentPasteTests` re-runs it and
+reds the suite the day the two come apart:
+
+    git grep -nE 'Jellyfin\.(Controller|Model)" Version' -- Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj
+    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:58:    <PackageReference Include="Jellyfin.Controller" Version="10.11.0" >
+    Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj:61:    <PackageReference Include="Jellyfin.Model" Version="10.11.0">
+
+So the pair this run compiled is a line behind the pair a build produces today, and
+the 12.0 half of #4 is still open. A run whose artifact is the artifact a user
+installs is one taken after that half lands and from the published catalogue.

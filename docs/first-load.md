@@ -47,10 +47,10 @@ The artifact was produced from the tree:
     sha256sum pkg/Jellyfin.Plugin.Watchlist.dll
     73562b4be936f0c5f8343bbdafa0afd30fffa0d881e79446f57e75bc8addbee5
 
-and its `meta.json` was written by hand from the fields in `build.yaml`, because the
-release packaging that would produce one does not exist yet. That is a difference
-between this run and an install a user performs, and it is stated in "What this run
-did not cover" below.
+and its `meta.json` was written by hand from the fields in `build.yaml`, because on
+the day of this run the release packaging that would produce one did not exist. That
+is a difference between this run and an install a user performs, and it is stated in
+"What this run did not cover" below, where what has changed since is written too.
 
 ## The servers
 
@@ -139,10 +139,12 @@ above is a reading of what that build served and not of what a run today would f
 ## What this run did not cover
 
 The `meta.json` beside the assembly was written by hand from `build.yaml`. A user
-installs a package built by the release packaging, which does not exist yet, so what
-is proven here is that a server loads this assembly and not that the package a
-release will produce is well formed. #73 is the packaging and #71 is why the version
-in the assembly and the version in the manifest agree.
+installs a package built by the release packaging, which did not exist on the day of
+this run, so what is proven here is that a server loads this assembly and not that
+the package a release produces is well formed. That packaging exists now and two
+releases have come out of it, so this paragraph is a bound on THIS run rather than a
+state of the board. #73 is the packaging and #71 is why the version in the assembly
+and the version in the manifest agree.
 
 Nothing was rendered. Every reading above is a log line or an HTTP response, so
 "visible in the dashboard" is proven as far as the endpoint the dashboard reads and
