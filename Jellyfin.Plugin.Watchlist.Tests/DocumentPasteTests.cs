@@ -100,6 +100,7 @@ public class DocumentPasteTests
 
         Assert.Contains("README.md", documents, StringComparer.Ordinal);
         Assert.Contains("CONTRIBUTING.md", documents, StringComparer.Ordinal);
+        Assert.Contains("SECURITY.md", documents, StringComparer.Ordinal);
         Assert.Contains("docs/personal-data.md", documents, StringComparer.Ordinal);
         Assert.Contains("docs/parity.md", documents, StringComparer.Ordinal);
 
@@ -368,6 +369,7 @@ public class DocumentPasteTests
     private static bool IsPopulation(string path) =>
         string.Equals(path, "README.md", StringComparison.Ordinal)
         || string.Equals(path, "CONTRIBUTING.md", StringComparison.Ordinal)
+        || string.Equals(path, "SECURITY.md", StringComparison.Ordinal)
         || (path.StartsWith("docs/", StringComparison.Ordinal) && path.EndsWith(".md", StringComparison.Ordinal));
 
     private static IReadOnlyList<PasteMismatch> ScanFixture(string fixture)

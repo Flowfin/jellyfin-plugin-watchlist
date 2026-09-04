@@ -33,19 +33,61 @@ unless they would rather not have it.
 
 ## What exists to be attacked
 
-Less than the README describes, and saying so is part of the policy. What is
-built is a per-user document store, three HTTP endpoints over it, a
-configuration page carrying one setting, and export and import code that no
-endpoint reaches. The playlist projection that would make a list visible in a
-client is not built, and neither is the shared list. There is no release and no
-tag:
+This section described a mid-August tree while the code and the releases moved
+past it, and it understated the surface in every direction: three endpoints
+where there are twelve, one setting where there are eight, no projection and no
+shared list where both are built, and no release where two are published. An
+understated surface steers a reporter away from code that is there, so what can
+be derived is derived below, under commands this repository's suite re-runs.
+The next move breaks the build rather than this paragraph.
 
-    gh api repos/Flowfin/jellyfin-plugin-watchlist/releases --jq length
-    0
+What is built is a per-user document store, a shared list an administrator can
+make and remove, the playlist projection that puts either in front of a client,
+a scheduled task that reconciles them on a schedule and on demand, a
+configuration page, and export and import over both lists.
 
-So nothing from here is running on anybody's server except where somebody built
-it themselves, a report is against `master`, and there is no older version to
-carry a fix back to.
+The HTTP surface is every route of three controllers:
+
+    git grep -hoE '\[Http(Get|Post|Delete)\("[^"]*"\)' -- Jellyfin.Plugin.Watchlist/Api/ | sort
+    [HttpDelete("Items/{itemId}")
+    [HttpDelete("Shared")
+    [HttpDelete("Shared/Items/{itemId}")
+    [HttpGet("Export")
+    [HttpGet("Items")
+    [HttpGet("Shared/Export")
+    [HttpGet("Shared/Items")
+    [HttpPost("Import")
+    [HttpPost("Items/{itemId}")
+    [HttpPost("Shared")
+    [HttpPost("Shared/Import")
+    [HttpPost("Shared/Items/{itemId}")
+
+each under the one prefix those controllers declare:
+
+    git grep -c 'Route("Watchlist")' -- Jellyfin.Plugin.Watchlist/Api/
+    Jellyfin.Plugin.Watchlist/Api/SharedWatchlistTransferController.cs:1
+    Jellyfin.Plugin.Watchlist/Api/WatchlistController.cs:1
+    Jellyfin.Plugin.Watchlist/Api/WatchlistTransferController.cs:1
+
+Export and import are among them, so that code is reached by an endpoint rather
+than sitting behind none, which is what this section used to say.
+
+The settings the configuration page carries:
+
+    git grep -cE 'public .* \{ get; set; \}' -- Jellyfin.Plugin.Watchlist/Configuration/PluginConfiguration.cs
+    Jellyfin.Plugin.Watchlist/Configuration/PluginConfiguration.cs:8
+
+Releases are published from here, so a report is not necessarily against
+`master` and a fix may have to be carried back to an older version. Which
+versions exist is read from the repository rather than pasted here, because the
+count pasted here said `0` after it had stopped being true:
+
+    gh release list --repo Flowfin/jellyfin-plugin-watchlist
+
+Whether anybody is running one of them cannot be read from this repository, and
+nothing here claims it either way. What stood here before - that nothing from
+here is running on anybody's server - was true while nothing had been published
+and is not a question the tree can answer now.
 
 ## Where the surface really is
 

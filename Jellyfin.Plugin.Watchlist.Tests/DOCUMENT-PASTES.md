@@ -41,9 +41,15 @@ To be seen at all:
 
 ## What it reads
 
-The POPULATION is `README.md`, `CONTRIBUTING.md`, and every `.md` page under
-`docs/`. A markdown file anywhere else - the changelog, the notices, the documents
-beside this suite, this page - is not judged.
+The POPULATION is `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and every `.md`
+page under `docs/`. A markdown file anywhere else - the changelog, the notices, the
+documents beside this suite, this page - is not judged.
+
+`SECURITY.md` was outside it until #330, and what that cost is the reason it is in:
+the section saying what exists to be attacked pasted a release count of `0` and a
+surface of three endpoints, both went wrong as the tree moved, and no run said so.
+A security policy that understates the surface steers a reporter away from code that
+is there, which is the one document on this board where a stale paste is worst.
 
 The TREE the commands read is a declared file set carried into the test assembly as
 embedded resources. What is in it is written in the test project file beside the
