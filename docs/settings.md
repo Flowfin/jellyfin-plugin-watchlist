@@ -229,7 +229,12 @@ what makes it. There is exactly one such list rather than several, by answer 6 o
 which is why its name and its bound are settings here and not fields on a record.
 
 When it takes effect: immediately for the creation endpoint, which reads it on every
-call, and on the next reconciliation for the projection, which does not exist yet.
+call, and on the next reconciliation for the projection. That second half said the
+projection does not exist yet; it does, and it consults this switch itself:
+
+    git grep -n 'configuration.SharedListEnabled' -- Jellyfin.Plugin.Watchlist/Projection/
+    Jellyfin.Plugin.Watchlist/Projection/SharedProjectionTarget.cs:154:        if (!configuration.SharedListEnabled)
+
 Turning it off deletes nothing stored, so a list that was made stays on disk and is
 removed with `DELETE Watchlist/Shared` rather than by moving this value.
 
@@ -384,8 +389,20 @@ precedence rule above running rather than a second rule:
     git grep -n 'Resolve(preferences?.RemoveWhenWatched' -- Jellyfin.Plugin.Watchlist/
     Jellyfin.Plugin.Watchlist/Configuration/EffectiveSettings.cs:55:        return Resolve(preferences?.RemoveWhenWatched, serverWide.RemoveWhenWatched);
 
-`ProjectionEnabled` is read by nothing, so a user's answer to it is stored and kept
-and changes no behaviour yet, exactly as the server-wide value is.
+`ProjectionEnabled` as a USER's answer is read by nothing, so it is stored and kept
+and changes no behaviour yet. Its server-wide namesake is a different matter and this
+paragraph said the two were in the same state:
+
+    git grep -n 'configuration.ProjectionEnabled' -- Jellyfin.Plugin.Watchlist/Projection/
+    Jellyfin.Plugin.Watchlist/Projection/WatchlistProjectionPass.cs:134:        if (!configuration.ProjectionEnabled)
+
+So the server-wide value decides whether the pass walks at all, and the per-user one
+is inert because the resolver that would combine the two has no caller. Its sibling
+does, which is what makes this a gap in one setting rather than a stage nothing has
+reached:
+
+    git grep -n 'EffectiveSettings\.' -- Jellyfin.Plugin.Watchlist/
+    Jellyfin.Plugin.Watchlist/Watched/WatchedRemovalHandler.cs:71:        if (!EffectiveSettings.RemoveWhenWatched(_configuration(), read.Document.Preferences))
 
 ## What is not here
 
@@ -404,6 +421,13 @@ change as the reader arrives. A row carrying a `What reads it:` line is read tod
 and names what reads it; a row saying it is read by nothing is not read, and says
 what would have to be built for it to be.
 
-Every setting here that is read by nothing is read by nothing for the same reason:
-the projection and the scheduled task are not built. There is none that is inert
-for a reason of its own.
+THIS PARAGRAPH GAVE ONE REASON FOR EVERY INERT SETTING AND THE REASON HAS EXPIRED.
+It said each was read by nothing because the projection and the scheduled task are
+not built. Both are built, and every server-wide setting on this page has a reader;
+the walk that established that is on #332.
+
+What is left inert is one value, and it is inert for a reason of its own, which is
+the case that paragraph ruled out. A user's own `ProjectionEnabled` is not consulted
+because `EffectiveSettings.ProjectionEnabled` has no caller, while the sibling
+resolver beside it does. The per-user section above carries the two commands that
+show it.
