@@ -290,12 +290,36 @@ jobs:
     with:
       deliberately-fail-the-loop: ${{ github.event_name != 'push' && inputs.deliberately-fail-the-loop }}
 
+  floor:
+    # The server the manifest's floor promises, booted with the packaged plugin,
+    # as a job rather than as a second workflow on the same tag push. One
+    # definition, in `at-the-floor.yaml`, called from here; a copy of those steps
+    # in this file would be the thing that drifts against the one a pull request
+    # runs. That is the arrangement `loop` above already uses, for its reason.
+    #
+    # WHAT IT STOPS IS THE ONE FAILURE THIS CHAIN HAS ALREADY SHIPPED. 0.1.0.0 was
+    # published green and does not load on 10.11.0, the version its own manifest
+    # names as its floor, and nothing in this chain asked. A release is immutable,
+    # so the reading has to happen before the tag is spent rather than after.
+    #
+    # THE CONDITION IS THE ONE `loop` CARRIES, and it changes no dispatch. A
+    # dispatch already reaches no build: `loop` is skipped unless the input asks
+    # for a red one, and `build` needs it either way. On a pushed tag this runs
+    # and gates.
+    if: github.event_name == 'push'
+    permissions:
+      # A called workflow gets no more than the calling job. This one reads the
+      # tree it packages and nothing else.
+      contents: read
+    uses: ./.github/workflows/at-the-floor.yaml
+
   build:
     name: Build package
-    # The gate for what this run says about itself, and the loop for what the
-    # plugin does on a server. Neither is advisory: a release is not cut past a red
-    # loop, and the argument for that is at the top of this file.
-    needs: [gate, loop]
+    # The gate for what this run says about itself, the loop for what the plugin
+    # does on a server, and the floor for whether the archive loads on the oldest
+    # server the manifest promises. None of the three is advisory: a release is
+    # not cut past a red one, and the argument for that is at the top of this file.
+    needs: [gate, loop, floor]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Reads the source and nothing else. The signing scopes are deliberately not here:
@@ -921,7 +945,11 @@ jobs:
     # judges is the RELEASE rather than any job's status, and the reading below
     # names every job by result rather than testing the run's conclusion, so a
     # skipped chain reads as `incomplete` the same way a failed one does.
-    needs: [gate, loop, build, attest, release]
+    # THE FLOOR IS IN THIS LIST FOR THE SAME REASON AS THE LOOP. It is a second
+    # job ahead of `build`, so a red one skips the chain rather than failing it,
+    # and a reading that did not name it would call that run's outcome from the
+    # jobs it did name. It is named by result below like every other.
+    needs: [gate, loop, floor, build, attest, release]
     if: always() && (github.event_name == 'push' || inputs.deliberately-fail || inputs.deliberately-fail-the-loop)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -972,7 +1000,7 @@ jobs:
           # failed, was cancelled, or was skipped because an earlier one failed all
           # mean the route did not finish, and what it left behind is read below
           # rather than assumed empty.
-          OUTCOME: ${{ (needs.gate.result == 'success' && needs.loop.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
+          OUTCOME: ${{ (needs.gate.result == 'success' && needs.loop.result == 'success' && needs.floor.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
         run: |
           set -euo pipefail
 
