@@ -1,0 +1,178 @@
+# Boot the server the manifest's floor promises, with the packaged plugin, and
+# assert that it loaded (#324).
+#
+# WHAT THIS ADDS THAT THE OTHER SERVER RUNS DO NOT. Every server this repository
+# booted before this file was `jellyfin/jellyfin:10.11.11`, the newest patch of
+# the line, written into a job by hand. A server reads `targetAbi` as a floor and
+# applies no upper bound, so what the package promises is every server from
+# 10.11.0 upward, and the bottom of that promise had never been started. The two
+# ends fail apart rather than together: an assembly bound against the newest
+# patch's libraries loads there and is refused at the floor.
+#
+# IT IS NOT A HYPOTHETICAL, AND THE NEAR MISS IS THE LAST RELEASE. 0.1.0.0 was
+# green on every run this board had and answers `NotSupported` on 10.11.0, which
+# is the version its own `meta.json` names. It was found by a hand after the
+# publish, and a reading taken after a publish cannot stop one: the release is
+# immutable, the version it spends does not come back, and the repair costs a
+# second release. The pull request that landed this file carries both runs.
+#
+# THE IMAGE IS DERIVED AND NEVER WRITTEN HERE. `say-which-floor-the-manifest-promises.sh`
+# reads `targetAbi` out of `build.yaml` and prints the tag it names, so raising
+# the floor moves this job with it. A tag written into this file would be a copy
+# of a value that lives somewhere else, and it would go stale in the one
+# direction nobody checks: the day the floor is raised, a written tag keeps
+# booting the old server and reports the new promise as read.
+#
+# TWO PROBES RUN AHEAD OF THE RUN THAT MATTERS, which is the ordering every other
+# guard in this repository uses.
+#
+#   The derivation runs over fabricated manifests and their one-change
+#   neighbours, including a raised floor that must move the image. No container.
+#
+#   The harness is pointed at the derived image with an empty plugin directory
+#   and must refuse it FOR BEING UNLISTED rather than merely exit non-zero. That
+#   proves assertion 2 on the very server this job goes on to trust.
+#
+# WHAT IT DOES NOT READ. The newest patch of the line, which is the
+# interoperability matrix, and the loop through a projection, which is
+# `whole-loop.yaml`. This job asks one question - does the archive load on the
+# server the manifest promises at the bottom - and a green tick here is a reading
+# about that server and no other.
+#
+# WHERE IT SITS IN THE GATE. On a pull request that can move what it asserts, on
+# a schedule because what it reads is a published image rather than this tree
+# alone, on demand, and as a job `publish.yaml` calls and its build needs, so a
+# package that will not load on the floor is refused before a release is cut
+# rather than reported after one. Which checks the mainline requires is decided
+# on #63 and the required set is read rather than restated:
+#
+#     gh api repos/Flowfin/jellyfin-plugin-watchlist/rulesets/20456281 \
+#       --jq '[.rules[] | select(.type=="required_status_checks")
+#              | .parameters.required_status_checks[].context]'
+name: At the floor
+
+on:
+  # A pull request that can move what this asserts: the floor derivation, the
+  # boot harness, this file, `build.yaml` - which is where the floor itself is
+  # declared - and the plugin, which is what gets packaged and installed.
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/scripts/say-which-floor-the-manifest-promises.sh"
+      - ".github/scripts/boot-a-line-with-this-plugin.sh"
+      - ".github/workflows/at-the-floor.yaml"
+      - "build.yaml"
+      - "Jellyfin.Plugin.Watchlist/**"
+  # What this reads is a published server image and a container runtime rather
+  # than this tree alone, so a run that passed on the day of a merge says nothing
+  # about the image the same tag resolves to a month later.
+  schedule:
+    - cron: "0 5 * * 1"
+  # On demand, so a reading can be taken against a commit somebody is about to
+  # tag without waiting a week for the schedule.
+  workflow_dispatch:
+  # At a release, as a job `publish.yaml` calls rather than as a second workflow
+  # on the same tag push. The caller checks out the ref the tag names, and its
+  # build needs this job, so the reading exists BEFORE the archive is published
+  # rather than beside it.
+  workflow_call:
+
+# Deny everything at the workflow level; the job below takes only what it reads.
+permissions: {}
+
+# A superseded run on the same ref tells nobody anything, and this one holds a
+# container runtime for the length of two server boots.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  floor:
+    # This name is the check context. Changing it removes a context rather than
+    # renaming one, so it moves only together with whatever requires it.
+    name: At the floor of ${{ matrix.line }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read # check out the tree the package is built from
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # No image here, on purpose: it is derived from build.yaml in the step
+          # below. What is written here is the line and the framework the
+          # packager is handed, which are the axis a second package set arrives
+          # on rather than values this job decides.
+          - line: "10.11"
+            framework: net9.0
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not kept in .git/config.
+          persist-credentials: false
+
+      - name: Prove the floor derivation bites before it is believed
+        # A derivation that returned a constant would boot the right server today
+        # and the wrong one forever after the floor is raised. The raised-floor
+        # probe is the one that separates those two.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-floor-the-manifest-promises.sh --prove-it-bites
+
+      - name: Say which floor the manifest promises
+        id: floor
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-floor-the-manifest-promises.sh
+
+      - name: Say which server lines this run covers
+        # The tree carries one package set and the repository claims two lines.
+        # Without this step a green tick here reads as a statement about both.
+        run: |
+          set -euo pipefail
+          bash .github/scripts/say-which-server-lines-this-run-covers.sh
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Build the package this job installs
+        id: jprm
+        # The same packager and the same pin the release route runs. No version
+        # input: the packager reads it out of build.yaml, which is the only place
+        # the version is written.
+        uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
+        with:
+          dotnet-target: ${{ matrix.framework }}
+
+      - name: Prove the harness bites before it is believed
+        run: |
+          set -euo pipefail
+          bash .github/scripts/boot-a-line-with-this-plugin.sh --prove-it-bites
+
+      - name: Prove the harness refuses a server with no plugin installed
+        # This step passes when the harness REFUSED, and the inversion lives
+        # inside the script rather than here on purpose. A step written as "run
+        # it and expect a non-zero exit" accepts a harness that died before it
+        # asserted anything. It runs against the DERIVED image rather than any
+        # other, so what is proved is that this job would notice an absent plugin
+        # on the server it is about to trust.
+        env:
+          IMAGE: ${{ steps.floor.outputs.image }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/boot-a-line-with-this-plugin.sh \
+            --image "${IMAGE}" --port 18097 --without-the-plugin
+
+      - name: Boot the floor with only this plugin
+        env:
+          IMAGE: ${{ steps.floor.outputs.image }}
+          ARTIFACT: ${{ steps.jprm.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/boot-a-line-with-this-plugin.sh \
+            --image "${IMAGE}" --package "${ARTIFACT}"
