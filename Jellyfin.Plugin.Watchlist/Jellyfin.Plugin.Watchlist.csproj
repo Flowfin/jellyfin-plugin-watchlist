@@ -18,13 +18,26 @@
     The server package set, and the line it belongs to is recorded here rather than
     left to be read off the number.
 
-    10.11.11 is the newest build of the 10.11 line, which is the current stable server
+    10.11.0 is the first release of the 10.11 line, which is the current stable server
     line and the one this artifact declares in build.yaml. The line is the first two
-    positions; the third moves whenever upstream ships a fix and the plugin is pinned
-    at whichever build was newest on the day. The package says which framework that
-    line runs on rather than this file guessing it:
+    positions; the third is the build, and the pin is the line's FIRST build rather
+    than its newest.
 
-        curl -s https://api.nuget.org/v3-flatcontainer/jellyfin.controller/10.11.11/jellyfin.controller.nuspec
+    That direction is the opposite of the obvious one and it is the whole reason this
+    paragraph exists. A package compiled against a newer build binds the server
+    libraries at that build, and a server between the declared floor and it admits the
+    plugin on the floor and then refuses every type in it. 0.1.0.0 shipped exactly that
+    pair, declaring 10.11.0.0 and binding 10.11.11.0, and CHANGELOG.md carries what an
+    operator saw. So this version and the targetAbi in build.yaml are one value written
+    twice, and moving either one alone is the defect rather than an inconsistency.
+
+    APackageSetPinnedAboveTheDeclaredAbiIsRefused is the guard, with the released pair
+    as its near miss, and APackageSetPinnedAtTheDeclaredAbiIsAccepted is its neighbour.
+
+    The package says which framework that line runs on rather than this file guessing
+    it:
+
+        curl -s https://api.nuget.org/v3-flatcontainer/jellyfin.controller/10.11.0/jellyfin.controller.nuspec
           targetFramework="net9.0"
 
     which is the TargetFramework above.

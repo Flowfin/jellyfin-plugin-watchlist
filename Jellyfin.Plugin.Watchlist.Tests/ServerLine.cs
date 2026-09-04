@@ -38,9 +38,15 @@ internal static class ServerLine
     /// <summary>
     /// Reads the line a version names: its first two positions, which is what a server
     /// release is called. The build position is not part of it, because 10.11.11 and
-    /// 10.11.3 are the same line and a package set is pinned at whichever of them was
-    /// newest on the day.
+    /// 10.11.3 are the same line whatever a project pins.
     /// </summary>
+    /// <remarks>
+    /// Which build this repository pins is a separate question and a stricter one: the
+    /// pin is the line's first build, so the assembly binds what the manifest promises.
+    /// It is answered beside the reference in Jellyfin.Plugin.Watchlist.csproj and
+    /// compared by APackageSetPinnedAboveTheDeclaredAbiIsRefused. A reader who takes
+    /// this method for that comparison has the looser of the two.
+    /// </remarks>
     /// <param name="version">A version string, from a manifest or from a package reference.</param>
     /// <returns>The line it names, as text.</returns>
     /// <exception cref="FormatException">The string names no line.</exception>

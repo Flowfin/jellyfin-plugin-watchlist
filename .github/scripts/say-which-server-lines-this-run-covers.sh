@@ -53,7 +53,10 @@ refuse() {
 
 # The line a version names is its first two positions, which is what a server
 # release is called. The build position is not part of it: 10.11.11 and 10.11.3
-# are one line, pinned at whichever of them was newest on the day. A prerelease
+# are one line whatever a project pins. Which build this repository pins is a
+# separate question and a stricter one - the pin is the line's first build, so the
+# assembly binds what the manifest promises - and it is answered beside the
+# reference in Jellyfin.Plugin.Watchlist.csproj rather than here. A prerelease
 # suffix belongs to the package rather than to the line and is dropped before the
 # positions are read.
 line_of() {
