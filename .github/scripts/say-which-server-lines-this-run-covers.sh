@@ -33,12 +33,20 @@ set -euo pipefail
 manifest="build.yaml"
 project="Jellyfin.Plugin.Watchlist/Jellyfin.Plugin.Watchlist.csproj"
 prove="no"
+just_the_reading="no"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --manifest) manifest="$2"; shift 2 ;;
     --project) project="$2"; shift 2 ;;
     --prove-it-bites) prove="yes"; shift ;;
+    # The reading without the heading and the disclosure around it, for a
+    # caller quoting it inside its own output rather than printing it as
+    # this step. It is the same reading through the same function, so every
+    # refusal below still ends it: a caller asking for the reading gets a
+    # refusal rather than an empty answer, which is what lets that caller
+    # tell "no line" from "the line was not read".
+    --just-the-reading) just_the_reading="yes"; shift ;;
     *)
       echo "Unknown argument: $1" >&2
       exit 2
@@ -207,6 +215,11 @@ if [ "${prove}" = "yes" ]; then
 fi
 
 covered="$(read_the_lines "${manifest}" "${project}")"
+
+if [ "${just_the_reading}" = "yes" ]; then
+  echo "${covered}"
+  exit 0
+fi
 
 # The lines this run did NOT cover are not enumerated here. The supported set is
 # declared in README.md and a copy of it in this script would be the copy that
