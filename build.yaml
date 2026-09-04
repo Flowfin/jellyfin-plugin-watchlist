@@ -40,7 +40,7 @@ imageUrl: "https://raw.githubusercontent.com/Flowfin/jellyfin-plugin-watchlist/m
 # Nothing here has been released and most of what the milestones describe is not
 # built, so a 1 in the first position would be a claim rather than a number. 1.0.0.0
 # is what the first release takes when those milestones close.
-version: "0.1.0.0"
+version: "0.1.1.0"
 # The server line this artifact is built for, and it is a floor rather than a range.
 # A server compares its own version against this value and offers the plugin when it
 # is at least that, with no upper bound on either supported line:
