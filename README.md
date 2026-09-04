@@ -188,9 +188,14 @@ printed nothing and the address answered with a catalogue of two other plugins:
     curl -sS https://flowfin.dev/manifest.json | jq -r '[.[].name] | join(", ")'
     Requests, Playback Statistics
 
-A release published between two rebuilds is in that state for up to a day. What
-watches the catalogue for a release it has not caught up with is the hub's own
-freshness run, and on this board the check #89 asks for.
+A release published between two rebuilds is in that state until the next rebuild
+AND until that rebuild's pull request is merged, which is two waits rather than
+one and neither of them is this repository's to end. This paragraph said the state
+lasts up to a day, and it does not: `0.1.0.0-stable` was published on 2026-09-03,
+the rebuild after it ran on 2026-09-04, and the pull request carrying its entry was
+still open a day later. So read the address rather than counting days. What watches
+the catalogue for a release it has not caught up with is the hub's own freshness
+run, and on this board the check #89 asks for.
 
 ## What it stores about you, and where
 
@@ -335,10 +340,19 @@ the list is still removed and the playlist is left, because a list an administra
 taken away that every user can still read and write would be the worse of the two; the
 server log names what was left.
 
-A release exists despite that: `0.1.0.0-stable`, published on 2026-09-03 from
-`28d6a70`. The 0 in its first position is what says the feature set called 1.0 is
-not finished, which is the rule `build.yaml` writes beside its version, and the
-verification above is why the number is that one. Where the release is installed
+Releases exist despite that, and which one you take matters. The newest is
+`0.1.1.0-stable`, published on 2026-09-04 from `ea27b19`, and it is the one to
+install. `0.1.0.0-stable` before it declares the floor of the 10.11 line and binds
+the server libraries above it, so a server between the two admits the plugin on
+the declared floor and then reports it `NotSupported`;
+[CHANGELOG.md](CHANGELOG.md) carries what that looked like in a server log. Which
+releases exist is read from the repository rather than from this page:
+
+    gh release list --repo Flowfin/jellyfin-plugin-watchlist
+
+The 0 in the first position is what says the feature set called 1.0 is not
+finished, which is the rule `build.yaml` writes beside its version, and the
+verification above is why the number is that one. Where a release is installed
 from is under `Installing` above.
 
 One of the two server lines above is not built either. The plugin compiles
