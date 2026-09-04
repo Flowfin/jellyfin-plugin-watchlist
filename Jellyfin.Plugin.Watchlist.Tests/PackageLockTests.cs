@@ -82,8 +82,8 @@ public class PackageLockTests
     public void AReferenceRemovedFromTheProjectWithoutItsLockFileIsRefused()
     {
         var withoutModel = PackageLock.Plugin.ProjectText.Replace(
-            @"<PackageReference Include=""Jellyfin.Model"" Version=""10.11.11"">",
-            @"<PackageReference Include=""Removed.Placeholder"" Version=""10.11.11"">",
+            @"<PackageReference Include=""Jellyfin.Model"" Version=""10.11.0"">",
+            @"<PackageReference Include=""Removed.Placeholder"" Version=""10.11.0"">",
             System.StringComparison.Ordinal);
 
         var disagreements = PackageLock.Disagreements(withoutModel, PackageLock.Plugin.LockText);

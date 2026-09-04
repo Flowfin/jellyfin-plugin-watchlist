@@ -84,6 +84,50 @@ internal static class ServerLine
     }
 
     /// <summary>
+    /// The versions the server packages a project references are pinned at. The same
+    /// reader as the line above, kept apart because a line answers which release series
+    /// the artifact belongs to and a version answers what its references bind at, and
+    /// only the second of those is comparable with a declared ABI.
+    /// </summary>
+    /// <param name="projectText">The project file to read.</param>
+    /// <returns>The package identifier and the version it is pinned at, one per server package.</returns>
+    public static IReadOnlyList<(string Package, string PinnedAt)> VersionsOfPackageSet(string projectText)
+    {
+        ArgumentNullException.ThrowIfNull(projectText);
+
+        return PackageReferenceEntry.Matches(projectText)
+            .Where(m => m.Groups["id"].Value.StartsWith("Jellyfin.", StringComparison.Ordinal))
+            .Select(m => (m.Groups["id"].Value, m.Groups["version"].Value))
+            .ToArray();
+    }
+
+    /// <summary>
+    /// The version an assembly compiled against a server package binds its references at:
+    /// the numeric part of the package version, padded to the four positions a
+    /// <c>targetAbi</c> is written with so the two compare.
+    /// </summary>
+    /// <param name="version">A package version or a declared ABI, as its file writes it.</param>
+    /// <returns>The version an assembly built against it names in its references.</returns>
+    /// <exception cref="FormatException">The string names no version.</exception>
+    public static Version BindingVersionOf(string version)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+
+        // A prerelease suffix is dropped for the same reason it is dropped when reading a
+        // line: the assembly a candidate build produces is stamped with the numeric part
+        // and nothing else, so that is what a reference binds at.
+        var numeric = version.Split('-', '+')[0];
+
+        if (!Version.TryParse(numeric, out var parsed))
+        {
+            throw new FormatException(
+                "The value " + version + " names no version, so what an assembly built against it binds at is unreadable.");
+        }
+
+        return new Version(parsed.Major, parsed.Minor, Math.Max(parsed.Build, 0), Math.Max(parsed.Revision, 0));
+    }
+
+    /// <summary>
     /// Says every way in which what a manifest declares and what a project compiles
     /// against fail to name one server line. An empty result is agreement.
     /// </summary>
@@ -130,6 +174,39 @@ internal static class ServerLine
                 "The server packages name more than one line: "
                 + string.Join(", ", lines.Order(StringComparer.Ordinal))
                 + ". One artifact is built against one line.");
+        }
+
+        // The half above compares release series and the half below compares versions,
+        // and only the second of them catches what shipped in 0.1.0.0: that package
+        // declared targetAbi 10.11.0.0 and compiled against the 10.11.11 packages, which
+        // is one line and therefore agreement by every rule this file had. A 10.11.0
+        // server admitted it on the declared floor and then refused every type in it with
+        // "Could not load file or assembly 'MediaBrowser.Common, Version=10.11.11.0'",
+        // because the runtime binds a reference at the version the assembly names and
+        // takes no server assembly below it. The install was the only thing that could
+        // tell, and it told an operator rather than this suite.
+        //
+        // A floor and not an equality: a server at or above the bound version loads the
+        // package, so compiling against the line's first release makes every server on
+        // the line one the ABI may honestly promise.
+        var declaredAbi = BindingVersionOf(BuildManifest.ReadTargetAbi(manifestText));
+
+        foreach (var (package, pinnedAt) in VersionsOfPackageSet(projectText))
+        {
+            var bindsAt = BindingVersionOf(pinnedAt);
+            if (bindsAt > declaredAbi)
+            {
+                disagreements.Add(
+                    "The manifest declares targetAbi "
+                    + declaredAbi
+                    + " and "
+                    + package
+                    + " binds the assembly at "
+                    + bindsAt
+                    + ". A server between the two admits the package on the declared value and then refuses every"
+                    + " type in it, so the ABI is a promise the build breaks. Compile against the version the ABI"
+                    + " names, or raise the ABI to the version compiled against.");
+            }
         }
 
         return disagreements;

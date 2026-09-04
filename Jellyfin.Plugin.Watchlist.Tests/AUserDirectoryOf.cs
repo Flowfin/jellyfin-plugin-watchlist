@@ -53,6 +53,21 @@ internal sealed class AUserDirectoryOf : IUserManager
 
     public event EventHandler<GenericEventArgs<User>>? OnUserUpdated { add { } remove { } }
 
+    // The five below are the shape the interface has on the line this project is pinned
+    // at. They were absent while the pin sat at 10.11.11, where the same operations are
+    // spelled with an identifier and a getter instead of the entity and a property, and
+    // moving the pin to the floor the manifest promises is what asked for them. They
+    // throw like every other member this plugin never calls.
+    public IEnumerable<User> Users => throw Unasked();
+
+    public IEnumerable<Guid> UsersIds => throw Unasked();
+
+    public Task RenameUser(User user, string newName) => throw Unasked();
+
+    public Task ResetPassword(User user) => throw Unasked();
+
+    public Task ChangePassword(User user, string newPassword) => throw Unasked();
+
     public IEnumerable<User> GetUsers() => throw Unasked();
 
     public IEnumerable<Guid> GetUsersIds() => throw Unasked();
