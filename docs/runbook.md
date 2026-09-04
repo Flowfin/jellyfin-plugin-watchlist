@@ -31,8 +31,10 @@ installed on any one machine:
     4233b39885a9f494bc45ed08e2489b0a51f2d346e033af2284e39e7ac6558695
 
 The second version was the same command with the version properties overridden on the
-command line, because `build.yaml` carries one version and nothing has been released,
-so there is no pair of published versions to move between:
+command line, because on the day of this run `build.yaml` carried one version and
+nothing had been released, so there was no pair of published versions to move between.
+Two releases exist now, `0.1.0.0-stable` and `0.1.1.0-stable`, and walking the upgrade
+between the published pair rather than between two hand-built assemblies is #76:
 
     dotnet publish ... -p:Version=0.1.0.1 -p:AssemblyVersion=0.1.0.1 -p:FileVersion=0.1.0.1
     sha256sum Jellyfin.Plugin.Watchlist.dll
@@ -380,10 +382,16 @@ clean server has to know to go and look.
 **The install route a user will actually take.** The plugin was put on the server by
 copying the assembly into a directory. A user installs from a catalogue added to their
 server as a repository URL, and that route exists now: the first release,
-`0.1.0.0-stable`, was published on 2026-09-03, and the address and the reason it is
-that one are under `Installing` in [README.md](../README.md). No run has installed this
-plugin through it. So what is written above is what happens once the files are in
-place, and not the procedure an administrator follows to get them there; #76 is the
+`0.1.0.0-stable`, was published on 2026-09-03 and `0.1.1.0-stable` followed on
+2026-09-04, and the address and the reason it is that one are under `Installing` in
+[README.md](../README.md). Which releases exist is read from the repository rather than
+from this page:
+
+    gh release list --repo Flowfin/jellyfin-plugin-watchlist
+
+No run has installed this plugin through the catalogue. So what is written above is
+what happens once the files are in place, and not the procedure an administrator
+follows to get them there; #76 is the
 run that takes that route on a stock server from the published catalogue, and this
 document gains the section when it has.
 
