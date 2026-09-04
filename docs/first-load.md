@@ -47,10 +47,10 @@ The artifact was produced from the tree:
     sha256sum pkg/Jellyfin.Plugin.Watchlist.dll
     73562b4be936f0c5f8343bbdafa0afd30fffa0d881e79446f57e75bc8addbee5
 
-and its `meta.json` was written by hand from the fields in `build.yaml`, because the
-release packaging that would produce one does not exist yet. That is a difference
-between this run and an install a user performs, and it is stated in "What this run
-did not cover" below.
+and its `meta.json` was written by hand from the fields in `build.yaml`, because on
+the day of this run the release packaging that would produce one did not exist. That
+is a difference between this run and an install a user performs, and it is stated in
+"What this run did not cover" below, where what has changed since is written too.
 
 ## The servers
 
