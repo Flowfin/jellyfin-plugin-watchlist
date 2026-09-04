@@ -41,11 +41,13 @@ public class ServerLineTests
     public void APackageSetMovedWithoutTheAbiIsRefused()
     {
         var moved = PackageLock.Plugin.ProjectText
-            .Replace("Version=\"10.11.11\"", "Version=\"12.0.0\"", StringComparison.Ordinal);
+            .Replace("Version=\"10.11.0\"", "Version=\"12.0.0\"", StringComparison.Ordinal);
 
         var disagreements = ServerLine.Disagreements(BuildManifest.Text, moved);
 
-        Assert.Equal(2, disagreements.Count);
+        // Two per package rather than one: the line it belongs to and the version it
+        // binds at are separate promises, and a set moved to a newer line breaks both.
+        Assert.Equal(4, disagreements.Count);
         Assert.All(disagreements, d => Assert.Contains("12.0", d, StringComparison.Ordinal));
     }
 
@@ -57,7 +59,7 @@ public class ServerLineTests
     public void APackageSetAndAnAbiThatMovedTogetherAreAccepted()
     {
         var moved = PackageLock.Plugin.ProjectText
-            .Replace("Version=\"10.11.11\"", "Version=\"12.0.0\"", StringComparison.Ordinal);
+            .Replace("Version=\"10.11.0\"", "Version=\"12.0.0\"", StringComparison.Ordinal);
         var manifest = BuildManifest.WithTargetAbi(BuildManifest.Text, "12.0.0.0");
 
         Assert.Empty(ServerLine.Disagreements(manifest, moved));
@@ -73,13 +75,58 @@ public class ServerLineTests
     {
         var half = PackageLock.Plugin.ProjectText
             .Replace(
-                "<PackageReference Include=\"Jellyfin.Controller\" Version=\"10.11.11\"",
+                "<PackageReference Include=\"Jellyfin.Controller\" Version=\"10.11.0\"",
                 "<PackageReference Include=\"Jellyfin.Controller\" Version=\"12.0.0\"",
                 StringComparison.Ordinal);
 
         var disagreements = ServerLine.Disagreements(BuildManifest.Text, half);
 
         Assert.Contains(disagreements, d => d.Contains("more than one line", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The one this suite did not have, and the one an operator found instead. A package
+    /// set on the declared line but pinned above the declared ABI passes every comparison
+    /// about lines and still ships a promise the build breaks.
+    /// </summary>
+    /// <remarks>
+    /// This is the 0.1.0.0 release exactly: <c>targetAbi 10.11.0.0</c> against the
+    /// 10.11.11 packages, one line and therefore agreement, and a 10.11.0 server that
+    /// admitted the package on the floor and then reported <c>NotSupported</c> because
+    /// every reference in the assembly was bound at 10.11.11.0. The fixture is the real
+    /// project text moved back to where it was, so what reds here is what shipped.
+    /// </remarks>
+    [Fact]
+    public void APackageSetPinnedAboveTheDeclaredAbiIsRefused()
+    {
+        var pinnedHigher = PackageLock.Plugin.ProjectText
+            .Replace("Version=\"10.11.0\"", "Version=\"10.11.11\"", StringComparison.Ordinal);
+
+        var disagreements = ServerLine.Disagreements(BuildManifest.Text, pinnedHigher);
+
+        Assert.NotEmpty(disagreements);
+        Assert.All(
+            disagreements,
+            d => Assert.Contains("binds the assembly at 10.11.11.0", d, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The repair the refusal above asks for, so the rule accepts the fix as well as
+    /// naming the fault. The real pair is this one, and it is asserted here as a value
+    /// rather than only as an empty list on the first test.
+    /// </summary>
+    [Fact]
+    public void APackageSetPinnedAtTheDeclaredAbiIsAccepted()
+    {
+        Assert.Equal(
+            new Version(10, 11, 0, 0),
+            ServerLine.BindingVersionOf(BuildManifest.ReadTargetAbi(BuildManifest.Text)));
+
+        Assert.All(
+            ServerLine.VersionsOfPackageSet(PackageLock.Plugin.ProjectText),
+            p => Assert.Equal(new Version(10, 11, 0, 0), ServerLine.BindingVersionOf(p.PinnedAt)));
+
+        Assert.Empty(ServerLine.Disagreements(BuildManifest.Text, PackageLock.Plugin.ProjectText));
     }
 
     /// <summary>
