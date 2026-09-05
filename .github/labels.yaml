@@ -50,7 +50,19 @@
 # `docs/parity.md` pastes a count of that name in this file, `DocumentPasteTests`
 # re-runs the paste, and writing the name here reds that guard over a document
 # #338 may not touch. The two readings above reconstruct the divergence without
-# this file holding the name, and #343 is where the name and the divergence live.
+# this file holding the name.
+#
+# THAT RED IS MEASURED NOW AND THE SENTENCE ABOVE ONLY ASSERTED IT. Appending the
+# member here at `fd474c9`, with the colour and the description the board carries,
+# and running the suite leg refuses at `docs/parity.md:731`, where a pasted
+# `grep -c` of that name against this file stands under the answer `0`. The same
+# filter on the unmodified tree refuses nothing. So the elision is what keeps two
+# files green at once, no scope declared so far has reached both of them, and
+# removing it is one change to both rather than a line added here.
+#
+# #349 IS WHERE THE NAME, THE DIVERGENCE AND THAT REPAIR LIVE, and it declares
+# both files. #343 is where the divergence was read and measured, and it closes on
+# this file saying why the divergence stands.
 #
 # Whether this board should keep a vocabulary of its own at all rather than
 # moving onto the shared set is what #196 left undecided, and neither #327 nor
@@ -114,8 +126,9 @@
 # fourth kind is read, in the same change that first applies it.
 #
 # THAT DID NOT HAPPEN. A fourth kind was read and applied on this board and no
-# member below declares it. The header above carries that reading and #343 holds
-# the divergence.
+# member below declares it. The header above carries that reading and #349 holds
+# the repair, which is a change to this file and to `docs/parity.md` together
+# rather than a member added here on its own.
 #
 # MORE THAN ONE MEMBER IS LEGAL AND IS NOT A MISTAKE. An issue held by two
 # kinds of wait carries both, because dropping either one makes the issue read
@@ -186,7 +199,7 @@
   #
   # Nothing here reads a declared name back against the board, so the next
   # divergence is found the way this one was, by somebody looking. The next one
-  # was, and it is #343.
+  # was: it was read and measured on #343, and #349 is what removes it.
 
 - name: blocked-on-upstream
   color: 'd4c5f9'
