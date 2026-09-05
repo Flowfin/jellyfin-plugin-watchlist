@@ -1,23 +1,60 @@
 # The labels this repository defines for itself.
 #
-# `.github/workflows/sync-labels.yaml` hands this file to the label sync
-# alongside the shared plugin set, so the sync's `delete-other-labels` removes a
-# label neither file names and leaves these alone. Before that second file was
-# passed, every label below was one the sync would have deleted, which is #196.
+# NOTHING RUNS OVER THIS FILE. `.github/workflows/sync-labels.yaml` handed it to
+# a label sync alongside the shared plugin set until #327 removed that workflow,
+# on the decision taken on share-links#338, and no run has read it since:
 #
-# The shared set is NOT copied in here. It is read from its own URL at the
-# moment of the run, so this file holds only what this board added on top and
-# cannot drift against the set it is added to.
+#     git ls-files .github/workflows/ | grep -c sync-labels
+#     0
 #
-# The colours and descriptions are the ones these labels already carry, read off
-# the board rather than chosen again, so the first run that reads this file
-# renames nothing and recolours nothing:
+# What it has instead is one named reader and no run behind it.
+# `.github/workflows/publish.yaml` names this file as the authority for the
+# labels its alert asks for, and that is a reader in prose rather than a route:
+# the workflow passes label names as literals, parses nothing here, and a name it
+# passes that is not on the board fails the whole `gh issue create` call rather
+# than the label, which was found by the probe recorded on #310.
+#
+#     git grep -n 'labels.yaml' -- .github/workflows/publish.yaml
+#
+# The shared set is NOT copied in here. This file holds only what this board
+# added on top, so it cannot drift against a set it does not restate. Before the
+# set was passed to the sync beside it, every label below was one that sync would
+# have deleted, which is #196.
+#
+# The colours and descriptions are the ones these labels carried when they were
+# written down, read off the board rather than chosen again:
 #
 #     gh label list --repo Flowfin/jellyfin-plugin-watchlist --limit 100 \
 #       --json name,color,description --jq '.[] | "\(.name)\t\(.color)\t\(.description)"'
 #
-# A label added to the board and not to this file is deleted on the next
-# scheduled run. Add it here in the same change that creates it.
+# NOTHING DELETES A LABEL HERE, AND THIS FILE PROMISED THAT SOMETHING DID. The
+# sentence stood until #338 and said an undeclared label was deleted on the next
+# scheduled run. There is no scheduled run. A label added to the board and not
+# written down below is carried by the board, declared nowhere, and reported by
+# nothing. Add it here in the same change that creates it, because nothing else
+# will notice that you did not.
+#
+# WHETHER THIS FILE SHOULD BE COMPARED AGAINST THE BOARD BY ANYTHING AT ALL IS
+# OPEN. #338 leaves it open rather than answering it, and the comparison is not
+# hypothetical: the board carries a fourth member of the `blocked-on-` family
+# below, and three are declared.
+#
+#     gh label list --repo Flowfin/jellyfin-plugin-watchlist --limit 100 \
+#       --json name --jq '[.[].name | select(startswith("blocked-on-"))] | length'
+#     4
+#
+#     grep -c '^- name: blocked-on-' .github/labels.yaml
+#     3
+#
+# THE FOURTH MEMBER IS NOT NAMED ON THIS PAGE AND THE ELISION IS DELIBERATE.
+# `docs/parity.md` pastes a count of that name in this file, `DocumentPasteTests`
+# re-runs the paste, and writing the name here reds that guard over a document
+# #338 may not touch. The two readings above reconstruct the divergence without
+# this file holding the name, and #343 is where the name and the divergence live.
+#
+# Whether this board should keep a vocabulary of its own at all rather than
+# moving onto the shared set is what #196 left undecided, and neither #327 nor
+# #338 touches it in either direction.
 
 # Which part of the plugin an issue is about. The shared set has no vocabulary
 # for this, because it describes pull requests on any plugin rather than the
@@ -76,6 +113,10 @@
 # and an event outside this repository. A fourth member is added the day a
 # fourth kind is read, in the same change that first applies it.
 #
+# THAT DID NOT HAPPEN. A fourth kind was read and applied on this board and no
+# member below declares it. The header above carries that reading and #343 holds
+# the divergence.
+#
 # MORE THAN ONE MEMBER IS LEGAL AND IS NOT A MISTAKE. An issue held by two
 # kinds of wait carries both, because dropping either one makes the issue read
 # as ready on the day the other clears.
@@ -125,11 +166,17 @@
   #       --json name --jq '[.[].name | select(startswith("blocked-on-"))]'
   #     ["blocked-on-issue","blocked-on-decision","blocked-on-upstream"]
   #
-  # What that cost is the header's own rule pointed back at this file:
-  # `delete-other-labels` removes a label neither configuration names, so the
-  # next scheduled run would have deleted the board's member off every issue
-  # holding it and created an unused one under the name this entry declared
-  # before #284:
+  # THAT OUTPUT IS THE READING TAKEN WHEN #284 WAS WRITTEN AND IT NO LONGER
+  # REPRODUCES. The board has carried a fourth member since, so the same command
+  # returns four names today. The three are kept because the account below is
+  # about which name this entry declared then, and re-running the command here
+  # would answer a different question; the header carries the current reading.
+  #
+  # What that cost, while a sync still ran, was the header's own rule pointed
+  # back at this file: `delete-other-labels` removed a label neither
+  # configuration named, so the next scheduled run would have deleted the
+  # board's member off every issue holding it and created an unused one under
+  # the name this entry declared before #284:
   #
   #     gh issue list --repo Flowfin/jellyfin-plugin-watchlist --state all \
   #       --limit 300 --label blocked-on-decision --json number,state \
@@ -138,7 +185,8 @@
   #     134 OPEN
   #
   # Nothing here reads a declared name back against the board, so the next
-  # divergence is found the way this one was, by somebody looking.
+  # divergence is found the way this one was, by somebody looking. The next one
+  # was, and it is #343.
 
 - name: blocked-on-upstream
   color: 'd4c5f9'
