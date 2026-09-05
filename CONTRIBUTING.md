@@ -138,11 +138,17 @@ so a departure cannot outlive the code that needed it.
 A pull request is held to the first of those from the other end. `Deterministic
 PR-hygiene checks` reads the body for an issue reference and every commit
 subject for a bracketed one, so the change and the issue it answers cannot come
-apart. It reds the check for an author who belongs to this repository and
-leaves a note instead for a contribution from outside, because somebody
-arriving from elsewhere has no way to know which issue number their change
-belongs to before one exists. The linkage is wanted either way, and on an
-outside contribution it is supplied by whoever picks it up.
+apart. It reds the check for every author, whatever their relationship to this
+repository is. Where no issue exists for a change yet, file one and reference
+that; the linkage is what a later reader follows back to why the change was
+made. The one author it does not red is a bot, which cannot know a convention,
+and it says so on the pull request rather than passing in silence.
+
+That paragraph said the check left a note instead of a failure for a
+contribution from outside. It did, and on this board the skip covered
+everything: the event payload reports `COLLABORATOR` for the account that opens
+every pull request here, which was outside the set the skip called inside, so
+a required context refused nothing. #337 is where that was taken.
 
 Linking a change to an issue and closing that issue are two different things,
 and only one of them is a keyword. A bracketed `[#12]` in a subject links and
