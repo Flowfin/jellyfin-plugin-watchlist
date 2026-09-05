@@ -70,12 +70,19 @@
 # one failure twice. A second container boot is also not worth paying for on a
 # harness that has just gone red.
 #
-# It reports and does not gate. Which checks the mainline requires is decided on
-# #63, and the required set is read rather than restated:
+# WHERE IT SITS IN THE GATE. On a pull request, on a push to the mainline, on the
+# schedule and on demand it reports; whether the mainline requires it is decided
+# on #63, and the required set is read rather than restated:
 #
 #     gh api repos/Flowfin/jellyfin-plugin-watchlist/rulesets/20456281 \
 #       --jq '[.rules[] | select(.type=="required_status_checks")
 #              | .parameters.required_status_checks[].context]'
+#
+# AT A RELEASE IT GATES, which is the clause of #104 that a checklist used to
+# carry and a route carries now. `publish.yaml` calls this file as a job its
+# `build` needs, so a package that loads alone and collides beside its family
+# reaches no release. What that costs, and why it is paid rather than waved
+# through, is written at that `needs:` line rather than repeated here.
 name: Interoperability
 
 on:
@@ -92,6 +99,12 @@ on:
   schedule:
     - cron: "0 3 * * 1"
   workflow_dispatch:
+  # At a release, as a job `publish.yaml` calls rather than as a second workflow
+  # on the same tag push. The caller checks out the ref the tag names, and its
+  # build needs this job, so the reading exists BEFORE the archive is published
+  # rather than beside it. That is the arrangement `whole-loop.yaml` and
+  # `at-the-floor.yaml` already take, for their reasons.
+  workflow_call:
 
 # Deny everything at the workflow level; the job below takes only what it reads.
 permissions: {}
