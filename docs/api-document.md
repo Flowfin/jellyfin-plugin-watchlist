@@ -246,9 +246,14 @@ The plugin was installed by copying it into a container rather than through the
 server's own install route, and the `meta.json` beside the assembly was written
 by hand from `build.yaml`, because on the day of this run nothing had been
 published from this repository. `docs/first-load.md` records the same two
-departures for the same reason. Two releases have published since, so a run that
-takes the install route is no longer waiting on one to exist; what it waits on is
-a catalogue entry, which is #76.
+departures for the same reason. Two releases have published since, the catalogue
+carries an entry for them, and a run that takes the install route has been made and
+is [install-from-the-catalogue.md](install-from-the-catalogue.md).
+
+THAT DOES NOT REPAIR THE TWO DEPARTURES ABOVE. The readings on this page were taken
+against a copied-in assembly and are unchanged; the catalogue run did not re-take them,
+and it read no route this document is about. What it removes is the reason the
+departure could not be closed, not the departure.
 
 The assembly read here was built on `net9.0` against the 10.9.11 package set,
 which is not what the tree declares any more. #4 moved the references to the 10.11
