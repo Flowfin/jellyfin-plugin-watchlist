@@ -6,9 +6,28 @@
 # `git blame`, or whether a version bump carried its changelog entry with it.
 # That class had no check here at all, and this workflow is it.
 #
-# The rules it applies are this repository's own conventions, so the failing tier
-# is narrowed to the people who can be expected to know them. See the two skips
-# below, which have different reasons and carry them at the check.
+# THE FAILING TIER APPLIES TO EVERY AUTHOR, AND THIS PARAGRAPH SAID IT WAS
+# NARROWED TO THE PEOPLE WHO CAN BE EXPECTED TO KNOW THE CONVENTIONS. What stood
+# here pointed at two skips below with different reasons. One of them is gone.
+#
+# That skip keyed on `author_association` as the event payload reports it, and
+# exempted anybody outside `["OWNER", "MEMBER"]`. On this board the payload
+# answers COLLABORATOR - outside the set the skip called inside - for the account
+# that opens every pull request here, while the same field read through the pulls
+# API answers MEMBER. So the tier that can red this check was skipped on all four
+# of the most recent pull requests, in a context the ruleset requires, and a
+# required context that cannot fail on the pull requests a board actually
+# receives refuses nothing. Decided on smart-collections#246 on 2026-09-04 for
+# every copy of this workflow, and taken here as #337.
+#
+# THE GUIDANCE THE SKIP CARRIED IS NOT LOST. It moved into the failure message,
+# where an author reads it at the moment it applies rather than as an annotation
+# on a run that passed: file the issue where none exists yet, and reference that.
+#
+# THE BOT SKIP STAYS, and it is the one reason that never turned on who is
+# inside: a bot cannot know a convention. It now says so on the pull request
+# instead of skipping in silence, so a run that judged nothing does not read like
+# one that judged and found nothing.
 #
 # Nothing here is required by the ruleset yet. Which checks the mainline requires
 # is decided on #63, and the required set is read rather than restated:
@@ -87,37 +106,31 @@ jobs:
               const commits = input.commits || [];
               const changed = files.map((f) => f.filename);
 
-              // Who the failing tier is for.
+              // Who the failing tier is for: every author.
               //
-              // A bot cannot know a convention. Dependabot and the release
-              // preparation workflow both open pull requests with no issue
-              // behind them, and failing those would mean a red check nobody
-              // can clear.
+              // The author's relationship to this repository decides nothing
+              // here, and this argument is not passed the association at all,
+              // so a reader running this function cannot make one leg turn on
+              // it. What stood in its place read `author_association` out of
+              // the event payload and skipped the failing tier for anybody
+              // outside ["OWNER", "MEMBER"]; the head of this file carries what
+              // that cost on this board and where it was decided (#337).
               //
-              // Somebody arriving from outside this repository has a different
-              // reason: they can read a convention but they have no way to know
-              // which issue number their change belongs to before anyone here
-              // has filed one. Failing their contribution on that is a ritual
-              // rather than a caught mistake. The linkage is still wanted, and
-              // it moves to whoever picks the contribution up, which is what
-              // the annotation below says on the pull request where that person
-              // will meet it.
-              //
-              // `author_association` is the author's relationship to this
-              // repository. COLLABORATOR is deliberately not inside: the tier
-              // is for the people who set the convention.
+              // A bot is the one skip left, and it never turned on who is
+              // inside. A bot cannot know a convention: Dependabot and the
+              // release preparation workflow both open pull requests with no
+              // issue behind them, and failing those would mean a red check
+              // nobody can clear. It says so on the pull request now rather
+              // than skipping in silence, so a run that judged nothing does not
+              // read like one that judged and found nothing.
               const isBot = input.isBot === true;
-              const inside = ["OWNER", "MEMBER"].includes(
-                input.authorAssociation || "NONE",
-              );
-              const failTierApplies = !isBot && inside;
-              if (!isBot && !inside) {
+              const failTierApplies = !isBot;
+              if (isBot) {
                 warnings.push(
-                  "The author is outside this repository (author_association: " +
-                    (input.authorAssociation || "NONE") +
-                    "), so the failing checks are skipped. The issue linkage is " +
-                    "still wanted: whoever picks this up supplies the reference, " +
-                    "and files the issue where none exists yet.",
+                  "The author is a bot, so the failing checks are skipped: a " +
+                    "bot cannot know this repository's issue-reference " +
+                    "convention. The issue linkage is still wanted, and " +
+                    "whoever picks this up supplies the reference.",
                 );
               }
 
@@ -133,7 +146,9 @@ jobs:
               if (failTierApplies && !bodyNamesAnIssue) {
                 failures.push(
                   "The body names no issue. Link the issue this change closes, " +
-                    "for example `Closes #12`.",
+                    "for example `Closes #12`. Where no issue exists for this " +
+                    "yet, file one and reference that: the linkage is what a " +
+                    "later reader follows back to why the change was made.",
                 );
               }
 
@@ -235,13 +250,27 @@ jobs:
             }
             // --- judge:end ---
 
+            const isBot = Boolean(pr.user && pr.user.type === "Bot");
             const verdict = judge({
               body: pr.body,
               files,
               commits,
-              authorAssociation: pr.author_association,
-              isBot: Boolean(pr.user && pr.user.type === "Bot"),
+              isBot,
             });
+
+            // The association is REPORTED and judged on by nothing. It is
+            // reported because the run that reported it is how the skip that
+            // used to read it was found, and a reader who wants to know what
+            // the payload said should not have to re-derive it from a merged
+            // pull request.
+            core.info(
+              "The failing tier applies to every author. This one reports " +
+                "author_association: " +
+                (pr.author_association || "NONE") +
+                ", which changes nothing. Bot: " +
+                (isBot ? "yes" : "no") +
+                ".",
+            );
 
             for (const warning of verdict.warnings) {
               core.warning(warning);
