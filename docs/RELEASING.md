@@ -28,8 +28,11 @@ name.
 
     A green run here is the only evidence on this board that a client would see
     the list. Every other check reads the tree, builds it, packages it or greps
-    it, and the interoperability matrix reads what a server says about the plugin
-    rather than what the plugin does. That is why the publish waits for it.
+    it, except two that also start a server: the interoperability matrix reads
+    what a server says about the plugin, alone and with its family installed
+    beside it, and the floor boot reads whether the archive loads on the oldest
+    server the manifest promises. Neither reads what the plugin does, which is
+    why the loop is the step named here and the matrix is the step below.
 
     What it costs, so that the day it bites is not the day it is discovered: the
     loop pulls a published server image and starts a container, so it can go red
@@ -38,7 +41,30 @@ name.
     harness. It is not an advisory loop, which returns this board to the
     arrangement #310 was opened against with more machinery in the way.
 
-4. Push the tag for that commit:
+4. Optionally read the interoperability matrix on the same commit: `Alone on
+   <line>` and `With the family on <line>`. **This step is refused rather than
+   performed, for the reason step 3 gives, and the matrix is a condition of the
+   release rather than advice about it.** `Publish Release` runs the matrix as a
+   job its build needs, the way it runs the loop, so a release that loads alone
+   and collides beside a sibling from this family - a route the router answers
+   as one, a scheduled task keyed the same, an identifier claimed twice -
+   reaches no release. The way past a red matrix is to fix the collision or to
+   record the incompatibility as a known limitation with its reason, which is
+   what #104 asks; it is not to make the matrix advisory. The matrix runs on
+   every push to the mainline, so the commit normally carries a run already;
+   where it does not, dispatch it:
+
+    ```
+    gh workflow run interoperability.yaml --ref <commit-or-branch>
+    ```
+
+    What it costs on top of the loop: the family job derives its rows from the
+    hub and fetches each sibling's archive from the catalogue at run time, so it
+    goes red for a hub outage or a withdrawn catalogue entry as well as for a
+    registry outage, and each of those holds a release that is otherwise
+    correct. The answer is the one step 3 gives, a less flaky harness.
+
+5. Push the tag for that commit:
 
     ```
     git tag 1.4.0-stable <commit>

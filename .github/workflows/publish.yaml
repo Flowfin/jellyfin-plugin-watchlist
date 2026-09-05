@@ -31,6 +31,13 @@ name: Publish Release
 # arrives on the day somebody wants to ship, which is why the reason sits at the
 # `needs:` line rather than in a commit message nobody re-reads.
 #
+# THE FLOOR AND THE INTEROPERABILITY MATRIX ARE JOBS THIS CHAIN NEEDS FOR THE SAME
+# REASON, #324 and #104. Each reads a running server for a failure no other job
+# here can see - the archive refused at the bottom of the promise, the plugin
+# colliding beside its family - and each pays the cost above. The matrix pays
+# more, because its family rows are fetched from the hub at run time, and its
+# `needs:` line says so.
+#
 # There is a second trigger and it publishes nothing. The last job here raises a
 # tracking issue when a run ends having shipped no installable release, and the
 # judgement half of that is proved by probes inside the job. The RAISING half could
@@ -313,13 +320,49 @@ jobs:
       contents: read
     uses: ./.github/workflows/at-the-floor.yaml
 
+  matrix:
+    # The plugin alone and the plugin beside its family, on the newest patch of
+    # the line, as a job rather than as a second workflow on the same tag push.
+    # One definition, in `interoperability.yaml`, called from here; a copy of
+    # those steps in this file would be the thing that drifts against the one a
+    # pull request runs. That is the arrangement `loop` and `floor` take.
+    #
+    # WHAT IT STOPS IS THE FAILURE A USER MEETS FIRST. A release that loads alone
+    # and collides with a sibling from this family - a route the router answers
+    # as one, a scheduled task keyed the same, an identifier claimed twice - is
+    # green on every other job in this chain, because no other job installs a
+    # second plugin. #104 asks that a red matrix block the release until the
+    # collision is fixed or the incompatibility is recorded with its reason, and
+    # this job on `build`'s `needs:` line is that sentence held by a route.
+    #
+    # WHAT IT COSTS IS MORE THAN THE LOOP AND THE FLOOR PAY, and it is said here
+    # rather than discovered. The family job derives its rows from the hub's
+    # declaration and fetches each sibling's archive from the catalogue at run
+    # time, so this job goes red for a hub outage, a withdrawn catalogue entry or
+    # a sibling's release moved under it, none of which is this plugin, and each
+    # of those holds a release that is otherwise correct. The answer is the one
+    # the loop's `needs:` line gives: a less flaky harness, never a gate that can
+    # be waved through.
+    #
+    # THE CONDITION IS THE ONE `floor` CARRIES. A dispatch reaches no build
+    # either way, and the deliberate-failure probes on this file exercise the
+    # loop, so nothing here is failed on purpose and nothing here takes a flag.
+    if: github.event_name == 'push'
+    permissions:
+      # A called workflow gets no more than the calling job. The matrix reads the
+      # tree it packages and nothing else; the family rows it fetches are public.
+      contents: read
+    uses: ./.github/workflows/interoperability.yaml
+
   build:
     name: Build package
     # The gate for what this run says about itself, the loop for what the plugin
-    # does on a server, and the floor for whether the archive loads on the oldest
-    # server the manifest promises. None of the three is advisory: a release is
-    # not cut past a red one, and the argument for that is at the top of this file.
-    needs: [gate, loop, floor]
+    # does on a server, the floor for whether the archive loads on the oldest
+    # server the manifest promises, and the matrix for whether it loads alone and
+    # beside its family without a collision. None of the four is advisory: a
+    # release is not cut past a red one, and the argument for that is at the top
+    # of this file.
+    needs: [gate, loop, floor, matrix]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Reads the source and nothing else. The signing scopes are deliberately not here:
@@ -945,11 +988,12 @@ jobs:
     # judges is the RELEASE rather than any job's status, and the reading below
     # names every job by result rather than testing the run's conclusion, so a
     # skipped chain reads as `incomplete` the same way a failed one does.
-    # THE FLOOR IS IN THIS LIST FOR THE SAME REASON AS THE LOOP. It is a second
-    # job ahead of `build`, so a red one skips the chain rather than failing it,
-    # and a reading that did not name it would call that run's outcome from the
-    # jobs it did name. It is named by result below like every other.
-    needs: [gate, loop, floor, build, attest, release]
+    # THE FLOOR AND THE MATRIX ARE IN THIS LIST FOR THE SAME REASON AS THE LOOP.
+    # Each is a job ahead of `build`, so a red one skips the chain rather than
+    # failing it, and a reading that did not name it would call that run's
+    # outcome from the jobs it did name. Both are named by result below like
+    # every other.
+    needs: [gate, loop, floor, matrix, build, attest, release]
     if: always() && (github.event_name == 'push' || inputs.deliberately-fail || inputs.deliberately-fail-the-loop)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1000,7 +1044,7 @@ jobs:
           # failed, was cancelled, or was skipped because an earlier one failed all
           # mean the route did not finish, and what it left behind is read below
           # rather than assumed empty.
-          OUTCOME: ${{ (needs.gate.result == 'success' && needs.loop.result == 'success' && needs.floor.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
+          OUTCOME: ${{ (needs.gate.result == 'success' && needs.loop.result == 'success' && needs.floor.result == 'success' && needs.matrix.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
         run: |
           set -euo pipefail
 
