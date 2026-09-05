@@ -33,8 +33,11 @@ installed on any one machine:
 The second version was the same command with the version properties overridden on the
 command line, because on the day of this run `build.yaml` carried one version and
 nothing had been released, so there was no pair of published versions to move between.
-Two releases exist now, `0.1.0.0-stable` and `0.1.1.0-stable`, and walking the upgrade
-between the published pair rather than between two hand-built assemblies is #76:
+Two releases exist now, `0.1.0.0-stable` and `0.1.1.0-stable`, and the upgrade between
+that published pair has since been walked from the catalogue and recorded in
+[install-from-the-catalogue.md](install-from-the-catalogue.md). The readings below are
+still the ones from the two hand-built assemblies, because they are a record of one run
+and are not re-taken here:
 
     dotnet publish ... -p:Version=0.1.0.1 -p:AssemblyVersion=0.1.0.1 -p:FileVersion=0.1.0.1
     sha256sum Jellyfin.Plugin.Watchlist.dll
@@ -389,11 +392,21 @@ from this page:
 
     gh release list --repo Flowfin/jellyfin-plugin-watchlist
 
-No run has installed this plugin through the catalogue. So what is written above is
-what happens once the files are in place, and not the procedure an administrator
-follows to get them there; #76 is the
-run that takes that route on a stock server from the published catalogue, and this
-document gains the section when it has.
+THIS PARAGRAPH SAID NO RUN HAD INSTALLED THIS PLUGIN THROUGH THE CATALOGUE, AND ONE
+HAS. On 2026-09-05 a stock 10.11.11 server was given the address, resolved the entry,
+installed `0.1.1.0`, loaded it and was walked through one add and one removal, and a
+second server installed `0.1.0.0` and was upgraded to `0.1.1.0` with its stored list
+read back afterwards. That run is
+[install-from-the-catalogue.md](install-from-the-catalogue.md).
+
+WHAT IS WRITTEN ABOVE IS STILL WHAT HAPPENS ONCE THE FILES ARE IN PLACE, and this
+document does not gain a catalogue section off that run. Every reading in this file was
+taken from the hand-built pair on a different day, and a procedure assembled here from
+readings taken there would be describing a run nobody made. What the catalogue run
+covers and what it does not is on its own page, including the server's own update check
+fetching a newer release five seconds after an older one was deliberately installed,
+which is a thing an administrator following this document needs and which no reading in
+this file would have found.
 
 **The packaging.** The `meta.json` beside each assembly was written by hand from the
 fields in `build.yaml`, for the same reason. A package produced by a release will not
