@@ -20,8 +20,8 @@ namespace Jellyfin.Plugin.Watchlist.Tests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The sequence this file exists for is one an administrator can perform in three
-/// steps: turn the switch on, make the list, turn the switch off. Until #277 the page
+/// An administrator can produce the state under test in three steps: turn the
+/// switch on, make the list, turn the switch off. Until #277 the page
 /// then said the server offers no shared list while every user of that server could
 /// still read it, add to it and take their own entries off it, and nothing refused the
 /// sequence or reported it.
