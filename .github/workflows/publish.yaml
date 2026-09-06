@@ -354,15 +354,95 @@ jobs:
       contents: read
     uses: ./.github/workflows/interoperability.yaml
 
+  catalogue:
+    name: The catalogue route was green when it was last walked
+    # THE DISTRIBUTION ROUTE, AND IT IS THE ONE JOB HERE THAT CANNOT WALK THIS
+    # RELEASE. Every other gate above judges the artifact this run is about. This one
+    # cannot: the catalogue entry for the version this tag creates does not exist
+    # yet. The catalogue is rebuilt on the hub on its own schedule and reaches the
+    # address through a merge there, which is two waits and neither of them is this
+    # repository's to end, so a job here that installed "from the catalogue" would be
+    # installing the PREVIOUS release under the new one's name.
+    #
+    # WHAT IT DOES INSTEAD IS BLOCK THE NEXT RELEASE RATHER THAN THIS ONE. It reads
+    # the last completed run of `install-from-the-catalogue.yaml` on the default
+    # branch and refuses while that run is red. A release is not cut into a
+    # distribution route that is known to be broken, and #347 argues that this is the
+    # whole of what #76's fifth condition can mean in an arrangement where the
+    # catalogue arrives after the tag.
+    #
+    # IT FAILS CLOSED ON AN ABSENT VERDICT, and that is a cost stated rather than
+    # discovered: a repository whose catalogue walk has never completed does not
+    # release until somebody runs it, by dispatch or by waiting for its schedule. An
+    # unproven route and a proven one are different states, and treating the first as
+    # the second is what this job exists against.
+    #
+    # THE CONDITION IS THE ONE `floor` AND `matrix` CARRY. A dispatch reaches no
+    # build either way.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # Reads one workflow's run list through the API and nothing else. It checks
+      # nothing out: the verdict is a property of a past run rather than of this tree.
+      actions: read
+    steps:
+      - name: Read the last completed walk of the catalogue route
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Read out of the environment rather than interpolated into the script, so
+          # nothing the event carries reaches a shell here.
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          route="repos/${GITHUB_REPOSITORY}/actions/workflows/install-from-the-catalogue.yaml/runs"
+
+          # ASKING AND FAILING TO ASK ARE THE SAME OUTCOME HERE, AND BOTH FAIL CLOSED.
+          # Before the walk's own workflow file exists on the default branch this call
+          # answers 404, which is neither a green verdict nor a red one - it is the
+          # route being unproven, and that is the state this job refuses.
+          if ! answer="$(gh api "${route}?branch=${BRANCH}&status=completed&per_page=1" 2>&1)"; then
+            echo "::error::Asking for the last completed walk of the catalogue route did not answer."
+            echo "${answer}" >&2
+            echo "An unproven distribution route and a proven one are different states, so this release stops here rather than reading silence as a working catalogue." >&2
+            exit 1
+          fi
+
+          verdict="$(printf '%s' "${answer}" | jq -r '.workflow_runs[0].conclusion // ""')"
+
+          if [ -z "${verdict}" ]; then
+            echo "::error::No completed run of the catalogue walk on ${BRANCH}."
+            echo "The route every user installs and updates through is unproven, which is not the same state as proven and working." >&2
+            echo "Run 'Install from the catalogue' on ${BRANCH} - by dispatch, or by waiting for its schedule - and push the tag again." >&2
+            exit 1
+          fi
+
+          echo "The last completed walk of the catalogue route on ${BRANCH} concluded: ${verdict}"
+
+          if [ "${verdict}" != "success" ]; then
+            echo "::error::The catalogue route was red the last time anything walked it."
+            echo "The published catalogue could not be installed from, or the upgrade across it lost a stored list." >&2
+            echo "Publishing another release into that route would ship a version nobody can receive, and the success message is what would hide it." >&2
+            exit 1
+          fi
+
+          echo "The route this release will be distributed through was walked and worked."
+
   build:
     name: Build package
     # The gate for what this run says about itself, the loop for what the plugin
     # does on a server, the floor for whether the archive loads on the oldest
-    # server the manifest promises, and the matrix for whether it loads alone and
-    # beside its family without a collision. None of the four is advisory: a
-    # release is not cut past a red one, and the argument for that is at the top
-    # of this file.
-    needs: [gate, loop, floor, matrix]
+    # server the manifest promises, the matrix for whether it loads alone and
+    # beside its family without a collision, and the catalogue for whether the one
+    # route a user receives any of it through was working when it was last walked.
+    # None of the five is advisory: a release is not cut past a red one, and the
+    # argument for that is at the top of this file.
+    #
+    # THE FIFTH IS THE ONE THAT IS NOT ABOUT THIS RUN'S ARTIFACT, and its own
+    # comment says why it cannot be. It reads a past verdict rather than producing
+    # one here.
+    needs: [gate, loop, floor, matrix, catalogue]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Reads the source and nothing else. The signing scopes are deliberately not here:
@@ -988,12 +1068,12 @@ jobs:
     # judges is the RELEASE rather than any job's status, and the reading below
     # names every job by result rather than testing the run's conclusion, so a
     # skipped chain reads as `incomplete` the same way a failed one does.
-    # THE FLOOR AND THE MATRIX ARE IN THIS LIST FOR THE SAME REASON AS THE LOOP.
-    # Each is a job ahead of `build`, so a red one skips the chain rather than
-    # failing it, and a reading that did not name it would call that run's
-    # outcome from the jobs it did name. Both are named by result below like
-    # every other.
-    needs: [gate, loop, floor, matrix, build, attest, release]
+    # THE FLOOR, THE MATRIX AND THE CATALOGUE ARE IN THIS LIST FOR THE SAME REASON
+    # AS THE LOOP. Each is a job ahead of `build`, so a red one skips the chain
+    # rather than failing it, and a reading that did not name it would call that
+    # run's outcome from the jobs it did name. All three are named by result below
+    # like every other.
+    needs: [gate, loop, floor, matrix, catalogue, build, attest, release]
     if: always() && (github.event_name == 'push' || inputs.deliberately-fail || inputs.deliberately-fail-the-loop)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1044,7 +1124,7 @@ jobs:
           # failed, was cancelled, or was skipped because an earlier one failed all
           # mean the route did not finish, and what it left behind is read below
           # rather than assumed empty.
-          OUTCOME: ${{ (needs.gate.result == 'success' && needs.loop.result == 'success' && needs.floor.result == 'success' && needs.matrix.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
+          OUTCOME: ${{ (needs.gate.result == 'success' && needs.loop.result == 'success' && needs.floor.result == 'success' && needs.matrix.result == 'success' && needs.catalogue.result == 'success' && needs.build.result == 'success' && needs.attest.result == 'success' && needs.release.result == 'success') && 'success' || 'incomplete' }}
         run: |
           set -euo pipefail
 
