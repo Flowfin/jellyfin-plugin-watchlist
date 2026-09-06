@@ -1,0 +1,182 @@
+# Install this plugin from the published catalogue on a stock server, and walk the
+# upgrade between the two newest versions that catalogue lists (#347).
+#
+# WHAT THIS ADDS THAT EVERY OTHER SERVER JOB ON THIS BOARD DOES NOT. The whole loop,
+# the floor and the interoperability matrix all unpack the packaged archive into the
+# server's plugin directory. None of them is an install. The route a user takes -
+# an address added once, a catalogue entry the server parses, an archive it fetches,
+# a checksum it accepts - was, until this job, walked exactly once and by hand, and
+# the record of that walk says on its own last line that it is a record rather than
+# a control:
+#
+#     git grep -c 'install-from-the-catalogue' .github/workflows/publish.yaml
+#
+# THE HARNESS IS A FIRST-PARTY SCRIPT IN THE TREE, for the reason the harnesses
+# beside it are: the gate should be readable here, and it should run the same way on
+# a workstation with a container runtime as it does on a runner.
+#
+#   .github/scripts/install-from-the-catalogue-on-a-line.sh \
+#     --image jellyfin/jellyfin:10.11.11
+#
+# TWO PROBES RUN AHEAD OF THE RUN THAT MATTERS, which is the ordering every other
+# guard in this repository uses. A harness that asserted nothing would pass the real
+# run exactly like one that is holding.
+#
+#   The judgements the harness decides with run over fabricated answers and their
+#   one-change neighbours. No container and no network.
+#
+#   The same two phases with this plugin's store directory emptied inside the
+#   container between the two installs, which must refuse FOR THE STORED LIST NOT
+#   SURVIVING rather than merely exit non-zero. That proves the assertion the
+#   upgrade half is about, on a live server, against the one state that decides it.
+#
+# WHERE THIS SITS IN THE RELEASE PATH, AND WHAT IT BLOCKS. Not in the publishing
+# chain, and the reason is not a preference. The chain runs on a pushed tag, and the
+# catalogue entry for the version that tag creates does not exist at that moment: the
+# catalogue is rebuilt on the hub on its own schedule and reaches the address through
+# a merge there, which is two waits, neither of them this repository's to end. A job
+# in the chain could therefore only ever install the PREVIOUS release, under the name
+# of the new one. So this runs on its own schedule and on demand, and what it blocks
+# is the NEXT release rather than the one that produced the entry: `publish.yaml`
+# reads the last completed run of this workflow on the default branch and refuses to
+# build while that run is red. A release is not cut into a distribution route that is
+# known to be broken, which is the whole of what #76's fifth condition can mean in an
+# arrangement where the catalogue arrives after the tag.
+#
+# WHAT IT DOES WHEN THE CATALOGUE HAS NOT CAUGHT UP WITH A RELEASE. It reports the
+# lag by name and does not go red for it. A check that reddened for a lag would be
+# red after every release for as long as somebody else's queue takes, and a red run
+# somebody learns to ignore is worse than no run. What this job judges is whether
+# what IS published installs and upgrades. Whether the catalogue has fallen behind a
+# release is a reading of the catalogue against the releases, and it is #89.
+#
+# THE SCHEDULE, AND THE REASON FOR THE INTERVAL RATHER THAN THE INTERVAL ALONE.
+# Daily, an hour after the hub's own rebuild window, so a run reads a catalogue that
+# has had its chance to move rather than one mid-rebuild. Daily and not hourly
+# because what it watches changes only when a release is published or the hub
+# republishes, and both are daily events at most; daily and not weekly because the
+# thing it guards is the only route a user has, and six days of a broken route is
+# not a residual this board would accept.
+#
+# WHAT A FAILURE LEAVES BEHIND. The harness writes both container logs and the
+# transcript of every call it made into a directory, on every path it can exit by,
+# and the job uploads that directory whether the run passed or failed. A red run is
+# readable a month later, when the step log has scrolled past and the servers it was
+# about are long gone.
+#
+# ONE LINE IS BOOTED AND THE RUN SAYS SO. The tree carries one package set, and a
+# second line arrives with a second one rather than with a second entry here.
+name: Install from the catalogue
+
+on:
+  # A pull request that can move what the harness asserts: the harness itself, this
+  # file, `build.yaml` - whose identity the harness asserts against - and `README.md`,
+  # out of which the address is read. A trigger narrowed to the harness alone would
+  # be a check that guards only itself.
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/scripts/install-from-the-catalogue-on-a-line.sh'
+      - '.github/workflows/install-from-the-catalogue.yaml'
+      - 'build.yaml'
+      - 'README.md'
+
+  # The reason for this interval is at the top of this file rather than here.
+  schedule:
+    - cron: '17 5 * * *'
+
+  workflow_dispatch:
+    inputs:
+      deliberately-fail:
+        description: 'Run the near miss instead, which must refuse for the stored list not surviving'
+        type: boolean
+        default: false
+
+# Nothing at workflow level; the job below asks for what it reads and no more.
+permissions: {}
+
+# A new push replaces the run under way. A reading of a superseded tree says nothing
+# about the branch as it now stands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  walk:
+    # This name is the check context. Changing it removes a context rather than
+    # renaming one, so it is changed only together with whatever requires it.
+    name: Install and upgrade from the catalogue
+    runs-on: ubuntu-latest
+    # FOUR servers rather than two, because the near miss below walks both phases
+    # again before the run that matters starts. Each is booted, set up and restarted
+    # twice, and one of each pair waits for a library scan.
+    #
+    # THE CEILING IS HEADROOM OVER A MEASUREMENT AND NOT A GUESS. Both walks
+    # together took four minutes on a hosted runner - the near miss reaching its
+    # refusal at 01:01:59Z and the run that matters finishing at 01:03:46Z on run
+    # 34002725578 - and about forty on a workstation whose container runtime is
+    # slower. A ceiling near the measured runner figure would turn a slow morning
+    # into a red release gate, so it is set well above the slower of the two.
+    timeout-minutes: 60
+    permissions:
+      # Reads the tree it runs from. It fetches the archive from the public catalogue
+      # through the server, which needs no token of this repository's.
+      contents: read
+
+    steps:
+      - name: Check out the tree
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prove the judgements bite
+        # Ahead of the run that matters, and it starts no container and fetches
+        # nothing: a harness whose judgements accept anything would pass the walk
+        # below exactly like one that is holding.
+        run: bash .github/scripts/install-from-the-catalogue-on-a-line.sh --prove-it-bites
+
+      - name: Prove the upgrade half bites, on a live server
+        # The same two phases with this plugin's store directory emptied between the
+        # two installs. The harness exits zero ONLY where it refused for the stored
+        # list not surviving, and non-zero for every other outcome, including a run
+        # that died before it asserted anything.
+        run: |
+          bash .github/scripts/install-from-the-catalogue-on-a-line.sh \
+            --image jellyfin/jellyfin:10.11.11 \
+            --drop-the-store-before-the-upgrade \
+            --collect near-miss-evidence
+
+      - name: Install from the catalogue and walk the upgrade
+        # The run that matters, and it is skipped only where a dispatch asked for the
+        # near miss on its own - which is how the red state of this check is produced
+        # without waiting for the catalogue to break.
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.deliberately-fail }}
+        run: |
+          bash .github/scripts/install-from-the-catalogue-on-a-line.sh \
+            --image jellyfin/jellyfin:10.11.11 \
+            --collect catalogue-evidence
+
+      - name: Make a dispatch that asked for a failure fail
+        # A probe that proves the near miss bites is not the same thing as this check
+        # being red, and `publish.yaml` reads THIS check. Without this step a dispatch
+        # asking for a failure would end green and the release gate could never be
+        # exercised without breaking the catalogue for real.
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deliberately-fail }}
+        run: |
+          echo "This run was dispatched with deliberately-fail, so it ends red on purpose." >&2
+          echo "What it proves is the release gate in publish.yaml, which reads the last completed run of this workflow." >&2
+          exit 1
+
+      - name: Keep what the run collected
+        # On every path, not only the failing one, so a green run leaves the
+        # transcript that says what it actually asked the servers.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: install-from-the-catalogue-${{ github.run_id }}
+          path: |
+            catalogue-evidence
+            near-miss-evidence
+          if-no-files-found: warn
+          retention-days: 14
