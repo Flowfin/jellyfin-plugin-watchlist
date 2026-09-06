@@ -35,38 +35,33 @@
 # will notice that you did not.
 #
 # WHETHER THIS FILE SHOULD BE COMPARED AGAINST THE BOARD BY ANYTHING AT ALL IS
-# OPEN. #338 leaves it open rather than answering it, and the comparison is not
-# hypothetical: the board carries a fourth member of the `blocked-on-` family
-# below, and three are declared.
+# OPEN. #338 leaves it open rather than answering it, and nothing has answered it
+# since. What is no longer open is whether the file AGREES with the board on the
+# `blocked-on-` family; it does, and the two readings say so:
 #
 #     gh label list --repo Flowfin/jellyfin-plugin-watchlist --limit 100 \
 #       --json name --jq '[.[].name | select(startswith("blocked-on-"))] | length'
 #     4
 #
 #     grep -c '^- name: blocked-on-' .github/labels.yaml
-#     3
+#     4
 #
-# THE FOURTH MEMBER IS NOT NAMED ON THIS PAGE AND THE ELISION IS DELIBERATE.
-# `docs/parity.md` pastes a count of that name in this file, `DocumentPasteTests`
-# re-runs the paste, and writing the name here reds that guard over a document
-# #338 may not touch. The two readings above reconstruct the divergence without
-# this file holding the name.
+# THE FOURTH MEMBER STOOD ON THE BOARD AND NOT ON THIS PAGE FOR FIVE DAYS, AND
+# THIS PARAGRAPH SAID THE ELISION WAS DELIBERATE AND WOULD STAY. It was
+# deliberate, and the reason was real rather than a preference: `docs/parity.md`
+# pastes a count of that name in this file, `DocumentPasteTests` re-runs the
+# paste, and adding the member reds that guard at `docs/parity.md:731`, where the
+# count stood under the answer `0`. #343 measured that rather than asserting it,
+# and could not repair it because its own `Scope:` reached this file alone.
 #
-# THAT RED IS MEASURED NOW AND THE SENTENCE ABOVE ONLY ASSERTED IT. Appending the
-# member here at `fd474c9`, with the colour and the description the board carries,
-# and running the suite leg refuses at `docs/parity.md:731`, where a pasted
-# `grep -c` of that name against this file stands under the answer `0`. The same
-# filter on the unmodified tree refuses nothing. So the elision is what keeps two
-# files green at once, no scope declared so far has reached both of them, and
-# removing it is one change to both rather than a line added here.
-#
-# #349 IS WHERE THE NAME, THE DIVERGENCE AND THAT REPAIR LIVE, and it declares
-# both files. #343 is where the divergence was read and measured, and it closes on
-# this file saying why the divergence stands.
-#
-# Whether this board should keep a vocabulary of its own at all rather than
-# moving onto the shared set is what #196 left undecided, and neither #327 nor
-# #338 touches it in either direction.
+# WHAT MOVED IS THE DECISION AND NOT THE MEASUREMENT. #349 carries both files, and
+# the question #196 left open - whether this board keeps a vocabulary of its own
+# at all rather than moving onto the shared plugin set - was answered on
+# 2026-09-06 in the direction that keeps it: the `blocked-on-` family is this
+# fleet's vocabulary, the fleet's routes read it by its prefix, and a board
+# carrying a member it does not declare is the divergence rather than the cure.
+# So the member is declared below and the paste in `docs/parity.md` was taken
+# again in the same change, which is why neither file is red between two merges.
 
 # Which part of the plugin an issue is about. The shared set has no vocabulary
 # for this, because it describes pull requests on any plugin rather than the
@@ -125,10 +120,10 @@
 # and an event outside this repository. A fourth member is added the day a
 # fourth kind is read, in the same change that first applies it.
 #
-# THAT DID NOT HAPPEN. A fourth kind was read and applied on this board and no
-# member below declares it. The header above carries that reading and #349 holds
-# the repair, which is a change to this file and to `docs/parity.md` together
-# rather than a member added here on its own.
+# THAT DID NOT HAPPEN, AND IT IS REPAIRED FIVE DAYS LATE RATHER THAN AT THE TIME.
+# The fourth kind was read and applied on this board on 2026-09-01 and no member
+# here declared it until #349. What the delay cost is written at the member
+# itself, because that is where somebody meets it.
 #
 # MORE THAN ONE MEMBER IS LEGAL AND IS NOT A MISTAKE. An issue held by two
 # kinds of wait carries both, because dropping either one makes the issue read
@@ -199,7 +194,9 @@
   #
   # Nothing here reads a declared name back against the board, so the next
   # divergence is found the way this one was, by somebody looking. The next one
-  # was: it was read and measured on #343, and #349 is what removes it.
+  # was: it was read and measured on #343, and #349 removed it by declaring the
+  # member below. Nothing about that route changed - the one after it will be
+  # found by somebody looking too.
 
 - name: blocked-on-upstream
   color: 'd4c5f9'
@@ -208,3 +205,30 @@
   # publishes it rather than from anybody's recollection of it. This is the
   # member with no owner on this board: nobody here can schedule the event, so
   # nobody here is late while it carries this.
+
+- name: blocked-on-dependency
+  color: 'd4c5f9'
+  description: Waiting on another issue or on a state of the tree, not on a person
+  # The colour and the description are the ones the board already carries, read
+  # off it rather than chosen again, which is the rule at the top of this file:
+  #
+  #     gh label list --repo Flowfin/jellyfin-plugin-watchlist --limit 100 \
+  #       --json name,color,description \
+  #       --jq '.[] | select(.name == "blocked-on-dependency")
+  #             | "\(.color)\t\(.description)"'
+  #     d4c5f9	Waiting on another issue or on a state of the tree, not on a person
+  #
+  # Removed when the thing it waits on has arrived, read from the issue or from
+  # the tree rather than from a memory of either. It is the member closest to
+  # `blocked-on-issue` above and is not the same: that one waits on WORK ON THIS
+  # BOARD named in the issue, this one also covers a state of the tree that no
+  # issue owns. Where the wait really is another issue here, the one above is the
+  # narrower and better name.
+  #
+  # WHAT ITS ABSENCE COST IS WHY THIS ENTRY EXISTS AT ALL. It was applied on this
+  # board on 2026-09-01 and declared nowhere until #349 on 2026-09-06. While the
+  # scheduled sync still ran, `delete-other-labels` removed a label neither
+  # configuration named and would have taken it off every issue holding it; that
+  # run is recorded in `docs/parity.md` and the sync is gone, so the cost today is
+  # smaller and of a different kind - a declaration that was false about the board
+  # it declares, read by no run, found only because somebody looked.
