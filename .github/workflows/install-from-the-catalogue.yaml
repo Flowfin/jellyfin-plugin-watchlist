@@ -110,9 +110,14 @@ jobs:
     runs-on: ubuntu-latest
     # FOUR servers rather than two, because the near miss below walks both phases
     # again before the run that matters starts. Each is booted, set up and restarted
-    # twice, and one of each pair waits for a library scan. The hand walk this
-    # replaces took about seven minutes for one pair, so the ceiling is roughly four
-    # times a measured pair rather than a number chosen to feel generous.
+    # twice, and one of each pair waits for a library scan.
+    #
+    # THE CEILING IS HEADROOM OVER A MEASUREMENT AND NOT A GUESS. Both walks
+    # together took four minutes on a hosted runner - the near miss reaching its
+    # refusal at 01:01:59Z and the run that matters finishing at 01:03:46Z on run
+    # 34002725578 - and about forty on a workstation whose container runtime is
+    # slower. A ceiling near the measured runner figure would turn a slow morning
+    # into a red release gate, so it is set well above the slower of the two.
     timeout-minutes: 60
     permissions:
       # Reads the tree it runs from. It fetches the archive from the public catalogue
