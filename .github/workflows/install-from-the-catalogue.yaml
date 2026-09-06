@@ -51,12 +51,33 @@
 # release is a reading of the catalogue against the releases, and it is #89.
 #
 # THE SCHEDULE, AND THE REASON FOR THE INTERVAL RATHER THAN THE INTERVAL ALONE.
-# Daily, an hour after the hub's own rebuild window, so a run reads a catalogue that
-# has had its chance to move rather than one mid-rebuild. Daily and not hourly
-# because what it watches changes only when a release is published or the hub
-# republishes, and both are daily events at most; daily and not weekly because the
-# thing it guards is the only route a user has, and six days of a broken route is
-# not a residual this board would accept.
+#
+# THE INTERVAL IS DAILY. Not hourly, because what it watches moves only when a
+# release is published or the hub republishes, and both are daily events at most.
+# Not weekly, because the thing it guards is the only route a user has, and six
+# days of a broken route is not a residual this board would accept.
+#
+# THE HOUR SITS AFTER THE HUB'S OWN CHAIN, READ FROM THE HUB RATHER THAN ASSUMED.
+# THIS PARAGRAPH SAID "an hour after the hub's own rebuild window" AND THE HOUR IT
+# NAMED WAS SIX MINUTES BEFORE IT:
+#
+#     gh api repos/Flowfin/hub/contents/.github/workflows/publish.yml \
+#       -H "Accept: application/vnd.github.raw" | grep -A1 'schedule:'
+#       schedule:
+#         - cron: "23 5 * * *"
+#
+# and `freshness.yml` and `sweep.yml` beside it declare `53 5 * * *` and
+# `43 6 * * *`. The hour below is after all three, and after the starts actually
+# observed on the hub, which run hours later than the crons declare:
+#
+#     gh run list --repo Flowfin/hub --workflow publish.yml --limit 4 \
+#       --json createdAt,event,conclusion \
+#       --jq '.[] | "\(.createdAt) \(.event) \(.conclusion)"'
+#
+# WHAT NO HOUR BUYS IS THE THING THE LAG IS ABOUT. A rebuilt catalogue reaches the
+# address through a MERGE on the hub, which is on no schedule at all, so "after the
+# rebuild" is a best effort here and never a guarantee. That is exactly why a
+# catalogue behind a release is reported by name and is not this run's red.
 #
 # WHAT A FAILURE LEAVES BEHIND. The harness writes both container logs and the
 # transcript of every call it made into a directory, on every path it can exit by,
@@ -82,9 +103,10 @@ on:
       - 'build.yaml'
       - 'README.md'
 
-  # The reason for this interval is at the top of this file rather than here.
+  # The reason for this interval and for this hour is at the top of this file
+  # rather than here.
   schedule:
-    - cron: '17 5 * * *'
+    - cron: '37 11 * * *'
 
   workflow_dispatch:
     inputs:
