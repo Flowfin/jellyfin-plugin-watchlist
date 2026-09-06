@@ -725,11 +725,9 @@ shared set still read from its own URL at the moment of the run, this
 repository's own labels handed to the same run in `.github/labels.yaml` beside
 it, and `delete-other-labels` kept because removing a label nobody declared is
 what the sync is for. The gap in it is a label the board gains that the file
-does not, and the scheduled run of 2026-09-01 met one. Its output for
-`blocked-on-dependency`, which `.github/labels.yaml` declares nowhere:
+does not, and the scheduled run of 2026-09-01 met one. What that run did to
+`blocked-on-dependency`:
 
-    grep -c 'blocked-on-dependency' .github/labels.yaml
-    0
     gh run view 33463837260 --repo Flowfin/jellyfin-plugin-watchlist --log \
       | grep -A3 'blocked-on-dependency \[added\]' \
       | sed 's/^Sync labels\tUNKNOWN STEP\t[0-9T:.Z-]*Z //'
@@ -737,6 +735,25 @@ does not, and the scheduled run of 2026-09-01 met one. Its output for
     blocked-on-dependency → ⚰️
     #d4c5f9 → ⚰️
     Waiting on another issue or on a state of the tree, not on a person → ⚰️
+
+THE READING BESIDE THAT ONE SAID THE FILE DECLARED THE NAME NOWHERE, AND IT NO
+LONGER REPRODUCES. It stood as ``grep -c 'blocked-on-dependency' .github/labels.yaml``
+under the answer `0`, and it is written inline here rather than as a block on
+purpose: a pasted command is re-run, and this one is a record of what the command
+USED to answer. It was true from 2026-09-01 until 2026-09-06, which is the whole
+span this paragraph is a record of. The file declares the member now, so the same command
+answers
+
+    grep -c 'blocked-on-dependency' .github/labels.yaml
+    2
+
+- the entry and the reading inside its own comment. That is #349, taken after
+#196's open question was answered in the direction that keeps this board's
+vocabulary, and it is one change to this file and to `.github/labels.yaml`
+together: the count above and the declaration beside it cannot be green in
+separate merges, because `DocumentPasteTests` re-runs this paste. #343 measured
+that constraint and could not repair it, its own `Scope:` reaching one of the two
+files.
 
 So the sync is removed on the decision taken on share-links#338 for every board
 that carries the file, and #327 is where it was executed here. The vocabulary of
