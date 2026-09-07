@@ -86,7 +86,18 @@ jobs:
         run: |
           set -euo pipefail
           dotnet tool install --global dotnet-stryker --version "${MUTATION_TOOL_VERSION}"
-          dotnet restore
+          # --locked-mode is named here even though RestoreLockedMode in
+          # Directory.Build.props already turns it on for every project in this
+          # solution, and it is not to be deleted as redundant. The score this run
+          # takes is a score over the graph the lock files pin only if the restore
+          # that built it refused to resolve anything else, and a reader of this
+          # one line cannot see the property that makes that true. Scorecard
+          # cannot see it either: its Pinned-Dependencies check reads the flag off
+          # this line and RestoreLockedMode out of *.csproj files, never out of
+          # Directory.Build.props, which is what raised #354. The same flag stands
+          # on the restore in .github/scripts/list-vulnerable-dependencies.sh for
+          # the same reason.
+          dotnet restore --locked-mode
           dotnet stryker \
             --config-file Jellyfin.Plugin.Watchlist.Tests/stryker-config.json \
             --output "${RUNNER_TEMP}/mutation" \
